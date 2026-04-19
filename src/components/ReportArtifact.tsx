@@ -1,5 +1,6 @@
 import type { FeasibilityReport } from "@/types/feasibility";
 import { Card } from "@/components/ui/card";
+import { PlotMap } from "@/components/PlotMap";
 import {
   AlertTriangle,
   ArrowUpRight,
