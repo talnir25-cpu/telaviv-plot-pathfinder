@@ -1,5 +1,6 @@
 import type { FeasibilityReport } from "@/types/feasibility";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { PlotMap } from "@/components/PlotMap";
 import {
   AlertTriangle,
@@ -8,6 +9,7 @@ import {
   FileText,
   Info,
   Layers,
+  RefreshCw,
   Ruler,
   ShieldAlert,
   Sparkles,
@@ -20,6 +22,8 @@ interface Props {
   plotLabel: string;
   gush: number;
   helka: number;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }
 
 const STATUS_STYLES: Record<
