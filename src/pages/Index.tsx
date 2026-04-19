@@ -12,6 +12,7 @@ const Index = () => {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<FeasibilityReport | null>(null);
   const [plotLabel, setPlotLabel] = useState("");
+  const [plotIds, setPlotIds] = useState<{ gush: number; helka: number } | null>(null);
 
   const handleAnalyze = async (input: AnalysisInput) => {
     setLoading(true);
@@ -33,6 +34,7 @@ const Index = () => {
       }
       setReport(data.report as FeasibilityReport);
       setPlotLabel(`רובע ${input.quarter} • גוש ${input.gush} • חלקה ${input.helka}`);
+      setPlotIds({ gush: input.gush, helka: input.helka });
     } catch (e) {
       console.error(e);
       toast.error("שגיאה לא צפויה");
@@ -73,7 +75,14 @@ const Index = () => {
           </Card>
         )}
 
-        {report && <ReportArtifact report={report} plotLabel={plotLabel} />}
+        {report && plotIds && (
+          <ReportArtifact
+            report={report}
+            plotLabel={plotLabel}
+            gush={plotIds.gush}
+            helka={plotIds.helka}
+          />
+        )}
 
         <footer className="pt-8 text-center text-xs text-muted-foreground">
           הדוח מסתמך על המסמכים המצורפים ועל היוריסטיקה תכנונית. כל החלטת השקעה

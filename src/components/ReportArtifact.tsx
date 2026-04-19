@@ -1,5 +1,6 @@
 import type { FeasibilityReport } from "@/types/feasibility";
 import { Card } from "@/components/ui/card";
+import { PlotMap } from "@/components/PlotMap";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -17,6 +18,8 @@ import { cn } from "@/lib/utils";
 interface Props {
   report: FeasibilityReport;
   plotLabel: string;
+  gush: number;
+  helka: number;
 }
 
 const STATUS_STYLES: Record<
@@ -140,7 +143,7 @@ const ComparisonRow = ({
   </tr>
 );
 
-export const ReportArtifact = ({ report, plotLabel }: Props) => {
+export const ReportArtifact = ({ report, plotLabel, gush, helka }: Props) => {
   const status = STATUS_STYLES[report.status];
 
   return (
@@ -170,6 +173,9 @@ export const ReportArtifact = ({ report, plotLabel }: Props) => {
           </div>
         </div>
       </Card>
+
+      {/* Plot location map */}
+      <PlotMap gush={gush} helka={helka} />
 
       {/* Key metrics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
