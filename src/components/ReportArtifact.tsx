@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 interface Props {
   report: FeasibilityReport;
   plotLabel: string;
+  gush: number;
+  helka: number;
 }
 
 const STATUS_STYLES: Record<
@@ -141,7 +143,7 @@ const ComparisonRow = ({
   </tr>
 );
 
-export const ReportArtifact = ({ report, plotLabel }: Props) => {
+export const ReportArtifact = ({ report, plotLabel, gush, helka }: Props) => {
   const status = STATUS_STYLES[report.status];
 
   return (
