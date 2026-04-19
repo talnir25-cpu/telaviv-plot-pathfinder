@@ -1,5 +1,6 @@
 import type { FeasibilityReport } from "@/types/feasibility";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { PlotMap } from "@/components/PlotMap";
 import {
   AlertTriangle,
@@ -8,6 +9,7 @@ import {
   FileText,
   Info,
   Layers,
+  RefreshCw,
   Ruler,
   ShieldAlert,
   Sparkles,
@@ -20,6 +22,8 @@ interface Props {
   plotLabel: string;
   gush: number;
   helka: number;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }
 
 const STATUS_STYLES: Record<
@@ -143,7 +147,14 @@ const ComparisonRow = ({
   </tr>
 );
 
-export const ReportArtifact = ({ report, plotLabel, gush, helka }: Props) => {
+export const ReportArtifact = ({
+  report,
+  plotLabel,
+  gush,
+  helka,
+  onRefresh,
+  refreshing,
+}: Props) => {
   const status = STATUS_STYLES[report.status];
 
   return (
@@ -160,15 +171,32 @@ export const ReportArtifact = ({ report, plotLabel, gush, helka }: Props) => {
                 {report.headline}
               </h2>
             </div>
-            <div
-              className={cn(
-                "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ring-2",
-                status.bg,
-                status.ring
+            <div className="flex flex-wrap items-center gap-2">
+              {onRefresh && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={onRefresh}
+                  disabled={refreshing}
+                  className="bg-primary-foreground/15 text-primary-foreground hover:bg-primary-foreground/25 border-0"
+                >
+                  <RefreshCw
+                    className={cn("h-4 w-4", refreshing && "animate-spin")}
+                  />
+                  {refreshing ? "מרענן..." : "רענן דוח"}
+                </Button>
               )}
-            >
-              <span className={cn("h-2 w-2 animate-pulse rounded-full", status.dot)} />
-              {report.statusLabel || status.label}
+              <div
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ring-2",
+                  status.bg,
+                  status.ring
+                )}
+              >
+                <span className={cn("h-2 w-2 animate-pulse rounded-full", status.dot)} />
+                {report.statusLabel || status.label}
+              </div>
             </div>
           </div>
         </div>

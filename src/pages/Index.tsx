@@ -13,10 +13,12 @@ const Index = () => {
   const [report, setReport] = useState<FeasibilityReport | null>(null);
   const [plotLabel, setPlotLabel] = useState("");
   const [plotIds, setPlotIds] = useState<{ gush: number; helka: number } | null>(null);
+  const [lastInput, setLastInput] = useState<AnalysisInput | null>(null);
 
   const handleAnalyze = async (input: AnalysisInput) => {
     setLoading(true);
     setReport(null);
+    setLastInput(input);
     try {
       const { data, error } = await supabase.functions.invoke("analyze-plot", {
         body: input,
@@ -40,6 +42,13 @@ const Index = () => {
       toast.error("שגיאה לא צפויה");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    if (lastInput) {
+      toast.info("מרענן את הדוח...");
+      handleAnalyze(lastInput);
     }
   };
 
@@ -81,6 +90,8 @@ const Index = () => {
             plotLabel={plotLabel}
             gush={plotIds.gush}
             helka={plotIds.helka}
+            onRefresh={handleRefresh}
+            refreshing={loading}
           />
         )}
 
