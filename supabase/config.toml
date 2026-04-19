@@ -1,1 +1,4 @@
 project_id = "sewnnwxbsupifmrixuan"
+
+[functions.analyze-plot]
+verify_jwt = false
