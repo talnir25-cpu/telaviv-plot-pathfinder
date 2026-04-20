@@ -34,6 +34,50 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [existingFloors, setExistingFloors] = useState("3");
   const [conservation, setConservation] = useState(false);
   const [notes, setNotes] = useState("");
+  const [mode, setMode] = useState<"address" | "manual">("address");
+  const [address, setAddress] = useState("");
+  const [geocoding, setGeocoding] = useState(false);
+  const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+
+  const lookupAddress = async () => {
+    const q = address.trim();
+    if (q.length < 3) {
+      toast.error("הזן/י כתובת מלאה (רחוב + מספר + עיר)");
+      return;
+    }
+    setGeocoding(true);
+    setResolvedAddress(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("geocode-address", {
+        body: { address: q },
+      });
+      if (error) throw error;
+      if (!data?.gush || !data?.helka) {
+        toast.error(data?.error || "לא נמצא גוש/חלקה");
+        return;
+      }
+      const found = PLOTS.find(
+        (p) => p.gush === data.gush && p.helka === data.helka,
+      );
+      if (!found) {
+        toast.error(
+          `הכתובת מופתה לגוש ${data.gush} חלקה ${data.helka}, אך אינה ברובע 3 או 4.`,
+        );
+        return;
+      }
+      setQuarter(found.q);
+      setGushQuery(String(found.gush));
+      setHelka(String(found.helka));
+      setResolvedAddress(data.address);
+      toast.success(`נמצא: גוש ${found.gush} חלקה ${found.helka} (רובע ${found.q})`);
+    } catch (e) {
+      console.error(e);
+      const msg = (e as { message?: string })?.message || "שגיאה בחיפוש כתובת";
+      toast.error(msg);
+    } finally {
+      setGeocoding(false);
+    }
+  };
 
   const gushOptions = useMemo(() => {
     const set = new Set<number>();
