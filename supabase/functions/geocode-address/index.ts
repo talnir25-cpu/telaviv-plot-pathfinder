@@ -1,13 +1,22 @@
-// Geocode a Tel Aviv address → lat/lon + ITM x/y via GovMap FreeSearch.
-// Returns coordinates so the client can show the location on the map and
-// the user can confirm Gush/Helka from the map view.
+// Geocode a Tel Aviv address → Gush/Helka via GovMap.
+// Step 1: FreeSearch returns ITM X/Y for the address.
+// Step 2: IdentifyByXY against PARCEL_ALL returns the Gush/Helka.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ITM (EPSG:2039) → WGS84 (lat/lon). Inverse of standard formulas.
+const GOVMAP_HEADERS = {
+  "Content-Type": "application/json",
+  "Accept": "application/json",
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Origin": "https://www.govmap.gov.il",
+  "Referer": "https://www.govmap.gov.il/",
+};
+
+// ITM (EPSG:2039) → WGS84 — for client-side map display
 function itmToWgs84(x: number, y: number): { lat: number; lon: number } {
   const a = 6378137.0;
   const f = 1 / 298.257222100883;
@@ -56,6 +65,50 @@ function itmToWgs84(x: number, y: number): { lat: number; lon: number } {
   return { lat: (phi * 180) / Math.PI, lon: (lam * 180) / Math.PI };
 }
 
+interface ParcelField {
+  FieldName?: string;
+  FieldValue?: string;
+  fieldName?: string;
+  fieldValue?: string;
+}
+
+function extractGushHelka(idJson: unknown): { gush: number; helka: number } {
+  const root = idJson as { data?: Array<Record<string, unknown>> };
+  const dataArr = root?.data ?? [];
+  const fields: ParcelField[] = [];
+  for (const layer of dataArr) {
+    const results = (layer.Result as unknown[]) ?? [];
+    for (const r of results) {
+      const rr = r as Record<string, unknown>;
+      const tabs = (rr.tabs as unknown[]) ?? [];
+      for (const t of tabs) {
+        const tt = t as Record<string, unknown>;
+        if (Array.isArray(tt.fields)) {
+          for (const f of tt.fields) fields.push(f as ParcelField);
+        }
+      }
+      if (Array.isArray(rr.fields)) {
+        for (const f of rr.fields) fields.push(f as ParcelField);
+      }
+    }
+  }
+
+  let gush = 0;
+  let helka = 0;
+  for (const f of fields) {
+    const name = (f.FieldName ?? f.fieldName ?? "").trim();
+    const value = String(f.FieldValue ?? f.fieldValue ?? "").trim();
+    if (!value) continue;
+    // Hebrew field names from GovMap
+    if (name === "מספר גוש" || name === "גוש" || /^GUSH/i.test(name)) {
+      gush = Number(value);
+    } else if (name === "מספר חלקה" || name === "חלקה" || /^PARCEL/i.test(name)) {
+      helka = Number(value);
+    }
+  }
+  return { gush, helka };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -75,56 +128,70 @@ Deno.serve(async (req) => {
       query = `${query} תל אביב`;
     }
 
-    // GovMap FreeSearch — returns X/Y in ITM and the resolved address text
+    // Step 1: FreeSearch → X/Y
     const searchRes = await fetch("https://ags.govmap.gov.il/Search/FreeSearch", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Origin": "https://www.govmap.gov.il",
-        "Referer": "https://www.govmap.gov.il/",
-      },
+      headers: GOVMAP_HEADERS,
       body: JSON.stringify({ keyword: query, LstResult: null }),
     });
-
-    const rawText = await searchRes.text();
+    const searchText = await searchRes.text();
     if (!searchRes.ok) {
-      throw new Error(`GovMap FreeSearch ${searchRes.status}: ${rawText.slice(0, 120)}`);
+      throw new Error(`GovMap FreeSearch ${searchRes.status}: ${searchText.slice(0, 120)}`);
     }
-    let json: unknown;
+    let searchJson: { data?: { Result?: Array<Record<string, unknown>> } };
     try {
-      json = JSON.parse(rawText);
+      searchJson = JSON.parse(searchText);
     } catch {
-      throw new Error(`GovMap FreeSearch לא תקין: ${rawText.slice(0, 120)}`);
+      throw new Error(`FreeSearch לא תקין: ${searchText.slice(0, 120)}`);
     }
-
-    const root = json as { data?: { Result?: Array<Record<string, unknown>> } };
-    const results = root?.data?.Result ?? [];
-    const first = results[0];
+    const first = searchJson?.data?.Result?.[0];
     if (!first) {
       return new Response(
         JSON.stringify({ error: "לא נמצאה כתובת תואמת. נסה/י כתובת מלאה כולל מספר בית." }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
-
     const x = Number(first.X);
     const y = Number(first.Y);
     const resolvedAddress = String(first.ResultLable ?? query);
     if (!x || !y) throw new Error("התקבלה כתובת ללא קואורדינטות");
 
+    // Step 2: IdentifyByXY → Gush/Helka
+    const idRes = await fetch("https://ags.govmap.gov.il/Identify/IdentifyByXY", {
+      method: "POST",
+      headers: GOVMAP_HEADERS,
+      body: JSON.stringify({
+        x, y, mapTolerance: 5, IsPersonalSite: false,
+        layers: [{ LayerType: 0, LayerName: "PARCEL_ALL" }],
+      }),
+    });
+    const idText = await idRes.text();
+    if (!idRes.ok) {
+      throw new Error(`GovMap Identify ${idRes.status}: ${idText.slice(0, 120)}`);
+    }
+    let idJson: unknown;
+    try {
+      idJson = JSON.parse(idText);
+    } catch {
+      throw new Error(`Identify לא תקין: ${idText.slice(0, 120)}`);
+    }
+
+    const { gush, helka } = extractGushHelka(idJson);
     const { lat, lon } = itmToWgs84(x, y);
 
+    if (!gush || !helka) {
+      return new Response(
+        JSON.stringify({
+          error: "לא נמצא גוש/חלקה עבור הכתובת. נסה/י כתובת מדויקת יותר.",
+          address: resolvedAddress,
+          x, y, lat, lon,
+        }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     return new Response(
-      JSON.stringify({
-        address: resolvedAddress,
-        x, y, lat, lon,
-        // Gush/Helka are not always returned by FreeSearch for address results;
-        // client should ask the user to confirm via the embedded map.
-        gush: first.Gush ? Number(first.Gush) : null,
-        helka: first.Parcel ? Number(first.Parcel) : null,
-      }),
+      JSON.stringify({ gush, helka, address: resolvedAddress, x, y, lat, lon }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
