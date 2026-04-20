@@ -14,7 +14,10 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Search, Sparkles } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Loader2, Search, Sparkles, MapPin, CheckCircle2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/sonner";
 
 const PLOTS = plotsData as Plot[];
 
@@ -31,6 +34,50 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [existingFloors, setExistingFloors] = useState("3");
   const [conservation, setConservation] = useState(false);
   const [notes, setNotes] = useState("");
+  const [mode, setMode] = useState<"address" | "manual">("address");
+  const [address, setAddress] = useState("");
+  const [geocoding, setGeocoding] = useState(false);
+  const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+
+  const lookupAddress = async () => {
+    const q = address.trim();
+    if (q.length < 3) {
+      toast.error("הזן/י כתובת מלאה (רחוב + מספר + עיר)");
+      return;
+    }
+    setGeocoding(true);
+    setResolvedAddress(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("geocode-address", {
+        body: { address: q },
+      });
+      if (error) throw error;
+      if (!data?.gush || !data?.helka) {
+        toast.error(data?.error || "לא נמצא גוש/חלקה");
+        return;
+      }
+      const found = PLOTS.find(
+        (p) => p.gush === data.gush && p.helka === data.helka,
+      );
+      if (!found) {
+        toast.error(
+          `הכתובת מופתה לגוש ${data.gush} חלקה ${data.helka}, אך אינה ברובע 3 או 4.`,
+        );
+        return;
+      }
+      setQuarter(found.q);
+      setGushQuery(String(found.gush));
+      setHelka(String(found.helka));
+      setResolvedAddress(data.address);
+      toast.success(`נמצא: גוש ${found.gush} חלקה ${found.helka} (רובע ${found.q})`);
+    } catch (e) {
+      console.error(e);
+      const msg = (e as { message?: string })?.message || "שגיאה בחיפוש כתובת";
+      toast.error(msg);
+    } finally {
+      setGeocoding(false);
+    }
+  };
 
   const gushOptions = useMemo(() => {
     const set = new Set<number>();
@@ -77,6 +124,77 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
   return (
     <Card className="p-6 shadow-card">
+      <Tabs value={mode} onValueChange={(v) => setMode(v as "address" | "manual")} className="mb-5">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="address">
+            <MapPin className="ml-2 h-4 w-4" />
+            חיפוש לפי כתובת
+          </TabsTrigger>
+          <TabsTrigger value="manual">
+            <Search className="ml-2 h-4 w-4" />
+            בחירה ידנית (גוש/חלקה)
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="address" className="mt-4 space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="address">כתובת מלאה בתל אביב-יפו</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <MapPin className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="address"
+                  placeholder="לדוגמה: דיזנגוף 50, תל אביב"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      lookupAddress();
+                    }
+                  }}
+                  className="pr-10"
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={lookupAddress}
+                disabled={geocoding || address.trim().length < 3}
+                variant="secondary"
+              >
+                {geocoding ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Search className="ml-2 h-4 w-4" />
+                    אתר חלקה
+                  </>
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              החיפוש משתמש ב-GovMap הממשלתי. נתמך רק עבור חלקות ברובע 3 ורובע 4.
+            </p>
+          </div>
+
+          {resolvedAddress && gushQuery && helka && (
+            <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div>
+                <div className="font-medium">{resolvedAddress}</div>
+                <div className="text-xs text-muted-foreground">
+                  רובע {quarter} • גוש {gushQuery} • חלקה {helka}
+                </div>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="manual" className="mt-2 text-xs text-muted-foreground">
+          בחר/י את הרובע, הגוש והחלקה ידנית בטופס מטה.
+        </TabsContent>
+      </Tabs>
+
       <form onSubmit={submit} className="grid gap-5 md:grid-cols-2">
         <div className="space-y-2">
           <Label>רובע</Label>
