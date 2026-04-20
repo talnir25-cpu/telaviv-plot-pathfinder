@@ -124,6 +124,77 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
   return (
     <Card className="p-6 shadow-card">
+      <Tabs value={mode} onValueChange={(v) => setMode(v as "address" | "manual")} className="mb-5">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="address">
+            <MapPin className="ml-2 h-4 w-4" />
+            חיפוש לפי כתובת
+          </TabsTrigger>
+          <TabsTrigger value="manual">
+            <Search className="ml-2 h-4 w-4" />
+            בחירה ידנית (גוש/חלקה)
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="address" className="mt-4 space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="address">כתובת מלאה בתל אביב-יפו</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <MapPin className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="address"
+                  placeholder="לדוגמה: דיזנגוף 50, תל אביב"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      lookupAddress();
+                    }
+                  }}
+                  className="pr-10"
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={lookupAddress}
+                disabled={geocoding || address.trim().length < 3}
+                variant="secondary"
+              >
+                {geocoding ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Search className="ml-2 h-4 w-4" />
+                    אתר חלקה
+                  </>
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              החיפוש משתמש ב-GovMap הממשלתי. נתמך רק עבור חלקות ברובע 3 ורובע 4.
+            </p>
+          </div>
+
+          {resolvedAddress && gushQuery && helka && (
+            <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div>
+                <div className="font-medium">{resolvedAddress}</div>
+                <div className="text-xs text-muted-foreground">
+                  רובע {quarter} • גוש {gushQuery} • חלקה {helka}
+                </div>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="manual" className="mt-2 text-xs text-muted-foreground">
+          בחר/י את הרובע, הגוש והחלקה ידנית בטופס מטה.
+        </TabsContent>
+      </Tabs>
+
       <form onSubmit={submit} className="grid gap-5 md:grid-cols-2">
         <div className="space-y-2">
           <Label>רובע</Label>
