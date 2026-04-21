@@ -14,7 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      plot_units_cache: {
+        Row: {
+          building_count: number | null
+          created_at: string
+          existing_floors: number | null
+          existing_units: number
+          gush: number
+          helka: number
+          id: string
+          notes: string | null
+          source: string
+          total_floor_area: number | null
+          updated_at: string
+        }
+        Insert: {
+          building_count?: number | null
+          created_at?: string
+          existing_floors?: number | null
+          existing_units: number
+          gush: number
+          helka: number
+          id?: string
+          notes?: string | null
+          source?: string
+          total_floor_area?: number | null
+          updated_at?: string
+        }
+        Update: {
+          building_count?: number | null
+          created_at?: string
+          existing_floors?: number | null
+          existing_units?: number
+          gush?: number
+          helka?: number
+          id?: string
+          notes?: string | null
+          source?: string
+          total_floor_area?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
