@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import plotsData from "@/data/plots.json";
 import type { Plot, AnalysisInput } from "@/types/feasibility";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,27 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, Search, Sparkles, MapPin, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Loader2,
+  Search,
+  Sparkles,
+  MapPin,
+  CheckCircle2,
+  Database,
+  Building2,
+  Calculator,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
+
+type UnitsSource = "manual" | "govmap_bldg" | "estimate" | null;
+
+const SOURCE_META: Record<Exclude<UnitsSource, null>, { label: string; icon: typeof Database; tone: string }> = {
+  manual: { label: "מאומת ידנית", icon: CheckCircle2, tone: "text-primary" },
+  govmap_bldg: { label: "GovMap מבנים", icon: Building2, tone: "text-primary" },
+  estimate: { label: "הערכה אוטומטית", icon: Calculator, tone: "text-muted-foreground" },
+};
 
 const PLOTS = plotsData as Plot[];
 
@@ -32,12 +50,15 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [helka, setHelka] = useState("");
   const [existingUnits, setExistingUnits] = useState("8");
   const [existingFloors, setExistingFloors] = useState("3");
+  const [unitsSource, setUnitsSource] = useState<UnitsSource>(null);
+  const [unitsLoading, setUnitsLoading] = useState(false);
   const [conservation, setConservation] = useState(false);
   const [notes, setNotes] = useState("");
   const [mode, setMode] = useState<"address" | "manual">("address");
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+  const lookupReqRef = useRef(0);
 
   const lookupAddress = async () => {
     const q = address.trim();
@@ -105,6 +126,69 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     if (!g || !h) return null;
     return PLOTS.find((p) => p.q === quarter && p.gush === g && p.helka === h) ?? null;
   }, [quarter, gushQuery, helka]);
+
+  // Auto-fetch existing units when a plot is selected (cache → GovMap → estimate)
+  useEffect(() => {
+    if (!selectedPlot) {
+      setUnitsSource(null);
+      return;
+    }
+    const reqId = ++lookupReqRef.current;
+    setUnitsLoading(true);
+    setUnitsSource(null);
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("lookup-plot-units", {
+          body: {
+            gush: selectedPlot.gush,
+            helka: selectedPlot.helka,
+            plotArea: selectedPlot.area ?? selectedPlot.shapeArea,
+          },
+        });
+        if (reqId !== lookupReqRef.current) return; // stale
+        if (error || !data || data.error) {
+          console.warn("units lookup failed", error || data?.error);
+          return;
+        }
+        if (typeof data.units === "number") setExistingUnits(String(data.units));
+        if (typeof data.floors === "number") setExistingFloors(String(data.floors));
+        setUnitsSource((data.source as UnitsSource) ?? "estimate");
+      } catch (e) {
+        console.warn("units lookup error", e);
+      } finally {
+        if (reqId === lookupReqRef.current) setUnitsLoading(false);
+      }
+    })();
+  }, [selectedPlot]);
+
+  const saveManualUnits = async () => {
+    if (!selectedPlot) return;
+    const u = Number(existingUnits);
+    const f = Number(existingFloors);
+    if (!u || u < 1) {
+      toast.error("הזן/י מספר יח״ד תקין");
+      return;
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke("lookup-plot-units", {
+        body: {
+          gush: selectedPlot.gush,
+          helka: selectedPlot.helka,
+          manualUnits: u,
+          manualFloors: f || undefined,
+        },
+      });
+      if (error || data?.error) {
+        toast.error(error?.message || data?.error || "שגיאה בשמירה");
+        return;
+      }
+      setUnitsSource("manual");
+      toast.success("הנתון נשמר ויהיה זמין לכל המשתמשים");
+    } catch (e) {
+      console.error(e);
+      toast.error("שגיאה בשמירה");
+    }
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -279,12 +363,34 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="units">יח"ד קיימות</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="units">יח"ד קיימות</Label>
+            {unitsLoading ? (
+              <Badge variant="outline" className="gap-1 text-[10px]">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                מאתר...
+              </Badge>
+            ) : unitsSource ? (
+              (() => {
+                const meta = SOURCE_META[unitsSource];
+                const Icon = meta.icon;
+                return (
+                  <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
+                    <Icon className="h-3 w-3" />
+                    {meta.label}
+                  </Badge>
+                );
+              })()
+            ) : null}
+          </div>
           <Input
             id="units"
             inputMode="numeric"
             value={existingUnits}
-            onChange={(e) => setExistingUnits(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => {
+              setExistingUnits(e.target.value.replace(/\D/g, ""));
+              if (unitsSource && unitsSource !== "manual") setUnitsSource(null);
+            }}
           />
         </div>
 
@@ -297,6 +403,26 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             onChange={(e) => setExistingFloors(e.target.value.replace(/\D/g, ""))}
           />
         </div>
+
+        {selectedPlot && unitsSource && unitsSource !== "manual" && (
+          <div className="md:col-span-2 flex items-center justify-between gap-3 rounded-lg border border-dashed bg-muted/20 px-4 py-2.5 text-xs">
+            <span className="text-muted-foreground">
+              {unitsSource === "govmap_bldg"
+                ? "הערכה לפי שכבת מבנים של GovMap. אם הנתון שגוי — תקן/י וסמן/י כמאומת."
+                : 'הערכה היוריסטית (שטח × קומות ÷ 80 מ"ר). אם ידוע לך הנתון — תקן/י ושמור.'}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={saveManualUnits}
+              className="shrink-0"
+            >
+              <Database className="ml-1.5 h-3.5 w-3.5" />
+              שמור כמאומת
+            </Button>
+          </div>
+        )}
 
         <div className="md:col-span-2 flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
           <div>
