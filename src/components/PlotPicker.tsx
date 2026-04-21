@@ -363,12 +363,34 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="units">יח"ד קיימות</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="units">יח"ד קיימות</Label>
+            {unitsLoading ? (
+              <Badge variant="outline" className="gap-1 text-[10px]">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                מאתר...
+              </Badge>
+            ) : unitsSource ? (
+              (() => {
+                const meta = SOURCE_META[unitsSource];
+                const Icon = meta.icon;
+                return (
+                  <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
+                    <Icon className="h-3 w-3" />
+                    {meta.label}
+                  </Badge>
+                );
+              })()
+            ) : null}
+          </div>
           <Input
             id="units"
             inputMode="numeric"
             value={existingUnits}
-            onChange={(e) => setExistingUnits(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => {
+              setExistingUnits(e.target.value.replace(/\D/g, ""));
+              if (unitsSource && unitsSource !== "manual") setUnitsSource(null);
+            }}
           />
         </div>
 
@@ -381,6 +403,26 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             onChange={(e) => setExistingFloors(e.target.value.replace(/\D/g, ""))}
           />
         </div>
+
+        {selectedPlot && unitsSource && unitsSource !== "manual" && (
+          <div className="md:col-span-2 flex items-center justify-between gap-3 rounded-lg border border-dashed bg-muted/20 px-4 py-2.5 text-xs">
+            <span className="text-muted-foreground">
+              {unitsSource === "govmap_bldg"
+                ? "הערכה לפי שכבת מבנים של GovMap. אם הנתון שגוי — תקן/י וסמן/י כמאומת."
+                : 'הערכה היוריסטית (שטח × קומות ÷ 80 מ"ר). אם ידוע לך הנתון — תקן/י ושמור.'}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={saveManualUnits}
+              className="shrink-0"
+            >
+              <Database className="ml-1.5 h-3.5 w-3.5" />
+              שמור כמאומת
+            </Button>
+          </div>
+        )}
 
         <div className="md:col-span-2 flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
           <div>
