@@ -127,6 +127,69 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     return PLOTS.find((p) => p.q === quarter && p.gush === g && p.helka === h) ?? null;
   }, [quarter, gushQuery, helka]);
 
+  // Auto-fetch existing units when a plot is selected (cache → GovMap → estimate)
+  useEffect(() => {
+    if (!selectedPlot) {
+      setUnitsSource(null);
+      return;
+    }
+    const reqId = ++lookupReqRef.current;
+    setUnitsLoading(true);
+    setUnitsSource(null);
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("lookup-plot-units", {
+          body: {
+            gush: selectedPlot.gush,
+            helka: selectedPlot.helka,
+            plotArea: selectedPlot.area ?? selectedPlot.shapeArea,
+          },
+        });
+        if (reqId !== lookupReqRef.current) return; // stale
+        if (error || !data || data.error) {
+          console.warn("units lookup failed", error || data?.error);
+          return;
+        }
+        if (typeof data.units === "number") setExistingUnits(String(data.units));
+        if (typeof data.floors === "number") setExistingFloors(String(data.floors));
+        setUnitsSource((data.source as UnitsSource) ?? "estimate");
+      } catch (e) {
+        console.warn("units lookup error", e);
+      } finally {
+        if (reqId === lookupReqRef.current) setUnitsLoading(false);
+      }
+    })();
+  }, [selectedPlot]);
+
+  const saveManualUnits = async () => {
+    if (!selectedPlot) return;
+    const u = Number(existingUnits);
+    const f = Number(existingFloors);
+    if (!u || u < 1) {
+      toast.error("הזן/י מספר יח״ד תקין");
+      return;
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke("lookup-plot-units", {
+        body: {
+          gush: selectedPlot.gush,
+          helka: selectedPlot.helka,
+          manualUnits: u,
+          manualFloors: f || undefined,
+        },
+      });
+      if (error || data?.error) {
+        toast.error(error?.message || data?.error || "שגיאה בשמירה");
+        return;
+      }
+      setUnitsSource("manual");
+      toast.success("הנתון נשמר ויהיה זמין לכל המשתמשים");
+    } catch (e) {
+      console.error(e);
+      toast.error("שגיאה בשמירה");
+    }
+  };
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlot) return;
