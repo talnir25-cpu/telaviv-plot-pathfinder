@@ -50,12 +50,15 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [helka, setHelka] = useState("");
   const [existingUnits, setExistingUnits] = useState("8");
   const [existingFloors, setExistingFloors] = useState("3");
+  const [unitsSource, setUnitsSource] = useState<UnitsSource>(null);
+  const [unitsLoading, setUnitsLoading] = useState(false);
   const [conservation, setConservation] = useState(false);
   const [notes, setNotes] = useState("");
   const [mode, setMode] = useState<"address" | "manual">("address");
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+  const lookupReqRef = useRef(0);
 
   const lookupAddress = async () => {
     const q = address.trim();
