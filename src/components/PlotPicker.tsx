@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import plotsData from "@/data/plots.json";
 import type { Plot, AnalysisInput } from "@/types/feasibility";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,27 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, Search, Sparkles, MapPin, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Loader2,
+  Search,
+  Sparkles,
+  MapPin,
+  CheckCircle2,
+  Database,
+  Building2,
+  Calculator,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
+
+type UnitsSource = "manual" | "govmap_bldg" | "estimate" | null;
+
+const SOURCE_META: Record<Exclude<UnitsSource, null>, { label: string; icon: typeof Database; tone: string }> = {
+  manual: { label: "מאומת ידנית", icon: CheckCircle2, tone: "text-primary" },
+  govmap_bldg: { label: "GovMap מבנים", icon: Building2, tone: "text-primary" },
+  estimate: { label: "הערכה אוטומטית", icon: Calculator, tone: "text-muted-foreground" },
+};
 
 const PLOTS = plotsData as Plot[];
 
