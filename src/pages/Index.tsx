@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { PlotPicker } from "@/components/PlotPicker";
 import { ReportArtifact } from "@/components/ReportArtifact";
+import { FinancialAnalysis } from "@/components/FinancialAnalysis";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
 import type { AnalysisInput, FeasibilityReport } from "@/types/feasibility";
