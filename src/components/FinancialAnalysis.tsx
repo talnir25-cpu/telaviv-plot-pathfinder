@@ -1,0 +1,398 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/sonner";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Loader2,
+  Sparkles,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Coins,
+  Calculator,
+  AlertTriangle,
+  CheckCircle2,
+} from "lucide-react";
+import type {
+  FeasibilityReport,
+  FinancialInput,
+  FinancialReport,
+} from "@/types/feasibility";
+
+interface Props {
+  plot: { gush: number; helka: number; quarter: 3 | 4; area: number };
+  planning: FeasibilityReport;
+}
+
+const fmtNIS = (n: number) =>
+  n >= 1_000_000
+    ? `${(n / 1_000_000).toLocaleString("he-IL", { maximumFractionDigits: 2 })} מ׳ ₪`
+    : `${Math.round(n).toLocaleString("he-IL")} ₪`;
+
+const fmtPct = (n: number) => `${n.toFixed(1)}%`;
+
+const VERDICT_META: Record<FinancialReport["verdict"], { label: string; tone: string; icon: typeof TrendingUp }> = {
+  profitable: { label: "רווחי", tone: "bg-primary/10 text-primary border-primary/30", icon: TrendingUp },
+  marginal: { label: "שולי", tone: "bg-amber-500/10 text-amber-700 border-amber-500/30", icon: Minus },
+  loss: { label: "הפסד", tone: "bg-destructive/10 text-destructive border-destructive/30", icon: TrendingDown },
+};
+
+const FIELDS: Array<{ key: keyof FinancialInput; label: string; suffix: string; group: string }> = [
+  { key: "avgSalePricePerSqm", label: 'מחיר מכירה ממוצע', suffix: '₪/מ"ר', group: "מכירות" },
+  { key: "buildCostPerSqm", label: "עלות בנייה", suffix: '₪/מ"ר', group: "מכירות" },
+  { key: "softCostsPct", label: "Soft costs", suffix: "%", group: "מכירות" },
+  { key: "vatPct", label: "מע״מ", suffix: "%", group: "מכירות" },
+  { key: "landValuePerSqm", label: "שווי קרקע", suffix: '₪/מ"ר', group: "מכירות" },
+  { key: "bettermentTaxPct", label: "היטל השבחה", suffix: "%", group: "מכירות" },
+  { key: "equity", label: "הון עצמי", suffix: "₪", group: "מימון" },
+  { key: "loanInterestPct", label: "ריבית מימון", suffix: "% שנתי", group: "מימון" },
+  { key: "constructionMonths", label: "משך הקמה", suffix: "חודשים", group: "מימון" },
+  { key: "tenantRentPerMonth", label: "שכ״ד לדייר", suffix: "₪/חודש", group: "מימון" },
+  { key: "tenantEvacuationCost", label: "פינוי לדייר", suffix: "₪", group: "מימון" },
+  { key: "targetDeveloperProfitPct", label: "רף רווח יזמי מבוקש", suffix: "%", group: "מימון" },
+];
+
+export const FinancialAnalysis = ({ plot, planning }: Props) => {
+  const [input, setInput] = useState<FinancialInput | null>(null);
+  const [loadingDefaults, setLoadingDefaults] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [report, setReport] = useState<FinancialReport | null>(null);
+
+  // Fetch AI-suggested defaults on mount / when plot changes
+  useEffect(() => {
+    let cancelled = false;
+    setReport(null);
+    setInput(null);
+    setLoadingDefaults(true);
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("financial-analysis", {
+          body: {
+            mode: "defaults",
+            quarter: plot.quarter,
+            gush: plot.gush,
+            helka: plot.helka,
+            plotArea: plot.area,
+            proposedUnits: planning.proposed.units,
+            proposedBuiltArea: planning.proposed.builtAreaSqm,
+          },
+        });
+        if (cancelled) return;
+        if (error || !data?.defaults) {
+          toast.error("שגיאה בטעינת ברירות מחדל פיננסיות");
+          return;
+        }
+        const d = data.defaults;
+        setInput({
+          avgSalePricePerSqm: d.avgSalePricePerSqm,
+          buildCostPerSqm: d.buildCostPerSqm,
+          softCostsPct: d.softCostsPct,
+          vatPct: d.vatPct,
+          equity: Math.round(planning.proposed.builtAreaSqm * d.buildCostPerSqm * 0.25),
+          loanInterestPct: d.loanInterestPct,
+          constructionMonths: d.constructionMonths,
+          tenantRentPerMonth: d.tenantRentPerMonth,
+          tenantEvacuationCost: d.tenantEvacuationCost,
+          targetDeveloperProfitPct: 15,
+          landValuePerSqm: d.landValuePerSqm,
+          bettermentTaxPct: d.bettermentTaxPct,
+        });
+      } finally {
+        if (!cancelled) setLoadingDefaults(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [plot.gush, plot.helka, plot.quarter, plot.area, planning.proposed.units, planning.proposed.builtAreaSqm]);
+
+  const updateField = (key: keyof FinancialInput, value: string) => {
+    if (!input) return;
+    const num = Number(value.replace(/[^\d.]/g, ""));
+    setInput({ ...input, [key]: isNaN(num) ? 0 : num });
+  };
+
+  const runAnalysis = async () => {
+    if (!input) return;
+    setAnalyzing(true);
+    setReport(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("financial-analysis", {
+        body: {
+          mode: "analyze",
+          plot,
+          planning,
+          financial: input,
+        },
+      });
+      if (error || !data?.report) {
+        toast.error(error?.message || data?.error || "שגיאה בניתוח פיננסי");
+        return;
+      }
+      setReport(data.report as FinancialReport);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  if (loadingDefaults || !input) {
+    return (
+      <Card className="flex items-center justify-center gap-3 p-12 text-sm text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        טוען המלצות פיננסיות מבוססות AI...
+      </Card>
+    );
+  }
+
+  const groups = ["מכירות", "מימון"];
+
+  return (
+    <div className="space-y-6">
+      <Card className="space-y-5 p-6 shadow-card">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Coins className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">ניתוח פיננסי וכלכלי</h2>
+              <p className="text-xs text-muted-foreground">
+                ערכי ברירת מחדל הוצעו אוטומטית — תקן/י לפי הצורך והפק/י דוח רווחיות
+              </p>
+            </div>
+          </div>
+          <Badge variant="outline" className="gap-1 text-[10px]">
+            <Sparkles className="h-3 w-3" />
+            הוצע ע״י AI
+          </Badge>
+        </div>
+
+        {groups.map((g) => (
+          <div key={g} className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground">{g}</h3>
+            <div className="grid gap-4 md:grid-cols-3">
+              {FIELDS.filter((f) => f.group === g).map((f) => (
+                <div key={f.key} className="space-y-1.5">
+                  <Label htmlFor={f.key} className="text-xs">
+                    {f.label}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id={f.key}
+                      inputMode="decimal"
+                      value={input[f.key]}
+                      onChange={(e) => updateField(f.key, e.target.value)}
+                      className="pl-16 text-sm"
+                    />
+                    <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                      {f.suffix}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <Button
+          onClick={runAnalysis}
+          disabled={analyzing}
+          size="lg"
+          className="w-full bg-gradient-hero text-primary-foreground hover:opacity-95"
+        >
+          {analyzing ? (
+            <>
+              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+              מחשב רווחיות, מימון ורגישות...
+            </>
+          ) : (
+            <>
+              <Calculator className="ml-2 h-4 w-4" />
+              הפק דוח פיננסי
+            </>
+          )}
+        </Button>
+      </Card>
+
+      {report && <FinancialReportCard report={report} />}
+    </div>
+  );
+};
+
+const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
+  const meta = VERDICT_META[report.verdict];
+  const VerdictIcon = meta.icon;
+
+  return (
+    <Card className="space-y-6 p-6 shadow-card">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4">
+        <div className="flex items-start gap-3">
+          <div className={`flex h-11 w-11 items-center justify-center rounded-lg border ${meta.tone}`}>
+            <VerdictIcon className="h-5 w-5" />
+          </div>
+          <div>
+            <Badge variant="outline" className={meta.tone}>
+              {report.verdictLabel || meta.label}
+            </Badge>
+            <p className="mt-1.5 max-w-xl text-sm font-medium">{report.headline}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <KPI label="רווח יזמי" value={fmtNIS(report.developerProfit)} highlight />
+        <KPI label="ROC (רווח/עלות)" value={fmtPct(report.rocPct)} />
+        <KPI label="ROS (רווח/מחזור)" value={fmtPct(report.rosPct)} />
+        <KPI label="IRR משוער" value={fmtPct(report.irrPct)} />
+      </div>
+
+      {/* Cost / revenue breakdown */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <BreakdownPanel
+          title="הכנסות"
+          rows={[
+            ["פדיון ממכירות (כולל מע״מ)", fmtNIS(report.totalSalesRevenue)],
+            ["נטו (ללא מע״מ)", fmtNIS(report.netSalesRevenue)],
+          ]}
+        />
+        <BreakdownPanel
+          title="עלויות"
+          rows={[
+            ["עלות בנייה (Hard)", fmtNIS(report.hardCosts)],
+            ["Soft costs", fmtNIS(report.softCosts)],
+            ["שווי קרקע", fmtNIS(report.landCost)],
+            ["דיירים (פינוי+שכ״ד)", fmtNIS(report.tenantCosts)],
+            ["היטל השבחה", fmtNIS(report.bettermentTax)],
+            ["דמי היתר", fmtNIS(report.permitFees)],
+            ["עלויות מימון", fmtNIS(report.financingCosts)],
+            ["סה״כ עלות פרויקט", fmtNIS(report.totalProjectCost), true],
+          ]}
+        />
+      </div>
+
+      {/* Breakeven */}
+      <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm">
+        <span className="text-muted-foreground">נקודת איזון: </span>
+        <span className="font-semibold">
+          {Math.round(report.breakevenPricePerSqm).toLocaleString("he-IL")} ₪/מ״ר
+        </span>
+        <span className="text-xs text-muted-foreground"> — מתחת לזה הפרויקט מפסיד</span>
+      </div>
+
+      {/* Sensitivity */}
+      <SensitivityTable report={report} />
+
+      {/* Notes */}
+      {report.notes?.length > 0 && (
+        <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
+          <h4 className="flex items-center gap-2 text-sm font-semibold">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            הנחות עבודה והערות
+          </h4>
+          <ul className="space-y-1.5 text-xs text-muted-foreground">
+            {report.notes.map((n, i) => (
+              <li key={i} className="flex gap-2">
+                <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+                <span>{n}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
+  );
+};
+
+const KPI = ({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) => (
+  <div
+    className={`rounded-xl border p-4 ${
+      highlight ? "border-primary/30 bg-primary/5" : "bg-card"
+    }`}
+  >
+    <div className="text-xs text-muted-foreground">{label}</div>
+    <div className={`mt-1 text-xl font-bold ${highlight ? "text-primary" : ""}`}>{value}</div>
+  </div>
+);
+
+const BreakdownPanel = ({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: Array<[string, string] | [string, string, boolean]>;
+}) => (
+  <div className="rounded-xl border bg-card p-4">
+    <h4 className="mb-3 text-sm font-semibold">{title}</h4>
+    <div className="space-y-1.5 text-sm">
+      {rows.map(([label, value, bold], i) => (
+        <div
+          key={i}
+          className={`flex justify-between gap-2 ${bold ? "border-t pt-2 font-semibold" : ""}`}
+        >
+          <span className="text-muted-foreground">{label}</span>
+          <span className="tabular-nums">{value}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const SensitivityTable = ({ report }: { report: FinancialReport }) => {
+  const priceDeltas = [-5, 0, 5];
+  const costDeltas = [-5, 0, 5];
+  const cellFor = (p: number, c: number) =>
+    report.sensitivity.find((s) => s.priceDelta === p && s.costDelta === c);
+
+  const toneFor = (roc: number) =>
+    roc < 0
+      ? "bg-destructive/10 text-destructive"
+      : roc < 10
+      ? "bg-amber-500/10 text-amber-700"
+      : roc < 18
+      ? "bg-muted/40"
+      : "bg-primary/10 text-primary font-semibold";
+
+  return (
+    <div className="space-y-2">
+      <h4 className="text-sm font-semibold">ניתוח רגישות (±5%)</h4>
+      <div className="overflow-x-auto rounded-xl border">
+        <table className="w-full text-xs">
+          <thead className="bg-muted/40 text-muted-foreground">
+            <tr>
+              <th className="p-2 text-right">מחיר ↓ / עלות ←</th>
+              {costDeltas.map((c) => (
+                <th key={c} className="p-2 text-center">
+                  {c > 0 ? `+${c}%` : `${c}%`} עלות
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {priceDeltas.map((p) => (
+              <tr key={p} className="border-t">
+                <td className="bg-muted/20 p-2 font-medium">
+                  {p > 0 ? `+${p}%` : `${p}%`} מחיר
+                </td>
+                {costDeltas.map((c) => {
+                  const cell = cellFor(p, c);
+                  if (!cell) return <td key={c} className="p-2 text-center">—</td>;
+                  return (
+                    <td key={c} className={`p-2 text-center tabular-nums ${toneFor(cell.roc)}`}>
+                      <div className="text-[11px]">{fmtNIS(cell.profit)}</div>
+                      <div className="text-[10px] opacity-80">ROC {cell.roc.toFixed(1)}%</div>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};

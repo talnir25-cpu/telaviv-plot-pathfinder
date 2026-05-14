@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { PlotPicker } from "@/components/PlotPicker";
 import { ReportArtifact } from "@/components/ReportArtifact";
+import { FinancialAnalysis } from "@/components/FinancialAnalysis";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
 import type { AnalysisInput, FeasibilityReport } from "@/types/feasibility";
@@ -84,15 +85,26 @@ const Index = () => {
           </Card>
         )}
 
-        {report && plotIds && (
-          <ReportArtifact
-            report={report}
-            plotLabel={plotLabel}
-            gush={plotIds.gush}
-            helka={plotIds.helka}
-            onRefresh={handleRefresh}
-            refreshing={loading}
-          />
+        {report && plotIds && lastInput && (
+          <>
+            <ReportArtifact
+              report={report}
+              plotLabel={plotLabel}
+              gush={plotIds.gush}
+              helka={plotIds.helka}
+              onRefresh={handleRefresh}
+              refreshing={loading}
+            />
+            <FinancialAnalysis
+              plot={{
+                gush: plotIds.gush,
+                helka: plotIds.helka,
+                quarter: lastInput.quarter,
+                area: lastInput.area ?? lastInput.shapeArea ?? 0,
+              }}
+              planning={report}
+            />
+          </>
         )}
 
         <footer className="pt-8 text-center text-xs text-muted-foreground">
