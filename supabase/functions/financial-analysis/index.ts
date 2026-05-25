@@ -161,6 +161,14 @@ Deno.serve(async (req) => {
 - שטח מכירה משוער: ${planning.metrics.estimatedSellableArea} מ"ר
 - מכפיל יח"ד: ${planning.metrics.multiplier}
 
+אילוצים פיזיים-רגולטוריים מהדוח התכנוני:
+- עצים בחלקה: ${planning.zoning?.treesOnPlot ?? "לא ידוע"}, מתוכם לשימור: ${planning.zoning?.treesForConservation ?? 0}
+- תקן חניה ליח״ד: ${planning.zoning?.parkingStandardPerUnit ?? "לא ידוע"}
+- מרתפי חניה נדרשים: ${planning.zoning?.requiredBasementFloors ?? 1}
+- הקלות TOD: ${planning.zoning?.todReliefApplies ? "כן" : "לא"}
+- עומק מי תהום: ${planning.zoning?.groundwaterDepthM ?? "לא ידוע"} מ׳
+- השפלת מי תהום נדרשת: ${planning.zoning?.dewateringRequired ? "כן" : "לא"}
+
 קלט פיננסי:
 - מחיר מכירה: ${financial.avgSalePricePerSqm} ₪/מ"ר
 - עלות בנייה: ${financial.buildCostPerSqm} ₪/מ"ר
