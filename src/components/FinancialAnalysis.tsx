@@ -305,6 +305,15 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
         </div>
       )}
 
+      {/* Breakeven */}
+      <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm">
+        <span className="text-muted-foreground">נקודת איזון: </span>
+        <span className="font-semibold">
+          {Math.round(report.breakevenPricePerSqm).toLocaleString("he-IL")} ₪/מ״ר
+        </span>
+        <span className="text-xs text-muted-foreground"> — מתחת לזה הפרויקט מפסיד</span>
+      </div>
+
       {/* Sensitivity */}
       <SensitivityTable report={report} />
 
