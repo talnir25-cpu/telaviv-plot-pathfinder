@@ -108,7 +108,12 @@ export interface FinancialReport {
   permitFees: number;                   // דמי היתר
   landCost: number;                     // שווי קרקע
   financingCosts: number;               // עלויות מימון
-  totalProjectCost: number;             // סה"כ עלות פרויקט
+  // אילוצים פיזיים-רגולטוריים
+  treePreservationCost?: number;        // עצים לשימור / כופר / העתקה
+  parkingBasementCost?: number;         // מרתפי חניה (תוספת מעבר ל-Hard בסיסי)
+  dewateringCost?: number;              // השפלת מי תהום
+  physicalConstraintsCost?: number;     // סכום כולל של אילוצים פיזיים
+  totalProjectCost: number;             // סה"כ עלות פרויקט (כולל אילוצים פיזיים)
   // רווחיות
   developerProfit: number;              // רווח יזמי (₪)
   rocPct: number;                       // Return on Cost (%)
