@@ -22,8 +22,9 @@ export const AppHeader = () => {
           </div>
         </div>
         <p className="mt-4 max-w-2xl whitespace-pre-line text-sm text-primary-foreground/85 md:text-base">
-          ניתוח מהיר ומבוסס נתונים לחלקות ברובעים 3 ו-4, תל אביב {"\n"}
-          זכויות בנייה, פרופיל פיננסי, מיפוי סיכונים/הזדמנויות מבוסס תקנוני התכניות ומדיניות עירייה
+          ניתוח מהיר ומבוסס נתונים {"\n"}
+          זכויות בנייה, פרופיל פיננסי, מיפוי סיכונים/הזדמנויות מבוסס תקנוני התכניות ומדיניות עירייה {"\n"}
+          גרסאת בטא: רובעים 3 ו-4, תל אביב*
         </p>
         <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/10 px-3 py-1 ring-1 ring-primary-foreground/20">
