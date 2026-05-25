@@ -374,6 +374,123 @@ export const DashboardReport = ({
             planning={report}
           />
         </TabsContent>
+
+        {/* SOURCES */}
+        <TabsContent value="sources" className="mt-4 space-y-4">
+          <Card className="p-5 shadow-card">
+            <div className="mb-2 flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-primary" />
+              <h3 className="text-base font-bold">על מה מבוססות התובנות</h3>
+            </div>
+            <p className="mb-4 text-sm text-muted-foreground">
+              שקיפות מלאה על מקורות הנתונים, ההיוריסטיקה וההנחות. כל החלטת השקעה
+              מחייבת אימות בתיק מהנדס העיר.
+            </p>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              {/* Official planning docs */}
+              <div className="rounded-xl border border-success/30 bg-success/5 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  <h4 className="font-semibold text-success">מסמכי תכנון רשמיים</h4>
+                </div>
+                <ul className="space-y-2 text-sm">
+                  <li>
+                    <span className="font-medium">תקנון רובע {input.quarter}</span>
+                    <span className="text-muted-foreground"> — זכויות, גובה, קווי בניין, צפיפות.</span>
+                  </li>
+                  <li>
+                    <span className="font-medium">תכנית מתאר תא/5000</span>
+                    <span className="text-muted-foreground"> — ייעודי קרקע, מגבלות אזוריות, מתחמי שימור.</span>
+                  </li>
+                  <li>
+                    <span className="font-medium">מדיניות חניה — עיריית ת״א</span>
+                    <span className="text-muted-foreground"> — תקני חניה ליח״ד והקלות תח״צ.</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Live plot data */}
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Database className="h-4 w-4 text-primary" />
+                  <h4 className="font-semibold text-primary">נתוני חלקה חיים</h4>
+                </div>
+                <ul className="space-y-2 text-sm">
+                  <li>
+                    <span className="font-medium">GovMap / נסח טאבו</span>
+                    <span className="text-muted-foreground"> — גוש {gush}, חלקה {helka}, שטח מגרש.</span>
+                  </li>
+                  <li>
+                    <span className="font-medium">קלט משתמש</span>
+                    <span className="text-muted-foreground"> — יח״ד קיימות ({input.existingUnits}), קומות ({input.existingFloors}), שימור ({input.conservation ? "כן" : "לא"}).</span>
+                  </li>
+                  <li>
+                    <span className="font-medium">Cache פנימי</span>
+                    <span className="text-muted-foreground"> — נתוני חלקות שכבר נשלפו, לשיפור מהירות.</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* AI knowledge */}
+              <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-warning" />
+                  <h4 className="font-semibold text-warning">ידע שוק מובנה ב-AI</h4>
+                </div>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  משמש לניתוח פיננסי, מבוסס על נתוני שוק 2026 ברובעים 3-4:
+                </p>
+                <ul className="space-y-1 text-xs">
+                  <li>• מכירה: 50,000–75,000 ₪/מ״ר</li>
+                  <li>• בנייה: 8,500–11,000 ₪/מ״ר</li>
+                  <li>• ריבית: 6–7.5% • הקמה: 24–36 חודשים</li>
+                  <li>• שכ״ד דייר: 7,000–10,000 ₪/חודש</li>
+                  <li>• פינוי: 25,000–40,000 ₪/דייר</li>
+                  <li>• היטל השבחה: 50% משווי השבחה</li>
+                  <li>• שווי קרקע: 35,000–55,000 ₪/מ״ר זכויות</li>
+                </ul>
+              </div>
+
+              {/* What's not there */}
+              <div className="rounded-xl border border-danger/30 bg-danger/5 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <XCircle className="h-4 w-4 text-danger" />
+                  <h4 className="font-semibold text-danger">מה לא מקור רשמי כרגע</h4>
+                </div>
+                <ul className="space-y-2 text-sm">
+                  <li className="text-muted-foreground">
+                    אין חיבור חי לתיק מהנדס העיר או למערכת רישוי זמין.
+                  </li>
+                  <li className="text-muted-foreground">
+                    אין משיכה אוטומטית של תב״עות נקודתיות החלות על החלקה.
+                  </li>
+                  <li className="text-muted-foreground">
+                    אין שאילתת עסקאות חיה מרשות המסים (מדד מחירי דירות).
+                  </li>
+                  <li className="text-muted-foreground">
+                    מכפילי תמ״א / פינוי-בינוי מבוססים על ידע ה-LLM, לא על מסמך מצוטט.
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {report.sources.length > 0 && (
+              <div className="mt-4 rounded-lg border bg-muted/30 p-3">
+                <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  מקורות שצוטטו על-ידי המודל לחלקה זו
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {report.sources.map((s, i) => (
+                    <span key={i} className="rounded-full bg-card px-2.5 py-1 text-[11px] text-foreground border">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        </TabsContent>
       </Tabs>
     </section>
   );
