@@ -79,10 +79,18 @@ const ANALYSIS_TOOL = {
             rearSetbackM: { type: "number" },
             maxFAR: { type: "number" },
             source: { type: "string", description: "PDF document cited" },
+            treesOnPlot: { type: ["number", "null"], description: "Estimated number of trees on the plot (tree survey)" },
+            treesForConservation: { type: ["number", "null"], description: "Of those, trees designated for preservation per Forest Ordinance" },
+            parkingStandardPerUnit: { type: ["number", "null"], description: "Required parking spaces per dwelling unit per TA parking policy" },
+            requiredBasementFloors: { type: ["number", "null"], description: "Estimated underground parking floors required" },
+            todReliefApplies: { type: ["boolean", "null"], description: "Whether TOD parking relief applies (proximity to light rail / mass transit)" },
+            groundwaterDepthM: { type: ["number", "null"], description: "Estimated groundwater table depth in meters below surface" },
+            dewateringRequired: { type: ["boolean", "null"], description: "Whether basement excavation will require dewatering" },
           },
-          required: ["maxHeightMeters", "maxFloors", "frontSetbackM", "sideSetbackM", "rearSetbackM", "maxFAR", "source"],
+          required: ["maxHeightMeters", "maxFloors", "frontSetbackM", "sideSetbackM", "rearSetbackM", "maxFAR", "source", "treesOnPlot", "treesForConservation", "parkingStandardPerUnit", "requiredBasementFloors", "todReliefApplies", "groundwaterDepthM", "dewateringRequired"],
           additionalProperties: false,
         },
+
         redFlags: {
           type: "array",
           items: {
