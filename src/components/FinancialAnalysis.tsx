@@ -265,6 +265,15 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
           rows={[
             ["עלות בנייה (Hard)", fmtNIS(report.hardCosts)],
             ["Soft costs", fmtNIS(report.softCosts)],
+            ...(report.treePreservationCost && report.treePreservationCost > 0
+              ? [["עצים לשימור / כופר", fmtNIS(report.treePreservationCost)] as [string, string]]
+              : []),
+            ...(report.parkingBasementCost && report.parkingBasementCost > 0
+              ? [["מרתפי חניה (תוספת)", fmtNIS(report.parkingBasementCost)] as [string, string]]
+              : []),
+            ...(report.dewateringCost && report.dewateringCost > 0
+              ? [["השפלת מי תהום", fmtNIS(report.dewateringCost)] as [string, string]]
+              : []),
             ["שווי קרקע", fmtNIS(report.landCost)],
             ["דיירים (פינוי+שכ״ד)", fmtNIS(report.tenantCosts)],
             ["היטל השבחה", fmtNIS(report.bettermentTax)],
@@ -275,14 +284,26 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
         />
       </div>
 
-      {/* Breakeven */}
-      <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm">
-        <span className="text-muted-foreground">נקודת איזון: </span>
-        <span className="font-semibold">
-          {Math.round(report.breakevenPricePerSqm).toLocaleString("he-IL")} ₪/מ״ר
-        </span>
-        <span className="text-xs text-muted-foreground"> — מתחת לזה הפרויקט מפסיד</span>
-      </div>
+      {/* Physical constraints impact */}
+      {report.physicalConstraintsCost && report.physicalConstraintsCost > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h4 className="text-sm font-semibold">השפעת אילוצים פיזיים-רגולטוריים</h4>
+            <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30">
+              {((report.physicalConstraintsCost / report.totalProjectCost) * 100).toFixed(1)}% מסה״כ העלות
+            </Badge>
+          </div>
+          <div className="grid gap-2 text-xs sm:grid-cols-3">
+            <ConstraintCell label="עצים לשימור" value={report.treePreservationCost ?? 0} />
+            <ConstraintCell label="מרתפי חניה" value={report.parkingBasementCost ?? 0} />
+            <ConstraintCell label="השפלת מי תהום" value={report.dewateringCost ?? 0} />
+          </div>
+          <div className="mt-2 border-t border-amber-500/20 pt-2 text-xs">
+            <span className="text-muted-foreground">סה״כ אילוצים: </span>
+            <span className="font-semibold tabular-nums">{fmtNIS(report.physicalConstraintsCost)}</span>
+          </div>
+        </div>
+      )}
 
       {/* Sensitivity */}
       <SensitivityTable report={report} />
