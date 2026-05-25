@@ -320,6 +320,65 @@ export const DashboardReport = ({
                 </div>
               ))}
             </div>
+
+            {/* אילוצים פיזיים-רגולטוריים */}
+            <div className="mt-5 border-t pt-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                אילוצים פיזיים-רגולטוריים
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  {
+                    label: "עצים בחלקה / לשימור",
+                    value:
+                      report.zoning.treesOnPlot != null
+                        ? `${fmt(report.zoning.treesOnPlot)} / ${fmt(report.zoning.treesForConservation ?? 0)}`
+                        : "נדרש סקר עצים",
+                    hint: "פקודת היערות — כופר/העתקה",
+                  },
+                  {
+                    label: "תקן חניה ליח״ד",
+                    value:
+                      report.zoning.parkingStandardPerUnit != null
+                        ? `${fmt(report.zoning.parkingStandardPerUnit, 2)} מק׳${report.zoning.todReliefApplies ? " (הקלת TOD)" : ""}`
+                        : "טעון בדיקה",
+                    hint: "מדיניות חניה ת״א",
+                  },
+                  {
+                    label: "מרתפי חניה נדרשים",
+                    value:
+                      report.zoning.requiredBasementFloors != null
+                        ? `${fmt(report.zoning.requiredBasementFloors)} קומות`
+                        : "—",
+                    hint: "~25 מק׳ לקומת מרתף",
+                  },
+                  {
+                    label: "עומק מי תהום משוער",
+                    value:
+                      report.zoning.groundwaterDepthM != null
+                        ? `${fmt(report.zoning.groundwaterDepthM, 1)} מ׳`
+                        : "טעון קידוח ניסיון",
+                    hint: "תכנית מרתפים ת״א",
+                  },
+                  {
+                    label: "השפלת מי תהום",
+                    value:
+                      report.zoning.dewateringRequired == null
+                        ? "—"
+                        : report.zoning.dewateringRequired
+                        ? "נדרשת"
+                        : "לא נדרשת",
+                    hint: "רישוי רשות המים",
+                  },
+                ].map((it) => (
+                  <div key={it.label} className="rounded-lg border bg-muted/30 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">{it.label}</p>
+                    <p className="mt-1 text-base font-semibold">{it.value}</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">{it.hint}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </Card>
         </TabsContent>
 

@@ -44,7 +44,16 @@ export interface FeasibilityReport {
     rearSetbackM: number;
     maxFAR: number;
     source: string;
+    // אילוצים פיזיים-רגולטוריים
+    treesOnPlot?: number | null;            // עצים בחלקה (סקר עצים)
+    treesForConservation?: number | null;   // מתוכם לשימור
+    parkingStandardPerUnit?: number | null; // תקן חניה ליח״ד
+    requiredBasementFloors?: number | null; // קומות מרתף נדרשות לחניה
+    todReliefApplies?: boolean | null;      // הקלות TOD (קרבה לתח״צ מסילתית)
+    groundwaterDepthM?: number | null;      // עומק מי תהום משוער (מ׳)
+    dewateringRequired?: boolean | null;    // נדרשת השפלת מי תהום
   };
+
   redFlags: RedFlag[];
   committeeSummary: string;
   sources: string[];
