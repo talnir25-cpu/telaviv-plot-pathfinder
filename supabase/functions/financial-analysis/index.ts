@@ -88,7 +88,9 @@ const ANALYZE_TOOL = {
       required: [
         "totalSalesRevenue", "netSalesRevenue", "hardCosts", "softCosts",
         "tenantCosts", "bettermentTax", "permitFees", "landCost",
-        "financingCosts", "totalProjectCost", "developerProfit",
+        "financingCosts",
+        "treePreservationCost", "parkingBasementCost", "dewateringCost", "physicalConstraintsCost",
+        "totalProjectCost", "developerProfit",
         "rocPct", "rosPct", "irrPct", "breakevenPricePerSqm",
         "verdict", "verdictLabel", "headline", "sensitivity", "notes",
       ],
