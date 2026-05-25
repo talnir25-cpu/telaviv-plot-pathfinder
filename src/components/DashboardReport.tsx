@@ -189,7 +189,7 @@ export const DashboardReport = ({
 
       {/* Dashboard tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview" className="gap-1.5">
             <LayoutDashboard className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">סקירה</span>
@@ -214,6 +214,10 @@ export const DashboardReport = ({
           <TabsTrigger value="financial" className="gap-1.5">
             <Coins className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">פיננסי</span>
+          </TabsTrigger>
+          <TabsTrigger value="sources" className="gap-1.5">
+            <BookOpen className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">מקורות</span>
           </TabsTrigger>
         </TabsList>
 
