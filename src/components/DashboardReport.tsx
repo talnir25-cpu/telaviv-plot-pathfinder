@@ -18,6 +18,11 @@ import {
   Coins,
   Map as MapIcon,
   LayoutDashboard,
+  BookOpen,
+  CheckCircle2,
+  XCircle,
+  Database,
+  Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
