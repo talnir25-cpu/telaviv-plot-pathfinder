@@ -17,7 +17,7 @@ export const AppHeader = () => {
               Tel Aviv • Urban Renewal Intelligence
             </p>
             <h1 className="text-2xl font-bold leading-tight md:text-3xl">
-              דוח היתכנות התחדשות עירונית
+              מנוע בדיקות היתכנות בהתחדשות עירונית
             </h1>
           </div>
         </div>
