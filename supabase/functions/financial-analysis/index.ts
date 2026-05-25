@@ -189,10 +189,12 @@ Deno.serve(async (req) => {
 3. עלויות דיירים = יח"ד_קיימות × (פינוי + שכ"ד×חודשי_הקמה)
 4. דמי היתר ≈ 1% מעלות בנייה
 5. עלויות מימון: על (סה"כ_עלות - הון_עצמי), במשך חצי תקופת הקמה (תקבולי דירות מתחילים באמצע)
-6. רווח = נטו - סה"כ_עלות
-7. ROC = רווח/עלות; ROS = רווח/נטו; IRR ≈ הערכה מבוססת רווח/(תקופה_שנים × הון_עצמי)
-8. נקודת איזון = (סה"כ_עלות × (1+מע"מ)) / שטח_מכירה
-9. רגישות: לכל שילוב מ-{-5,0,+5}% במחיר × {-5,0,+5}% בעלות הבנייה — חשב רווח ו-ROC.
+6. אילוצים פיזיים (ראה system prompt לנוסחאות): treePreservationCost, parkingBasementCost, dewateringCost, physicalConstraintsCost
+7. סה"כ_עלות = Hard + Soft + tenant + landCost + bettermentTax + permitFees + financingCosts + physicalConstraintsCost
+8. רווח = נטו - סה"כ_עלות
+9. ROC = רווח/עלות; ROS = רווח/נטו; IRR ≈ הערכה מבוססת רווח/(תקופה_שנים × הון_עצמי)
+10. נקודת איזון = (סה"כ_עלות × (1+מע"מ)) / שטח_מכירה
+11. רגישות: לכל שילוב מ-{-5,0,+5}% במחיר × {-5,0,+5}% בעלות הבנייה — חשב רווח ו-ROC.
 verdict: profitable אם ROC ≥ ${financial.targetDeveloperProfitPct}, marginal אם 0 ≤ ROC < target, אחרת loss.
 החזר דרך render_financial_report.`;
       tool = ANALYZE_TOOL;
