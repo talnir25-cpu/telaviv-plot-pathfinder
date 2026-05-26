@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
       throw new Error(`Identify לא תקין: ${idText.slice(0, 120)}`);
     }
 
-    const { gush, helka } = extractGushHelka(idJson);
+    const { gush, helka, multiple } = extractGushHelka(idJson);
     const { lat, lon } = itmToWgs84(x, y);
 
     if (!gush || !helka) {
@@ -198,9 +198,10 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ gush, helka, address: resolvedAddress, x, y, lat, lon }),
+      JSON.stringify({ gush, helka, address: resolvedAddress, x, y, lat, lon, multipleParcels: multiple }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+
   } catch (err) {
     console.error("geocode-address error:", err);
     const msg = err instanceof Error ? err.message : "שגיאה לא ידועה";
