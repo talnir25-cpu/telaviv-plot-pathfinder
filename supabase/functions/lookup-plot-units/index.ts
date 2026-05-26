@@ -577,32 +577,17 @@ async function sourceTlvPermits(
     }
 
     const chosen = Array.from(perBuilding.values());
-    const totalUnits = chosen.reduce((sum, f) => sum + (f.attributes.yechidot_diyur ?? 0), 0);
 
-    // Confidence: high if every chosen permit is built; medium-high otherwise
-    let allBuilt = true;
     const stages: string[] = [];
-    const dates: number[] = [];
     let anyTama = false;
     for (const f of chosen) {
-      const rank = tlvStageRank(f.attributes.building_stage, f.attributes.occupation, f.attributes.finished);
-      if (rank < 90) allBuilt = false;
       if (f.attributes.building_stage) stages.push(f.attributes.building_stage);
-      if (f.attributes.permission_date) dates.push(f.attributes.permission_date);
       if (
         (f.attributes.sw_tama_38 && f.attributes.sw_tama_38 !== "לא") ||
         (f.attributes.sw_tama_38_chadash && f.attributes.sw_tama_38_chadash !== "לא") ||
         (f.attributes.sw_tama_38_tosefet && f.attributes.sw_tama_38_tosefet !== "לא")
       ) anyTama = true;
     }
-    const latestDate = dates.length ? new Date(Math.max(...dates)).toISOString().slice(0, 10) : null;
-    const confidence: Confidence = allBuilt ? "high" : "medium";
-
-    const detailParts: string[] = [];
-    detailParts.push(`${chosen.length} בניין(ים)`);
-    if (stages.length) detailParts.push(stages[0]);
-    if (latestDate) detailParts.push(`היתר ${latestDate}`);
-    if (anyTama) detailParts.push("כולל תמ\"א 38");
 
     const classify = (f: TlvPermitFeature): "built" | "approved" | "in_process" | "unknown" => {
       const a = f.attributes;
