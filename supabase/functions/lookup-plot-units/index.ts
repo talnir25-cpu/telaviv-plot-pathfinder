@@ -322,6 +322,13 @@ async function sourceGovmapBldg(
   const buildings: BuildingInfo[] = [];
   let lastErr = "";
 
+  // Dynamic tolerance based on plot size — larger plots need a wider search
+  // radius so we catch buildings that aren't exactly under the centroid.
+  // Default 35m; grows with sqrt(plotArea/π) + 10m buffer; capped at 80m.
+  const dynTolerance = plotArea
+    ? Math.min(80, Math.max(35, Math.round(Math.sqrt(plotArea / Math.PI) + 10)))
+    : 40;
+
   for (const layerName of layerNames) {
     try {
       const r = await withTimeout(
@@ -331,7 +338,7 @@ async function sourceGovmapBldg(
           body: JSON.stringify({
             x: centroid.x,
             y: centroid.y,
-            mapTolerance: 25,
+            mapTolerance: dynTolerance,
             IsPersonalSite: false,
             layers: [{ LayerType: 0, LayerName: layerName }],
           }),
@@ -570,32 +577,17 @@ async function sourceTlvPermits(
     }
 
     const chosen = Array.from(perBuilding.values());
-    const totalUnits = chosen.reduce((sum, f) => sum + (f.attributes.yechidot_diyur ?? 0), 0);
 
-    // Confidence: high if every chosen permit is built; medium-high otherwise
-    let allBuilt = true;
     const stages: string[] = [];
-    const dates: number[] = [];
     let anyTama = false;
     for (const f of chosen) {
-      const rank = tlvStageRank(f.attributes.building_stage, f.attributes.occupation, f.attributes.finished);
-      if (rank < 90) allBuilt = false;
       if (f.attributes.building_stage) stages.push(f.attributes.building_stage);
-      if (f.attributes.permission_date) dates.push(f.attributes.permission_date);
       if (
         (f.attributes.sw_tama_38 && f.attributes.sw_tama_38 !== "לא") ||
         (f.attributes.sw_tama_38_chadash && f.attributes.sw_tama_38_chadash !== "לא") ||
         (f.attributes.sw_tama_38_tosefet && f.attributes.sw_tama_38_tosefet !== "לא")
       ) anyTama = true;
     }
-    const latestDate = dates.length ? new Date(Math.max(...dates)).toISOString().slice(0, 10) : null;
-    const confidence: Confidence = allBuilt ? "high" : "medium";
-
-    const detailParts: string[] = [];
-    detailParts.push(`${chosen.length} בניין(ים)`);
-    if (stages.length) detailParts.push(stages[0]);
-    if (latestDate) detailParts.push(`היתר ${latestDate}`);
-    if (anyTama) detailParts.push("כולל תמ\"א 38");
 
     const classify = (f: TlvPermitFeature): "built" | "approved" | "in_process" | "unknown" => {
       const a = f.attributes;
@@ -631,21 +623,40 @@ async function sourceTlvPermits(
       approvedUnits: chosenRaw.filter((c) => c.physicalStatus === "approved" || c.physicalStatus === "in_process").reduce((s, c) => s + (c.yechidot_diyur ?? 0), 0),
     };
 
+    const rawPayload = {
+      totalFound: features.length,
+      withUnits: withUnits.length,
+      chosenCount: chosen.length,
+      summary,
+      chosen: chosenRaw,
+    };
+
+    // Only "built" units represent the EXISTING state. Permits in
+    // "in_process"/"approved" stages — especially Tama 38 — describe a
+    // FUTURE unit count and must not be reported as existing.
+    if (summary.builtUnits > 0) {
+      return {
+        ...base,
+        status: "ok",
+        units: summary.builtUnits,
+        floors: null,
+        totalFloorArea: null,
+        confidence: summary.approvedUnits > 0 ? "medium" : "high",
+        detail: `${summary.builtUnits} יחידות בנויות${summary.approvedUnits > 0 ? ` (+${summary.approvedUnits} מתוכננות)` : ""}${anyTama ? " · כולל תמ\"א 38" : ""}`,
+        raw: rawPayload,
+      };
+    }
+
+    // Only planned/in-process permits — do not surface as existing units.
     return {
       ...base,
-      status: "ok",
-      units: totalUnits,
+      status: "empty",
+      units: null,
       floors: null,
       totalFloorArea: null,
-      confidence,
-      detail: detailParts.join(" · "),
-      raw: {
-        totalFound: features.length,
-        withUnits: withUnits.length,
-        chosenCount: chosen.length,
-        summary,
-        chosen: chosenRaw,
-      },
+      confidence: "low",
+      detail: `נמצא היתר עתידי (${anyTama ? "תמ\"א 38 / " : ""}${stages[0] ?? "בתהליך"}) — אין נתון על המצב הקיים`,
+      raw: rawPayload,
     };
   } catch (e) {
     return { ...base, status: "error", errorMsg: e instanceof Error ? e.message : String(e) };
@@ -807,25 +818,33 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (cached) {
-        const cachedSources = (cached.sources_json ?? []) as SourceResult[];
-        const cachedFloorsBest = Array.isArray(cachedSources) ? pickBestFloors(cachedSources) : null;
-        return new Response(
-          JSON.stringify({
-            units: cached.existing_units,
-            floors: cached.existing_floors,
-            source: cached.source,
-            confidence: cached.confidence ?? null,
-            floorsSource: cachedFloorsBest?.source ?? null,
-            floorsConfidence: cachedFloorsBest?.confidence ?? null,
-            buildingCount: cached.building_count,
-            totalFloorArea: cached.total_floor_area,
-            notes: cached.notes,
-            sources: cachedSources,
-            lastRefreshedAt: cached.last_refreshed_at,
-            cached: true,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        // Skip stale low-quality cache from earlier logic versions; recompute.
+        const isStale =
+          cached.source === "estimate" ||
+          cached.source === "heuristic" ||
+          !cached.confidence ||
+          cached.confidence === "very_low";
+        if (!isStale) {
+          const cachedSources = (cached.sources_json ?? []) as SourceResult[];
+          const cachedFloorsBest = Array.isArray(cachedSources) ? pickBestFloors(cachedSources) : null;
+          return new Response(
+            JSON.stringify({
+              units: cached.existing_units,
+              floors: cached.existing_floors,
+              source: cached.source,
+              confidence: cached.confidence ?? null,
+              floorsSource: cachedFloorsBest?.source ?? null,
+              floorsConfidence: cachedFloorsBest?.confidence ?? null,
+              buildingCount: cached.building_count,
+              totalFloorArea: cached.total_floor_area,
+              notes: cached.notes,
+              sources: cachedSources,
+              lastRefreshedAt: cached.last_refreshed_at,
+              cached: true,
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
       }
     }
 
