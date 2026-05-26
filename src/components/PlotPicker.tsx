@@ -79,6 +79,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [existingFloors, setExistingFloors] = useState("3");
   const [unitsSource, setUnitsSource] = useState<UnitsSource>(null);
   const [unitsConfidence, setUnitsConfidence] = useState<SourceResult["confidence"]>(null);
+  const [floorsSource, setFloorsSource] = useState<UnitsSource>(null);
+  const [floorsConfidence, setFloorsConfidence] = useState<SourceResult["confidence"]>(null);
   const [sources, setSources] = useState<SourceResult[]>([]);
   const [diagOpen, setDiagOpen] = useState(false);
   const [rawDialog, setRawDialog] = useState<SourceResult | null>(null);
