@@ -30,7 +30,7 @@ const GOVMAP_HEADERS = {
 
 const AVG_UNIT_AREA = 80;
 
-type SourceName = "nadlan" | "govmap_bldg" | "heuristic" | "manual";
+type SourceName = "nadlan" | "govmap_bldg" | "tlv_permits" | "heuristic" | "manual";
 type Confidence = "high" | "medium" | "low" | "very_low";
 type SourceStatus = "ok" | "empty" | "error" | "skipped";
 
@@ -405,7 +405,213 @@ async function sourceGovmapBldg(
   };
 }
 
-// ───────────────────── Source 3: Heuristic ─────────────────────
+// ───────────────── Source 3: TLV building permits ──────────────
+// Tel Aviv-Yafo municipality ArcGIS REST FeatureServer layer 772.
+// Each polygon = a building permit, with explicit `yechidot_diyur`
+// (dwelling units) field. Authoritative for plots inside Tel Aviv.
+
+interface TlvPermitFeature {
+  attributes: {
+    request_num?: number;
+    permission_date?: number | null;
+    permission_num?: number | null;
+    expiry_date?: number | null;
+    occupation?: string | null;
+    finished?: string | null;
+    building_num?: number | null;
+    yechidot_diyur?: number | null;
+    sw_tama_38?: string | null;
+    sw_tama_38_chadash?: string | null;
+    sw_tama_38_tosefet?: string | null;
+    building_stage?: string | null;
+    ms_tik_binyan?: number | null;
+    addresses?: string | null;
+    sug_bakasha?: string | null;
+  };
+}
+
+function tlvStageRank(stage?: string | null, occupation?: string | null, finished?: string | null): number {
+  // Higher = closer to "built and inhabited"
+  if (occupation && occupation.trim()) return 100;
+  if (finished && finished.trim()) return 90;
+  const s = (stage ?? "").trim();
+  if (s.includes("תעודת גמר")) return 95;
+  if (s.includes("אכלוס")) return 90;
+  if (s.includes("קיים היתר")) return 70;
+  if (s.includes("בתהליך")) return 40;
+  return 10;
+}
+
+async function sourceTlvPermits(
+  centroidItm: { x: number; y: number } | null,
+): Promise<Omit<SourceResult, "durationMs">> {
+  const base: Omit<SourceResult, "durationMs"> = {
+    source: "tlv_permits",
+    units: null,
+    floors: null,
+    totalFloorArea: null,
+    confidence: "high",
+    status: "skipped",
+    label: 'עיריית ת"א - היתרי בניה',
+    detail: 'שדה yechidot_diyur מההיתר הרלוונטי',
+  };
+  if (!centroidItm) {
+    return { ...base, status: "error", errorMsg: "אין centroid לחלקה" };
+  }
+
+  const LAYER_URL =
+    "https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/772/query";
+
+  async function queryFeatures(
+    geometry: string,
+    geometryType: "esriGeometryPoint" | "esriGeometryEnvelope",
+  ): Promise<TlvPermitFeature[]> {
+    const params = new URLSearchParams({
+      f: "json",
+      where: "1=1",
+      geometry,
+      geometryType,
+      inSR: "2039",
+      spatialRel: "esriSpatialRelIntersects",
+      outFields: "*",
+      returnGeometry: "false",
+      outSR: "2039",
+    });
+    const r = await withTimeout(
+      fetch(`${LAYER_URL}?${params.toString()}`, {
+        headers: { Accept: "application/json" },
+      }),
+      8000,
+      `tlv-permits/${geometryType}`,
+    );
+    if (!r.ok) {
+      await r.text();
+      throw new Error(`status ${r.status}`);
+    }
+    const j = await r.json();
+    return (j?.features ?? []) as TlvPermitFeature[];
+  }
+
+  try {
+    // Pass 1: exact point
+    const pointGeom = JSON.stringify({ x: centroidItm.x, y: centroidItm.y, spatialReference: { wkid: 2039 } });
+    let features = await queryFeatures(pointGeom, "esriGeometryPoint");
+
+    // Pass 2: 15m envelope around centroid (catches multi-building plots)
+    if (features.length === 0) {
+      const d = 15;
+      const env = JSON.stringify({
+        xmin: centroidItm.x - d,
+        ymin: centroidItm.y - d,
+        xmax: centroidItm.x + d,
+        ymax: centroidItm.y + d,
+        spatialReference: { wkid: 2039 },
+      });
+      features = await queryFeatures(env, "esriGeometryEnvelope");
+    }
+
+    if (features.length === 0) {
+      return { ...base, status: "empty", detail: "לא נמצאו היתרים בחלקה" };
+    }
+
+    // Keep permits with dwellings only
+    const withUnits = features.filter(
+      (f) => typeof f.attributes.yechidot_diyur === "number" && f.attributes.yechidot_diyur > 0,
+    );
+
+    if (withUnits.length === 0) {
+      return {
+        ...base,
+        status: "empty",
+        detail: `נמצאו ${features.length} היתרים ללא יחידות דיור (לא מגורים?)`,
+        raw: {
+          permitsFound: features.length,
+          sampleStages: features.slice(0, 3).map((f) => f.attributes.building_stage),
+        },
+      };
+    }
+
+    // Group by building file (ms_tik_binyan); per building keep the
+    // most relevant permit (highest stage rank, then latest permission_date).
+    const perBuilding = new Map<number, TlvPermitFeature>();
+    for (const f of withUnits) {
+      const key = f.attributes.ms_tik_binyan ?? f.attributes.building_num ?? f.attributes.request_num ?? Math.random();
+      const cur = perBuilding.get(key);
+      if (!cur) {
+        perBuilding.set(key, f);
+        continue;
+      }
+      const aRank = tlvStageRank(f.attributes.building_stage, f.attributes.occupation, f.attributes.finished);
+      const bRank = tlvStageRank(cur.attributes.building_stage, cur.attributes.occupation, cur.attributes.finished);
+      if (aRank > bRank) {
+        perBuilding.set(key, f);
+      } else if (aRank === bRank) {
+        const aDate = f.attributes.permission_date ?? 0;
+        const bDate = cur.attributes.permission_date ?? 0;
+        if (aDate > bDate) perBuilding.set(key, f);
+      }
+    }
+
+    const chosen = Array.from(perBuilding.values());
+    const totalUnits = chosen.reduce((sum, f) => sum + (f.attributes.yechidot_diyur ?? 0), 0);
+
+    // Confidence: high if every chosen permit is built; medium-high otherwise
+    let allBuilt = true;
+    const stages: string[] = [];
+    const dates: number[] = [];
+    let anyTama = false;
+    for (const f of chosen) {
+      const rank = tlvStageRank(f.attributes.building_stage, f.attributes.occupation, f.attributes.finished);
+      if (rank < 90) allBuilt = false;
+      if (f.attributes.building_stage) stages.push(f.attributes.building_stage);
+      if (f.attributes.permission_date) dates.push(f.attributes.permission_date);
+      if (
+        (f.attributes.sw_tama_38 && f.attributes.sw_tama_38 !== "לא") ||
+        (f.attributes.sw_tama_38_chadash && f.attributes.sw_tama_38_chadash !== "לא") ||
+        (f.attributes.sw_tama_38_tosefet && f.attributes.sw_tama_38_tosefet !== "לא")
+      ) anyTama = true;
+    }
+    const latestDate = dates.length ? new Date(Math.max(...dates)).toISOString().slice(0, 10) : null;
+    const confidence: Confidence = allBuilt ? "high" : "medium";
+
+    const detailParts: string[] = [];
+    detailParts.push(`${chosen.length} בניין(ים)`);
+    if (stages.length) detailParts.push(stages[0]);
+    if (latestDate) detailParts.push(`היתר ${latestDate}`);
+    if (anyTama) detailParts.push("כולל תמ\"א 38");
+
+    return {
+      ...base,
+      status: "ok",
+      units: totalUnits,
+      floors: null,
+      totalFloorArea: null,
+      confidence,
+      detail: detailParts.join(" · "),
+      raw: {
+        totalFound: features.length,
+        withUnits: withUnits.length,
+        chosenCount: chosen.length,
+        chosen: chosen.map((f) => ({
+          ms_tik_binyan: f.attributes.ms_tik_binyan,
+          yechidot_diyur: f.attributes.yechidot_diyur,
+          building_stage: f.attributes.building_stage,
+          permission_date: f.attributes.permission_date
+            ? new Date(f.attributes.permission_date).toISOString().slice(0, 10)
+            : null,
+          occupation: f.attributes.occupation,
+          finished: f.attributes.finished,
+          tama38: f.attributes.sw_tama_38,
+          addresses: f.attributes.addresses,
+        })),
+      },
+    };
+  } catch (e) {
+    return { ...base, status: "error", errorMsg: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+// ───────────────────── Source 4: Heuristic ─────────────────────
 
 function sourceHeuristic(plotArea: number | null): Omit<SourceResult, "durationMs"> {
   const floors = 3;
@@ -427,11 +633,31 @@ function sourceHeuristic(plotArea: number | null): Omit<SourceResult, "durationM
 // ─────────────────────────── Aggregator ────────────────────────
 
 function pickBest(sources: SourceResult[]): SourceResult {
-  const order: SourceName[] = ["manual", "nadlan", "govmap_bldg", "heuristic"];
-  for (const name of order) {
-    const found = sources.find((s) => s.source === name && s.status === "ok" && s.units !== null);
-    if (found) return found;
-  }
+  // Priority by reliability:
+  // manual → TLV permits (built) → nadlan → TLV permits (approved/planned)
+  // → govmap_bldg → heuristic
+  const manual = sources.find((s) => s.source === "manual" && s.status === "ok" && s.units !== null);
+  if (manual) return manual;
+
+  const tlvHigh = sources.find(
+    (s) => s.source === "tlv_permits" && s.status === "ok" && s.units !== null && s.confidence === "high",
+  );
+  if (tlvHigh) return tlvHigh;
+
+  const nadlan = sources.find((s) => s.source === "nadlan" && s.status === "ok" && s.units !== null);
+  if (nadlan) return nadlan;
+
+  const tlvAny = sources.find(
+    (s) => s.source === "tlv_permits" && s.status === "ok" && s.units !== null,
+  );
+  if (tlvAny) return tlvAny;
+
+  const bldg = sources.find((s) => s.source === "govmap_bldg" && s.status === "ok" && s.units !== null);
+  if (bldg) return bldg;
+
+  const heur = sources.find((s) => s.source === "heuristic" && s.status === "ok" && s.units !== null);
+  if (heur) return heur;
+
   return sources[sources.length - 1];
 }
 
@@ -534,13 +760,15 @@ Deno.serve(async (req) => {
     const centroidItm = await getParcelCentroidItm(body.gush, body.helka);
     const centroidWm = centroidItm ? itmToWebMercator(centroidItm.x, centroidItm.y) : null;
 
-    const [nadlan, bldg] = await Promise.all([
+    const [nadlan, bldg, tlv] = await Promise.all([
       timed(() => sourceNadlan(body.gush, body.helka, centroidWm)),
       timed(() => sourceGovmapBldg(body.gush, body.helka, body.plotArea ?? null, centroidItm)),
+      timed(() => sourceTlvPermits(centroidItm)),
     ]);
     const heur = sourceHeuristic(body.plotArea ?? null);
 
     const sources: SourceResult[] = [
+      { ...tlv.value, durationMs: tlv.ms },
       { ...nadlan.value, durationMs: nadlan.ms },
       { ...bldg.value, durationMs: bldg.ms },
       { ...heur, durationMs: 0 },
