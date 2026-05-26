@@ -72,14 +72,16 @@ interface ParcelField {
   fieldValue?: string;
 }
 
-function extractGushHelka(idJson: unknown): { gush: number; helka: number } {
+function extractGushHelka(idJson: unknown): { gush: number; helka: number; multiple: boolean } {
   const root = idJson as { data?: Array<Record<string, unknown>> };
   const dataArr = root?.data ?? [];
-  const fields: ParcelField[] = [];
+  const parcels: Array<{ gush: number; helka: number }> = [];
+
   for (const layer of dataArr) {
     const results = (layer.Result as unknown[]) ?? [];
     for (const r of results) {
       const rr = r as Record<string, unknown>;
+      const fields: ParcelField[] = [];
       const tabs = (rr.tabs as unknown[]) ?? [];
       for (const t of tabs) {
         const tt = t as Record<string, unknown>;
@@ -90,24 +92,29 @@ function extractGushHelka(idJson: unknown): { gush: number; helka: number } {
       if (Array.isArray(rr.fields)) {
         for (const f of rr.fields) fields.push(f as ParcelField);
       }
+
+      let gush = 0;
+      let helka = 0;
+      for (const f of fields) {
+        const name = (f.FieldName ?? f.fieldName ?? "").trim();
+        const value = String(f.FieldValue ?? f.fieldValue ?? "").trim();
+        if (!value) continue;
+        if (name === "מספר גוש" || name === "גוש" || /^GUSH/i.test(name)) {
+          gush = Number(value);
+        } else if (name === "מספר חלקה" || name === "חלקה" || /^PARCEL/i.test(name)) {
+          helka = Number(value);
+        }
+      }
+      if (gush && helka) parcels.push({ gush, helka });
     }
   }
 
-  let gush = 0;
-  let helka = 0;
-  for (const f of fields) {
-    const name = (f.FieldName ?? f.fieldName ?? "").trim();
-    const value = String(f.FieldValue ?? f.fieldValue ?? "").trim();
-    if (!value) continue;
-    // Hebrew field names from GovMap
-    if (name === "מספר גוש" || name === "גוש" || /^GUSH/i.test(name)) {
-      gush = Number(value);
-    } else if (name === "מספר חלקה" || name === "חלקה" || /^PARCEL/i.test(name)) {
-      helka = Number(value);
-    }
-  }
-  return { gush, helka };
+  if (parcels.length === 0) return { gush: 0, helka: 0, multiple: false };
+  // Take the first parcel to avoid overwriting when GovMap returns multiple matches
+  // (happens near parcel boundaries with mapTolerance > 0).
+  return { ...parcels[0], multiple: parcels.length > 1 };
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -176,7 +183,7 @@ Deno.serve(async (req) => {
       throw new Error(`Identify לא תקין: ${idText.slice(0, 120)}`);
     }
 
-    const { gush, helka } = extractGushHelka(idJson);
+    const { gush, helka, multiple } = extractGushHelka(idJson);
     const { lat, lon } = itmToWgs84(x, y);
 
     if (!gush || !helka) {
@@ -191,9 +198,10 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ gush, helka, address: resolvedAddress, x, y, lat, lon }),
+      JSON.stringify({ gush, helka, address: resolvedAddress, x, y, lat, lon, multipleParcels: multiple }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+
   } catch (err) {
     console.error("geocode-address error:", err);
     const msg = err instanceof Error ? err.message : "שגיאה לא ידועה";
