@@ -818,25 +818,33 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (cached) {
-        const cachedSources = (cached.sources_json ?? []) as SourceResult[];
-        const cachedFloorsBest = Array.isArray(cachedSources) ? pickBestFloors(cachedSources) : null;
-        return new Response(
-          JSON.stringify({
-            units: cached.existing_units,
-            floors: cached.existing_floors,
-            source: cached.source,
-            confidence: cached.confidence ?? null,
-            floorsSource: cachedFloorsBest?.source ?? null,
-            floorsConfidence: cachedFloorsBest?.confidence ?? null,
-            buildingCount: cached.building_count,
-            totalFloorArea: cached.total_floor_area,
-            notes: cached.notes,
-            sources: cachedSources,
-            lastRefreshedAt: cached.last_refreshed_at,
-            cached: true,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        // Skip stale low-quality cache from earlier logic versions; recompute.
+        const isStale =
+          cached.source === "estimate" ||
+          cached.source === "heuristic" ||
+          !cached.confidence ||
+          cached.confidence === "very_low";
+        if (!isStale) {
+          const cachedSources = (cached.sources_json ?? []) as SourceResult[];
+          const cachedFloorsBest = Array.isArray(cachedSources) ? pickBestFloors(cachedSources) : null;
+          return new Response(
+            JSON.stringify({
+              units: cached.existing_units,
+              floors: cached.existing_floors,
+              source: cached.source,
+              confidence: cached.confidence ?? null,
+              floorsSource: cachedFloorsBest?.source ?? null,
+              floorsConfidence: cachedFloorsBest?.confidence ?? null,
+              buildingCount: cached.building_count,
+              totalFloorArea: cached.total_floor_area,
+              notes: cached.notes,
+              sources: cachedSources,
+              lastRefreshedAt: cached.last_refreshed_at,
+              cached: true,
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
       }
     }
 
