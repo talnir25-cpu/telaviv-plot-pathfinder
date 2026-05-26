@@ -702,6 +702,34 @@ function pickBest(sources: SourceResult[]): SourceResult {
   return sources[sources.length - 1];
 }
 
+// Floors are picked separately: GovMap BUILDINGS layer is the only source
+// that returns a *physically measured* floor count (`hasRealFloors`). Even
+// the TLV permits layer doesn't expose floors. So priority for floors is:
+//   manual → govmap_bldg (with real floors) → nadlan (derived from deals)
+//   → govmap_bldg (estimated) → heuristic
+function pickBestFloors(sources: SourceResult[]): SourceResult | null {
+  const manual = sources.find((s) => s.source === "manual" && s.status === "ok" && s.floors !== null);
+  if (manual) return manual;
+
+  const bldgReal = sources.find((s) => {
+    if (s.source !== "govmap_bldg" || s.status !== "ok" || s.floors === null) return false;
+    const raw = s.raw as { hasRealFloors?: boolean } | undefined;
+    return raw?.hasRealFloors === true;
+  });
+  if (bldgReal) return bldgReal;
+
+  const nadlanFloors = sources.find((s) => s.source === "nadlan" && s.status === "ok" && s.floors !== null);
+  if (nadlanFloors) return nadlanFloors;
+
+  const bldgAny = sources.find((s) => s.source === "govmap_bldg" && s.status === "ok" && s.floors !== null);
+  if (bldgAny) return bldgAny;
+
+  const heur = sources.find((s) => s.source === "heuristic" && s.floors !== null);
+  if (heur) return heur;
+
+  return null;
+}
+
 // ────────────────────────── HTTP handler ───────────────────────
 
 Deno.serve(async (req) => {
