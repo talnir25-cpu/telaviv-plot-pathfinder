@@ -844,6 +844,8 @@ Deno.serve(async (req) => {
     ];
 
     const best = pickBest(sources);
+    const bestFloors = pickBestFloors(sources);
+    const chosenFloors = bestFloors?.floors ?? best.floors;
 
     // Cache (best-effort)
     const { error: upsertErr } = await supabase
@@ -853,7 +855,7 @@ Deno.serve(async (req) => {
           gush: body.gush,
           helka: body.helka,
           existing_units: best.units,
-          existing_floors: best.floors,
+          existing_floors: chosenFloors,
           source: best.source,
           building_count: bldg.value.raw && typeof bldg.value.raw === "object"
             ? ((bldg.value.raw as { buildings?: unknown[] }).buildings?.length ?? 0)
@@ -870,9 +872,11 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         units: best.units,
-        floors: best.floors,
+        floors: chosenFloors,
         source: best.source,
         confidence: best.confidence,
+        floorsSource: bestFloors?.source ?? null,
+        floorsConfidence: bestFloors?.confidence ?? null,
         sources,
         centroid: centroidItm
           ? { x: centroidItm.x, y: centroidItm.y, via: centroidItm.via }
