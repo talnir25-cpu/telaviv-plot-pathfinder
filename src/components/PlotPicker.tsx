@@ -17,25 +17,51 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
-  Loader2,
-  Search,
-  Sparkles,
-  MapPin,
-  CheckCircle2,
-  Database,
-  Building2,
-  Calculator,
+  Loader2, Search, Sparkles, MapPin, CheckCircle2, Database, Building2,
+  Calculator, Activity, RefreshCw, ChevronDown, XCircle, AlertCircle, MinusCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-type UnitsSource = "manual" | "govmap_bldg" | "estimate" | null;
+type UnitsSource = "manual" | "govmap_bldg" | "nadlan" | "heuristic" | "estimate" | null;
 
-const SOURCE_META: Record<Exclude<UnitsSource, null>, { label: string; icon: typeof Database; tone: string }> = {
+interface SourceResult {
+  source: string;
+  units: number | null;
+  floors: number | null;
+  totalFloorArea: number | null;
+  confidence: "high" | "medium" | "low" | "very_low" | null;
+  status: "ok" | "empty" | "error" | "skipped";
+  label: string;
+  detail: string;
+  errorMsg?: string;
+  durationMs: number;
+  raw?: unknown;
+}
+
+const SOURCE_META: Record<string, { label: string; icon: typeof Database; tone: string }> = {
   manual: { label: "מאומת ידנית", icon: CheckCircle2, tone: "text-primary" },
   govmap_bldg: { label: "GovMap מבנים", icon: Building2, tone: "text-primary" },
+  nadlan: { label: 'נדל"ן הממשלתי', icon: Database, tone: "text-primary" },
+  heuristic: { label: "הערכה אוטומטית", icon: Calculator, tone: "text-muted-foreground" },
   estimate: { label: "הערכה אוטומטית", icon: Calculator, tone: "text-muted-foreground" },
 };
+
+const CONFIDENCE_META: Record<string, { label: string; tone: string }> = {
+  high: { label: "אמינות גבוהה", tone: "text-emerald-600 dark:text-emerald-400" },
+  medium: { label: "אמינות בינונית", tone: "text-amber-600 dark:text-amber-400" },
+  low: { label: "אמינות נמוכה", tone: "text-orange-600 dark:text-orange-400" },
+  very_low: { label: "הערכה גסה", tone: "text-muted-foreground" },
+};
+
+const STATUS_ICON = {
+  ok: { Icon: CheckCircle2, tone: "text-emerald-600 dark:text-emerald-400" },
+  empty: { Icon: MinusCircle, tone: "text-muted-foreground" },
+  error: { Icon: XCircle, tone: "text-destructive" },
+  skipped: { Icon: AlertCircle, tone: "text-muted-foreground" },
+} as const;
 
 const PLOTS = plotsData as Plot[];
 
@@ -51,6 +77,10 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [existingUnits, setExistingUnits] = useState("8");
   const [existingFloors, setExistingFloors] = useState("3");
   const [unitsSource, setUnitsSource] = useState<UnitsSource>(null);
+  const [unitsConfidence, setUnitsConfidence] = useState<SourceResult["confidence"]>(null);
+  const [sources, setSources] = useState<SourceResult[]>([]);
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [rawDialog, setRawDialog] = useState<SourceResult | null>(null);
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [conservation, setConservation] = useState(false);
   const [notes, setNotes] = useState("");
@@ -127,39 +157,52 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     return PLOTS.find((p) => p.q === quarter && p.gush === g && p.helka === h) ?? null;
   }, [quarter, gushQuery, helka]);
 
-  // Auto-fetch existing units when a plot is selected (cache → GovMap → estimate)
+  const runLookup = async (refresh = false) => {
+    if (!selectedPlot) return;
+    const reqId = ++lookupReqRef.current;
+    setUnitsLoading(true);
+    if (!refresh) {
+      setUnitsSource(null);
+      setUnitsConfidence(null);
+      setSources([]);
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke("lookup-plot-units", {
+        body: {
+          gush: selectedPlot.gush,
+          helka: selectedPlot.helka,
+          plotArea: selectedPlot.area ?? selectedPlot.shapeArea,
+          refresh,
+        },
+      });
+      if (reqId !== lookupReqRef.current) return;
+      if (error || !data || data.error) {
+        console.warn("units lookup failed", error || data?.error);
+        return;
+      }
+      if (typeof data.units === "number") setExistingUnits(String(data.units));
+      if (typeof data.floors === "number") setExistingFloors(String(data.floors));
+      setUnitsSource((data.source as UnitsSource) ?? "estimate");
+      setUnitsConfidence((data.confidence as SourceResult["confidence"]) ?? null);
+      setSources(Array.isArray(data.sources) ? (data.sources as SourceResult[]) : []);
+    } catch (e) {
+      console.warn("units lookup error", e);
+    } finally {
+      if (reqId === lookupReqRef.current) setUnitsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!selectedPlot) {
       setUnitsSource(null);
+      setUnitsConfidence(null);
+      setSources([]);
       return;
     }
-    const reqId = ++lookupReqRef.current;
-    setUnitsLoading(true);
-    setUnitsSource(null);
-    (async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("lookup-plot-units", {
-          body: {
-            gush: selectedPlot.gush,
-            helka: selectedPlot.helka,
-            plotArea: selectedPlot.area ?? selectedPlot.shapeArea,
-          },
-        });
-        if (reqId !== lookupReqRef.current) return; // stale
-        if (error || !data || data.error) {
-          console.warn("units lookup failed", error || data?.error);
-          return;
-        }
-        if (typeof data.units === "number") setExistingUnits(String(data.units));
-        if (typeof data.floors === "number") setExistingFloors(String(data.floors));
-        setUnitsSource((data.source as UnitsSource) ?? "estimate");
-      } catch (e) {
-        console.warn("units lookup error", e);
-      } finally {
-        if (reqId === lookupReqRef.current) setUnitsLoading(false);
-      }
-    })();
+    runLookup(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlot]);
+
 
   const saveManualUnits = async () => {
     if (!selectedPlot) return;
@@ -365,23 +408,33 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <Label htmlFor="units">יח"ד קיימות</Label>
-            {unitsLoading ? (
-              <Badge variant="outline" className="gap-1 text-[10px]">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                מאתר...
-              </Badge>
-            ) : unitsSource ? (
-              (() => {
-                const meta = SOURCE_META[unitsSource];
-                const Icon = meta.icon;
-                return (
-                  <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
-                    <Icon className="h-3 w-3" />
-                    {meta.label}
-                  </Badge>
-                );
-              })()
-            ) : null}
+            <div className="flex items-center gap-1">
+              {unitsLoading ? (
+                <Badge variant="outline" className="gap-1 text-[10px]">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  מאתר...
+                </Badge>
+              ) : unitsSource ? (
+                (() => {
+                  const meta = SOURCE_META[unitsSource] ?? SOURCE_META.estimate;
+                  const Icon = meta.icon;
+                  const conf = unitsConfidence ? CONFIDENCE_META[unitsConfidence] : null;
+                  return (
+                    <>
+                      <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
+                        <Icon className="h-3 w-3" />
+                        {meta.label}
+                      </Badge>
+                      {conf && (
+                        <Badge variant="outline" className={`text-[10px] ${conf.tone}`}>
+                          {conf.label}
+                        </Badge>
+                      )}
+                    </>
+                  );
+                })()
+              ) : null}
+            </div>
           </div>
           <Input
             id="units"
@@ -394,6 +447,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           />
         </div>
 
+
         <div className="space-y-2">
           <Label htmlFor="floors">קומות קיימות</Label>
           <Input
@@ -404,25 +458,92 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           />
         </div>
 
+        {selectedPlot && sources.length > 0 && (
+          <div className="md:col-span-2">
+            <Collapsible open={diagOpen} onOpenChange={setDiagOpen}>
+              <div className="flex items-center justify-between gap-2">
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs text-muted-foreground">
+                    <Activity className="h-3.5 w-3.5" />
+                    מקורות נתונים ({sources.filter((s) => s.status === "ok").length}/{sources.length} הצליחו)
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${diagOpen ? "rotate-180" : ""}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => runLookup(true)} disabled={unitsLoading}>
+                  <RefreshCw className={`h-3.5 w-3.5 ${unitsLoading ? "animate-spin" : ""}`} />
+                  רענן מהמקור
+                </Button>
+              </div>
+              <CollapsibleContent className="mt-2 overflow-hidden rounded-lg border bg-muted/20">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/40 text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-1.5 text-right font-medium">מקור</th>
+                      <th className="px-2 py-1.5 text-center font-medium">סטטוס</th>
+                      <th className="px-2 py-1.5 text-center font-medium">יח"ד</th>
+                      <th className="px-2 py-1.5 text-center font-medium">קומות</th>
+                      <th className="px-2 py-1.5 text-center font-medium">זמן</th>
+                      <th className="px-2 py-1.5"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sources.map((s, i) => {
+                      const { Icon, tone } = STATUS_ICON[s.status];
+                      return (
+                        <tr key={i} className="border-t">
+                          <td className="px-3 py-1.5">
+                            <div className="font-medium">{s.label}</div>
+                            <div className="text-[10px] text-muted-foreground">{s.detail}</div>
+                            {s.errorMsg && <div className="text-[10px] text-destructive">{s.errorMsg}</div>}
+                          </td>
+                          <td className="px-2 py-1.5 text-center">
+                            <Icon className={`mx-auto h-3.5 w-3.5 ${tone}`} />
+                          </td>
+                          <td className="px-2 py-1.5 text-center tabular-nums">{s.units ?? "—"}</td>
+                          <td className="px-2 py-1.5 text-center tabular-nums">{s.floors ?? "—"}</td>
+                          <td className="px-2 py-1.5 text-center tabular-nums text-muted-foreground">
+                            {s.durationMs > 0 ? `${s.durationMs}ms` : "—"}
+                          </td>
+                          <td className="px-2 py-1.5 text-center">
+                            {s.raw != null && (
+                              <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => setRawDialog(s)}>
+                                Raw
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        )}
+
         {selectedPlot && unitsSource && unitsSource !== "manual" && (
           <div className="md:col-span-2 flex items-center justify-between gap-3 rounded-lg border border-dashed bg-muted/20 px-4 py-2.5 text-xs">
             <span className="text-muted-foreground">
-              {unitsSource === "govmap_bldg"
-                ? "הערכה לפי שכבת מבנים של GovMap. אם הנתון שגוי — תקן/י וסמן/י כמאומת."
-                : 'הערכה היוריסטית (שטח × קומות ÷ 80 מ"ר). אם ידוע לך הנתון — תקן/י ושמור.'}
+              הנתון אינו מאומת — אם ידוע לך הערך הנכון, תקן/י ושמור כדי לעדכן את הקאש לכל המשתמשים.
             </span>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={saveManualUnits}
-              className="shrink-0"
-            >
+            <Button type="button" size="sm" variant="outline" onClick={saveManualUnits} className="shrink-0">
               <Database className="ml-1.5 h-3.5 w-3.5" />
               שמור כמאומת
             </Button>
           </div>
         )}
+
+        <Dialog open={!!rawDialog} onOpenChange={(o) => !o && setRawDialog(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{rawDialog?.label} — נתונים גולמיים</DialogTitle>
+            </DialogHeader>
+            <pre dir="ltr" className="max-h-[60vh] overflow-auto rounded bg-muted p-3 text-[11px] leading-tight">
+              {rawDialog ? JSON.stringify(rawDialog.raw, null, 2) : ""}
+            </pre>
+          </DialogContent>
+        </Dialog>
+
 
         <div className="md:col-span-2 flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
           <div>

@@ -1,44 +1,89 @@
-## הצגת אילוצים פיזיים בניתוח הפיננסי
+## מטרה
 
-המטרה: לקשר את האילוצים שמוצגים בדוח התכנוני (עצים לשימור, תקני חניה, השפלת מי תהום) להשפעה כספית מדידה בניתוח הפיננסי — כך שהמשתמש יראה לא רק שיש אילוץ, אלא כמה הוא "עולה" לפרויקט.
+להחליף את ה-`lookup-plot-units` הנוכחי (שנופל כמעט תמיד ל-`estimate`) במנגנון רציני שמושך נתונים משלושה מקורות עצמאיים, מצליב ביניהם, מציג רמת ביטחון, ומאפשר אבחון שקוף של כל מקור.
 
-### שינויים מוצעים
+## ארכיטקטורה
 
-**1. הזרמת הנתונים לפונקציה הפיננסית**
-`FinancialAnalysis.tsx` כבר מקבל את `planning` (הדוח התכנוני). נעביר את `planning.zoning` (כולל 6 השדות החדשים) ל-`financial-analysis` edge function גם במצב `defaults` וגם במצב `analyze`.
+```
+PlotPicker
+   │
+   ▼
+lookup-plot-units (edge function, parallel fan-out)
+   │
+   ├─► Source A: Nadlan transactions  (nadlan.gov.il)
+   │       └─ סופר דירות ייחודיות שנמכרו בכתובת
+   │
+   ├─► Source B: TLV Open Data        (data.tel-aviv.gov.il)
+   │       ├─ שכבת מבנים (קומות + שטח)
+   │       └─ שכבת ארנונה (אם זמין לפי גוש/חלקה)
+   │
+   ├─► Source C: GovMap BLDG          (ags.govmap.gov.il)
+   │       └─ Polygon-intersect מול מעטפת החלקה
+   │
+   └─► Aggregator → בוחר ערך + confidence + רושם לכל מקור
+                    │
+                    ▼
+              plot_units_cache  (כולל היסטוריה לכל מקור)
+```
 
-**2. הרחבת ה-edge function `financial-analysis`**
-- **System prompt**: מוסיפים ידע על עלויות תקן —
-  - העתקה/כופר עצים: 15–50K ₪ לעץ בוגר
-  - מרתף חניה: 80–120K ₪ ליח״ד למרתף
-  - השפלת מי תהום: 200–500 ₪/מ״ר שטח חפירה + 6–12% תוספת על Hard בקרקע בעייתית
-- **`ANALYZE_TOOL`**: מוסיפים 3 שדות פלט חדשים בתוך ה-schema —
-  - `treePreservationCost` (₪)
-  - `parkingBasementCost` (₪)
-  - `dewateringCost` (₪)
-  ושדה מסכם `physicalConstraintsCost` (סכום כולל) — שייכלל ב-`totalProjectCost`.
-- **חישוב**: ה-AI יחשב את שלושת הסעיפים על-בסיס נתוני ה-zoning שיועברו, וישלב אותם בעלות הכוללת וברגישות.
+## שינויי בקאנד
 
-**3. הצגה ב-UI (`FinancialAnalysis.tsx`)**
-תוספת לפאנל "עלויות" (`BreakdownPanel`) של 3 שורות חדשות מתחת ל-Soft costs:
-- "עצים לשימור / כופר"
-- "מרתפי חניה"
-- "השפלת מי תהום"
-כל שורה תוצג רק אם הערך > 0 (כלומר אם האילוץ רלוונטי לחלקה).
+### 1. `supabase/functions/lookup-plot-units/index.ts` — שכתוב
 
-בנוסף — בלוק קטן מעל "נקודת איזון" בכותרת **"השפעת אילוצים פיזיים"**: סכום כולל + breakdown של 3 הסעיפים + שורת אחוז מתוך סה״כ העלות (למשל "12% מעלות הפרויקט נובעים מאילוצים פיזיים").
+מבנה חדש: כל מקור הוא פונקציה אסינכרונית שמחזירה אובייקט `SourceResult`:
 
-**4. הערות (`notes`)**
-ה-AI יוסיף הערות אוטומטית כאשר אילוץ משמעותי — לדוגמה: "עצים לשימור מקטינים את שטח הבנייה האפקטיבי בכ-5%", "מרתף שני נדרש בשל תקן חניה ללא TOD", "השפלת מי תהום מעלה את עלות החפירה ב-X%".
+```ts
+type SourceResult = {
+  source: "nadlan" | "tlv_buildings" | "tlv_arnona" | "govmap_bldg" | "heuristic";
+  units: number | null;
+  floors: number | null;
+  totalFloorArea: number | null;
+  raw: unknown;          // raw response snippet for debug
+  status: "ok" | "empty" | "error" | "skipped";
+  errorMsg?: string;
+  durationMs: number;
+};
+```
 
-**5. שדות הקלט**
-לא מוסיפים שדות hand-input חדשים בטופס — הערכים מגיעים אוטומטית מה-zoning. (אופציה עתידית: לאפשר override ידני בהמשך.)
+ה-handler יריץ את כל המקורות ב-`Promise.allSettled`, יחזיר `sources: SourceResult[]` + שדה מאוחד `best: { units, floors, source, confidence }`.
 
-### קבצים שיתוקנו
-- `supabase/functions/financial-analysis/index.ts` — schema, system prompt, prompt בנייה ב-analyze
-- `src/types/feasibility.ts` — הוספת 4 שדות ל-`FinancialReport`
-- `src/components/FinancialAnalysis.tsx` — העברת `planning.zoning` ל-payload, הצגת השורות והבלוק החדש
+**שיטות שליפה לכל מקור:**
 
-### מה לא בתוכן הזה
-- לא נוסיף UI להזנה ידנית של תוצאות סקר עצים (יישאר ל-AI לאמוד לפי נתוני ה-zoning).
-- לא נשנה את חישוב ה-IRR/breakeven מעבר לכך שהעלות הכוללת תכלול גם את האילוצים.
+- **Nadlan**: POST ל-`nadlan.gov.il/Nadlan.REST/Main/GetAssestAndDeals` עם `Gush`/`Parcel`. סופר `dealNature` / מספרי דירה ייחודיים → רף תחתון של יח״ד (כי לא כל דירה נמכרה).
+- **TLV Buildings**: ArcGIS REST של עיריית ת״א — `services1.tlv.gov.il/.../Buildings/FeatureServer/0/query?where=GUSH=X AND HELKA=Y&outFields=NumberOfFloors,NumberOfApartments,...`. כשיש שדה `NumberOfApartments` — זה ה-ground truth.
+- **TLV Arnona**: בדיקת data.tel-aviv.gov.il לסט נכסי ארנונה לפי גוש/חלקה. אם קיים → ספירת רשומות נפרדות = יח״ד.
+- **GovMap BLDG (משופר)**: במקום Identify בנקודה, להשתמש ב-`FindParcels` → קבלת polygon → `QueryFeatures` על שכבת `BUILDINGS` עם פילטר `ST_Intersects`.
+- **Heuristic**: כפי שהיום (fallback אחרון).
+
+**Aggregator (`pickBest`)**: סדר עדיפות לפי `confidence`:
+1. `tlv_buildings` אם מחזיר `NumberOfApartments` ישיר → confidence `high`
+2. `tlv_arnona` → `high`
+3. `nadlan` → `medium` (רף תחתון; מוצג כ-"לפחות N")
+4. `govmap_bldg` (footprint×floors÷80) → `low`
+5. `heuristic` → `very_low`
+
+הקאש (`plot_units_cache`) ירחיב כדי לשמור JSON של כל המקורות לצרכי דיבאג והיסטוריה. ה-TTL נשאר ידני (המשתמש לוחץ "רענן").
+
+### 2. מיגרציית DB
+
+הוספת עמודות ל-`plot_units_cache`:
+- `sources_json jsonb` — מערך SourceResult המקורי
+- `confidence text` — `high`/`medium`/`low`/`very_low`
+- `last_refreshed_at timestamptz default now()`
+
+## שינויי פרונט
+
+### 3. `PlotPicker.tsx` — תוספת פאנל אבחון
+
+מתחת לבאדג׳ "מאומת ידנית / GovMap / הערכה" יתווסף כפתור קטן **"מקורות נתונים (N/M הצליחו)"**. בלחיצה — פותח Collapsible עם טבלה:
+
+| מקור | סטטוס | יח״ד | קומות | זמן (ms) | פעולות |
+|---|---|---|---|---|---|
+| נדל"ן.gov | ✓ | ≥6 | — | 420 | [Raw] |
+| מבני ת"א | ✓ | 8 | 3 | 180 | [Raw] |
+| ארנונה ת"א | — | — | — | 90 | [Raw] |
+| GovMap BLDG | ✗ timeout | — | — | 5000 | [Raw] |
+| Heuristic | ✓ | 8 | 3 | 1 | — |
+
+- צבעי סטטוס מ-design tokens (success/warning/destructive).
+- כפתור **[Raw]** פותח Dialog עם JSON pretty-printed (לעריכה ידנית ע
