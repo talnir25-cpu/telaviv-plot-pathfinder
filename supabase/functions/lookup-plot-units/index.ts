@@ -384,24 +384,41 @@ async function sourceGovmapBldg(
     return { ...base, status: lastErr ? "error" : "empty", errorMsg: lastErr || undefined };
   }
 
+  // Distinguish "real measured floors" from heuristic fallbacks.
+  const buildingsWithRealFloors = buildings.filter((b) => b.floors !== null && b.floors !== undefined);
+  const hasRealFloors = buildingsWithRealFloors.length > 0;
+
   let totalFloorArea = 0;
   let maxFloors = 0;
+  let maxRealFloors = 0;
   for (const b of buildings) {
     const floors = b.floors ?? 3;
     const footprint = b.area ?? (plotArea ? plotArea * 0.4 : 150);
     totalFloorArea += footprint * floors;
     if (floors > maxFloors) maxFloors = floors;
+    if (b.floors !== null && b.floors !== undefined && b.floors > maxRealFloors) {
+      maxRealFloors = b.floors;
+    }
   }
   const units = Math.max(1, Math.round(totalFloorArea / AVG_UNIT_AREA));
+  const reportedFloors = hasRealFloors ? maxRealFloors : maxFloors;
+
+  // Confidence: "high" when we have actual measured floors (physical GIS
+  // measurement = ground truth for floor count, regardless of unit estimate).
+  // Falls back to "low" when floors were synthesized.
+  const confidence: Confidence = hasRealFloors ? "high" : "low";
 
   return {
     ...base,
     status: "ok",
     units,
-    floors: maxFloors || null,
+    floors: reportedFloors || null,
     totalFloorArea: Math.round(totalFloorArea),
-    detail: `${buildings.length} מבנה(ים), ${maxFloors || "?"} קומות`,
-    raw: { buildings },
+    confidence,
+    detail: hasRealFloors
+      ? `${buildings.length} מבנה(ים) · ${maxRealFloors} קומות (מדידה פיזית)`
+      : `${buildings.length} מבנה(ים), קומות לא מדודות`,
+    raw: { buildings, hasRealFloors, buildingsWithRealFloors: buildingsWithRealFloors.length },
   };
 }
 
@@ -685,6 +702,34 @@ function pickBest(sources: SourceResult[]): SourceResult {
   return sources[sources.length - 1];
 }
 
+// Floors are picked separately: GovMap BUILDINGS layer is the only source
+// that returns a *physically measured* floor count (`hasRealFloors`). Even
+// the TLV permits layer doesn't expose floors. So priority for floors is:
+//   manual → govmap_bldg (with real floors) → nadlan (derived from deals)
+//   → govmap_bldg (estimated) → heuristic
+function pickBestFloors(sources: SourceResult[]): SourceResult | null {
+  const manual = sources.find((s) => s.source === "manual" && s.status === "ok" && s.floors !== null);
+  if (manual) return manual;
+
+  const bldgReal = sources.find((s) => {
+    if (s.source !== "govmap_bldg" || s.status !== "ok" || s.floors === null) return false;
+    const raw = s.raw as { hasRealFloors?: boolean } | undefined;
+    return raw?.hasRealFloors === true;
+  });
+  if (bldgReal) return bldgReal;
+
+  const nadlanFloors = sources.find((s) => s.source === "nadlan" && s.status === "ok" && s.floors !== null);
+  if (nadlanFloors) return nadlanFloors;
+
+  const bldgAny = sources.find((s) => s.source === "govmap_bldg" && s.status === "ok" && s.floors !== null);
+  if (bldgAny) return bldgAny;
+
+  const heur = sources.find((s) => s.source === "heuristic" && s.floors !== null);
+  if (heur) return heur;
+
+  return null;
+}
+
 // ────────────────────────── HTTP handler ───────────────────────
 
 Deno.serve(async (req) => {
@@ -762,16 +807,20 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (cached) {
+        const cachedSources = (cached.sources_json ?? []) as SourceResult[];
+        const cachedFloorsBest = Array.isArray(cachedSources) ? pickBestFloors(cachedSources) : null;
         return new Response(
           JSON.stringify({
             units: cached.existing_units,
             floors: cached.existing_floors,
             source: cached.source,
             confidence: cached.confidence ?? null,
+            floorsSource: cachedFloorsBest?.source ?? null,
+            floorsConfidence: cachedFloorsBest?.confidence ?? null,
             buildingCount: cached.building_count,
             totalFloorArea: cached.total_floor_area,
             notes: cached.notes,
-            sources: cached.sources_json ?? [],
+            sources: cachedSources,
             lastRefreshedAt: cached.last_refreshed_at,
             cached: true,
           }),
@@ -799,6 +848,8 @@ Deno.serve(async (req) => {
     ];
 
     const best = pickBest(sources);
+    const bestFloors = pickBestFloors(sources);
+    const chosenFloors = bestFloors?.floors ?? best.floors;
 
     // Cache (best-effort)
     const { error: upsertErr } = await supabase
@@ -808,7 +859,7 @@ Deno.serve(async (req) => {
           gush: body.gush,
           helka: body.helka,
           existing_units: best.units,
-          existing_floors: best.floors,
+          existing_floors: chosenFloors,
           source: best.source,
           building_count: bldg.value.raw && typeof bldg.value.raw === "object"
             ? ((bldg.value.raw as { buildings?: unknown[] }).buildings?.length ?? 0)
@@ -825,9 +876,11 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         units: best.units,
-        floors: best.floors,
+        floors: chosenFloors,
         source: best.source,
         confidence: best.confidence,
+        floorsSource: bestFloors?.source ?? null,
+        floorsConfidence: bestFloors?.confidence ?? null,
         sources,
         centroid: centroidItm
           ? { x: centroidItm.x, y: centroidItm.y, via: centroidItm.via }

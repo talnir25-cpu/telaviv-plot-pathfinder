@@ -79,6 +79,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [existingFloors, setExistingFloors] = useState("3");
   const [unitsSource, setUnitsSource] = useState<UnitsSource>(null);
   const [unitsConfidence, setUnitsConfidence] = useState<SourceResult["confidence"]>(null);
+  const [floorsSource, setFloorsSource] = useState<UnitsSource>(null);
+  const [floorsConfidence, setFloorsConfidence] = useState<SourceResult["confidence"]>(null);
   const [sources, setSources] = useState<SourceResult[]>([]);
   const [diagOpen, setDiagOpen] = useState(false);
   const [rawDialog, setRawDialog] = useState<SourceResult | null>(null);
@@ -185,6 +187,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       if (typeof data.floors === "number") setExistingFloors(String(data.floors));
       setUnitsSource((data.source as UnitsSource) ?? "estimate");
       setUnitsConfidence((data.confidence as SourceResult["confidence"]) ?? null);
+      setFloorsSource((data.floorsSource as UnitsSource) ?? null);
+      setFloorsConfidence((data.floorsConfidence as SourceResult["confidence"]) ?? null);
       setSources(Array.isArray(data.sources) ? (data.sources as SourceResult[]) : []);
     } catch (e) {
       console.warn("units lookup error", e);
@@ -197,6 +201,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     if (!selectedPlot) {
       setUnitsSource(null);
       setUnitsConfidence(null);
+      setFloorsSource(null);
+      setFloorsConfidence(null);
       setSources([]);
       return;
     }
@@ -450,7 +456,27 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
 
         <div className="space-y-2">
-          <Label htmlFor="floors">קומות קיימות</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="floors">קומות קיימות</Label>
+            {floorsSource && (() => {
+              const meta = SOURCE_META[floorsSource] ?? SOURCE_META.estimate;
+              const Icon = meta.icon;
+              const conf = floorsConfidence ? CONFIDENCE_META[floorsConfidence] : null;
+              return (
+                <div className="flex items-center gap-1">
+                  <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
+                    <Icon className="h-3 w-3" />
+                    {meta.label}
+                  </Badge>
+                  {conf && (
+                    <Badge variant="outline" className={`text-[10px] ${conf.tone}`}>
+                      {conf.label}
+                    </Badge>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
           <Input
             id="floors"
             inputMode="numeric"
