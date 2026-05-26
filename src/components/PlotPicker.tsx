@@ -539,9 +539,94 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             <DialogHeader>
               <DialogTitle>{rawDialog?.label} — נתונים גולמיים</DialogTitle>
             </DialogHeader>
-            <pre dir="ltr" className="max-h-[60vh] overflow-auto rounded bg-muted p-3 text-[11px] leading-tight">
-              {rawDialog ? JSON.stringify(rawDialog.raw, null, 2) : ""}
-            </pre>
+            {rawDialog?.source === "tlv_permits" && rawDialog.raw && typeof rawDialog.raw === "object" ? (
+              <div className="max-h-[60vh] overflow-auto space-y-3">
+                {(() => {
+                  const r = rawDialog.raw as {
+                    summary?: { builtUnits: number; approvedUnits: number };
+                    chosen?: Array<{
+                      physicalStatus: "built" | "approved" | "in_process" | "unknown";
+                      ms_tik_binyan?: number | null;
+                      yechidot_diyur?: number | null;
+                      building_stage?: string | null;
+                      permission_date?: string | null;
+                      tama38?: string | null;
+                      tama38_new?: string | null;
+                      tama38_addition?: string | null;
+                      addresses?: string | null;
+                    }>;
+                  };
+                  const statusMeta: Record<string, { label: string; cls: string }> = {
+                    built: { label: "קיים בפועל", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
+                    approved: { label: "מאושר - לא בהכרח נבנה", cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
+                    in_process: { label: "בתהליך היתר", cls: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300" },
+                    unknown: { label: "—", cls: "bg-muted text-muted-foreground" },
+                  };
+                  const tamaLabel = (c: { tama38?: string | null; tama38_new?: string | null; tama38_addition?: string | null }) => {
+                    const parts: string[] = [];
+                    if (c.tama38_new && c.tama38_new !== "לא") parts.push("חדש");
+                    if (c.tama38_addition && c.tama38_addition !== "לא") parts.push("תוספת");
+                    if (!parts.length && c.tama38 && c.tama38 !== "לא") parts.push(c.tama38);
+                    return parts.length ? parts.join(", ") : "—";
+                  };
+                  return (
+                    <>
+                      {r.summary && (
+                        <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                          <span className="font-medium">בנוי בפועל:</span>{" "}
+                          <span className="text-emerald-700 dark:text-emerald-300">{r.summary.builtUnits} יח"ד</span>
+                          {" · "}
+                          <span className="font-medium">מאושר נוסף:</span>{" "}
+                          <span className="text-amber-700 dark:text-amber-300">{r.summary.approvedUnits} יח"ד</span>
+                        </div>
+                      )}
+                      <div className="overflow-x-auto rounded-md border">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/50">
+                            <tr>
+                              <th className="px-2 py-1 text-right font-medium">תיק בניין</th>
+                              <th className="px-2 py-1 text-right font-medium">יח"ד</th>
+                              <th className="px-2 py-1 text-right font-medium">סטטוס פיזי</th>
+                              <th className="px-2 py-1 text-right font-medium">תאריך היתר</th>
+                              <th className="px-2 py-1 text-right font-medium">תמ"א 38</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(r.chosen ?? []).map((c, i) => {
+                              const m = statusMeta[c.physicalStatus] ?? statusMeta.unknown;
+                              return (
+                                <tr key={i} className="border-t">
+                                  <td className="px-2 py-1.5">{c.ms_tik_binyan ?? "—"}</td>
+                                  <td className="px-2 py-1.5 font-medium">{c.yechidot_diyur ?? "—"}</td>
+                                  <td className="px-2 py-1.5">
+                                    <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] ${m.cls}`}>{m.label}</span>
+                                    {c.building_stage && (
+                                      <div className="mt-0.5 text-[10px] text-muted-foreground">{c.building_stage}</div>
+                                    )}
+                                  </td>
+                                  <td className="px-2 py-1.5 text-muted-foreground">{c.permission_date ?? "—"}</td>
+                                  <td className="px-2 py-1.5 text-muted-foreground">{tamaLabel(c)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <details className="text-xs">
+                        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">JSON גולמי מלא</summary>
+                        <pre dir="ltr" className="mt-2 max-h-[30vh] overflow-auto rounded bg-muted p-3 text-[11px] leading-tight">
+                          {JSON.stringify(rawDialog.raw, null, 2)}
+                        </pre>
+                      </details>
+                    </>
+                  );
+                })()}
+              </div>
+            ) : (
+              <pre dir="ltr" className="max-h-[60vh] overflow-auto rounded bg-muted p-3 text-[11px] leading-tight">
+                {rawDialog ? JSON.stringify(rawDialog.raw, null, 2) : ""}
+              </pre>
+            )}
           </DialogContent>
         </Dialog>
 
