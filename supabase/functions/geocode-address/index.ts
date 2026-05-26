@@ -72,10 +72,17 @@ interface ParcelField {
   fieldValue?: string;
 }
 
-function extractGushHelka(idJson: unknown): { gush: number; helka: number; multiple: boolean } {
+interface ParcelMatch {
+  gush: number;
+  helka: number;
+  centroidX: number;
+  centroidY: number;
+}
+
+function extractParcels(idJson: unknown): ParcelMatch[] {
   const root = idJson as { data?: Array<Record<string, unknown>> };
   const dataArr = root?.data ?? [];
-  const parcels: Array<{ gush: number; helka: number }> = [];
+  const parcels: ParcelMatch[] = [];
 
   for (const layer of dataArr) {
     const results = (layer.Result as unknown[]) ?? [];
@@ -105,15 +112,33 @@ function extractGushHelka(idJson: unknown): { gush: number; helka: number; multi
           helka = Number(value);
         }
       }
-      if (gush && helka) parcels.push({ gush, helka });
+      const centroid = rr.centroid as { x?: number; y?: number } | undefined;
+      if (gush && helka) {
+        parcels.push({
+          gush,
+          helka,
+          centroidX: Number(centroid?.x) || 0,
+          centroidY: Number(centroid?.y) || 0,
+        });
+      }
     }
   }
-
-  if (parcels.length === 0) return { gush: 0, helka: 0, multiple: false };
-  // Take the first parcel to avoid overwriting when GovMap returns multiple matches
-  // (happens near parcel boundaries with mapTolerance > 0).
-  return { ...parcels[0], multiple: parcels.length > 1 };
+  return parcels;
 }
+
+function pickBestParcel(parcels: ParcelMatch[], x: number, y: number): ParcelMatch | null {
+  if (parcels.length === 0) return null;
+  if (parcels.length === 1) return parcels[0];
+  // Pick the parcel whose centroid is closest to the search point — handles
+  // the case where the address X/Y falls on a parcel boundary and GovMap
+  // returns multiple matches (or the wrong one is first).
+  return parcels.reduce((best, p) => {
+    const dB = Math.hypot(best.centroidX - x, best.centroidY - y);
+    const dP = Math.hypot(p.centroidX - x, p.centroidY - y);
+    return dP < dB ? p : best;
+  });
+}
+
 
 
 Deno.serve(async (req) => {
