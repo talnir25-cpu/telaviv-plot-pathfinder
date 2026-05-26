@@ -17,25 +17,51 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
-  Loader2,
-  Search,
-  Sparkles,
-  MapPin,
-  CheckCircle2,
-  Database,
-  Building2,
-  Calculator,
+  Loader2, Search, Sparkles, MapPin, CheckCircle2, Database, Building2,
+  Calculator, Activity, RefreshCw, ChevronDown, XCircle, AlertCircle, MinusCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-type UnitsSource = "manual" | "govmap_bldg" | "estimate" | null;
+type UnitsSource = "manual" | "govmap_bldg" | "nadlan" | "heuristic" | "estimate" | null;
 
-const SOURCE_META: Record<Exclude<UnitsSource, null>, { label: string; icon: typeof Database; tone: string }> = {
+interface SourceResult {
+  source: string;
+  units: number | null;
+  floors: number | null;
+  totalFloorArea: number | null;
+  confidence: "high" | "medium" | "low" | "very_low" | null;
+  status: "ok" | "empty" | "error" | "skipped";
+  label: string;
+  detail: string;
+  errorMsg?: string;
+  durationMs: number;
+  raw?: unknown;
+}
+
+const SOURCE_META: Record<string, { label: string; icon: typeof Database; tone: string }> = {
   manual: { label: "מאומת ידנית", icon: CheckCircle2, tone: "text-primary" },
   govmap_bldg: { label: "GovMap מבנים", icon: Building2, tone: "text-primary" },
+  nadlan: { label: 'נדל"ן הממשלתי', icon: Database, tone: "text-primary" },
+  heuristic: { label: "הערכה אוטומטית", icon: Calculator, tone: "text-muted-foreground" },
   estimate: { label: "הערכה אוטומטית", icon: Calculator, tone: "text-muted-foreground" },
 };
+
+const CONFIDENCE_META: Record<string, { label: string; tone: string }> = {
+  high: { label: "אמינות גבוהה", tone: "text-emerald-600 dark:text-emerald-400" },
+  medium: { label: "אמינות בינונית", tone: "text-amber-600 dark:text-amber-400" },
+  low: { label: "אמינות נמוכה", tone: "text-orange-600 dark:text-orange-400" },
+  very_low: { label: "הערכה גסה", tone: "text-muted-foreground" },
+};
+
+const STATUS_ICON = {
+  ok: { Icon: CheckCircle2, tone: "text-emerald-600 dark:text-emerald-400" },
+  empty: { Icon: MinusCircle, tone: "text-muted-foreground" },
+  error: { Icon: XCircle, tone: "text-destructive" },
+  skipped: { Icon: AlertCircle, tone: "text-muted-foreground" },
+} as const;
 
 const PLOTS = plotsData as Plot[];
 
