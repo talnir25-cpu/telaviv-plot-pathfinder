@@ -201,6 +201,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     if (!selectedPlot) {
       setUnitsSource(null);
       setUnitsConfidence(null);
+      setFloorsSource(null);
+      setFloorsConfidence(null);
       setSources([]);
       return;
     }
