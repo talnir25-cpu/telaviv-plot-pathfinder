@@ -408,23 +408,33 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <Label htmlFor="units">יח"ד קיימות</Label>
-            {unitsLoading ? (
-              <Badge variant="outline" className="gap-1 text-[10px]">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                מאתר...
-              </Badge>
-            ) : unitsSource ? (
-              (() => {
-                const meta = SOURCE_META[unitsSource];
-                const Icon = meta.icon;
-                return (
-                  <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
-                    <Icon className="h-3 w-3" />
-                    {meta.label}
-                  </Badge>
-                );
-              })()
-            ) : null}
+            <div className="flex items-center gap-1">
+              {unitsLoading ? (
+                <Badge variant="outline" className="gap-1 text-[10px]">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  מאתר...
+                </Badge>
+              ) : unitsSource ? (
+                (() => {
+                  const meta = SOURCE_META[unitsSource] ?? SOURCE_META.estimate;
+                  const Icon = meta.icon;
+                  const conf = unitsConfidence ? CONFIDENCE_META[unitsConfidence] : null;
+                  return (
+                    <>
+                      <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
+                        <Icon className="h-3 w-3" />
+                        {meta.label}
+                      </Badge>
+                      {conf && (
+                        <Badge variant="outline" className={`text-[10px] ${conf.tone}`}>
+                          {conf.label}
+                        </Badge>
+                      )}
+                    </>
+                  );
+                })()
+              ) : null}
+            </div>
           </div>
           <Input
             id="units"
@@ -436,6 +446,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             }}
           />
         </div>
+
 
         <div className="space-y-2">
           <Label htmlFor="floors">קומות קיימות</Label>
