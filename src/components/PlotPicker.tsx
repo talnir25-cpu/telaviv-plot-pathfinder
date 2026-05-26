@@ -25,7 +25,7 @@ import { toast } from "@/components/ui/sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-type UnitsSource = "manual" | "govmap_bldg" | "nadlan" | "heuristic" | "estimate" | null;
+type UnitsSource = "manual" | "tlv_permits" | "govmap_bldg" | "nadlan" | "heuristic" | "estimate" | null;
 
 interface SourceResult {
   source: string;
@@ -43,6 +43,7 @@ interface SourceResult {
 
 const SOURCE_META: Record<string, { label: string; icon: typeof Database; tone: string }> = {
   manual: { label: "מאומת ידנית", icon: CheckCircle2, tone: "text-primary" },
+  tlv_permits: { label: 'עיריית ת"א - היתרים', icon: Building2, tone: "text-primary" },
   govmap_bldg: { label: "GovMap מבנים", icon: Building2, tone: "text-primary" },
   nadlan: { label: 'נדל"ן הממשלתי', icon: Database, tone: "text-primary" },
   heuristic: { label: "הערכה אוטומטית", icon: Calculator, tone: "text-muted-foreground" },
