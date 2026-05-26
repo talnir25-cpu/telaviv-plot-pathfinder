@@ -760,13 +760,15 @@ Deno.serve(async (req) => {
     const centroidItm = await getParcelCentroidItm(body.gush, body.helka);
     const centroidWm = centroidItm ? itmToWebMercator(centroidItm.x, centroidItm.y) : null;
 
-    const [nadlan, bldg] = await Promise.all([
+    const [nadlan, bldg, tlv] = await Promise.all([
       timed(() => sourceNadlan(body.gush, body.helka, centroidWm)),
       timed(() => sourceGovmapBldg(body.gush, body.helka, body.plotArea ?? null, centroidItm)),
+      timed(() => sourceTlvPermits(centroidItm)),
     ]);
     const heur = sourceHeuristic(body.plotArea ?? null);
 
     const sources: SourceResult[] = [
+      { ...tlv.value, durationMs: tlv.ms },
       { ...nadlan.value, durationMs: nadlan.ms },
       { ...bldg.value, durationMs: bldg.ms },
       { ...heur, durationMs: 0 },
