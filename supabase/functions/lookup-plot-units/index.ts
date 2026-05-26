@@ -577,6 +577,9 @@ Deno.serve(async (req) => {
         source: best.source,
         confidence: best.confidence,
         sources,
+        centroid: centroidItm
+          ? { x: centroidItm.x, y: centroidItm.y, via: centroidItm.via }
+          : null,
         cached: false,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
