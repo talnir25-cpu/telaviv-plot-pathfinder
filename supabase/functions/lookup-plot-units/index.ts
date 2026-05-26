@@ -384,24 +384,41 @@ async function sourceGovmapBldg(
     return { ...base, status: lastErr ? "error" : "empty", errorMsg: lastErr || undefined };
   }
 
+  // Distinguish "real measured floors" from heuristic fallbacks.
+  const buildingsWithRealFloors = buildings.filter((b) => b.floors !== null && b.floors !== undefined);
+  const hasRealFloors = buildingsWithRealFloors.length > 0;
+
   let totalFloorArea = 0;
   let maxFloors = 0;
+  let maxRealFloors = 0;
   for (const b of buildings) {
     const floors = b.floors ?? 3;
     const footprint = b.area ?? (plotArea ? plotArea * 0.4 : 150);
     totalFloorArea += footprint * floors;
     if (floors > maxFloors) maxFloors = floors;
+    if (b.floors !== null && b.floors !== undefined && b.floors > maxRealFloors) {
+      maxRealFloors = b.floors;
+    }
   }
   const units = Math.max(1, Math.round(totalFloorArea / AVG_UNIT_AREA));
+  const reportedFloors = hasRealFloors ? maxRealFloors : maxFloors;
+
+  // Confidence: "high" when we have actual measured floors (physical GIS
+  // measurement = ground truth for floor count, regardless of unit estimate).
+  // Falls back to "low" when floors were synthesized.
+  const confidence: Confidence = hasRealFloors ? "high" : "low";
 
   return {
     ...base,
     status: "ok",
     units,
-    floors: maxFloors || null,
+    floors: reportedFloors || null,
     totalFloorArea: Math.round(totalFloorArea),
-    detail: `${buildings.length} מבנה(ים), ${maxFloors || "?"} קומות`,
-    raw: { buildings },
+    confidence,
+    detail: hasRealFloors
+      ? `${buildings.length} מבנה(ים) · ${maxRealFloors} קומות (מדידה פיזית)`
+      : `${buildings.length} מבנה(ים), קומות לא מדודות`,
+    raw: { buildings, hasRealFloors, buildingsWithRealFloors: buildingsWithRealFloors.length },
   };
 }
 
