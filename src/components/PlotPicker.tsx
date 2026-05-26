@@ -187,6 +187,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       if (typeof data.floors === "number") setExistingFloors(String(data.floors));
       setUnitsSource((data.source as UnitsSource) ?? "estimate");
       setUnitsConfidence((data.confidence as SourceResult["confidence"]) ?? null);
+      setFloorsSource((data.floorsSource as UnitsSource) ?? null);
+      setFloorsConfidence((data.floorsConfidence as SourceResult["confidence"]) ?? null);
       setSources(Array.isArray(data.sources) ? (data.sources as SourceResult[]) : []);
     } catch (e) {
       console.warn("units lookup error", e);
