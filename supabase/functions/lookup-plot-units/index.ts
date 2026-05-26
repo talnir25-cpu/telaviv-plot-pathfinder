@@ -128,26 +128,50 @@ function itmToWebMercator(xItm: number, yItm: number): { x: number; y: number } 
   };
 }
 
-async function getParcelCentroidItm(gush: number, helka: number): Promise<{ x: number; y: number } | null> {
+async function getParcelCentroidItm(
+  gush: number,
+  helka: number,
+): Promise<{ x: number; y: number; via: string } | null> {
+  // Strategy A: GetParcelData (fast, works when it works)
   try {
     const r = await fetch("https://ags.govmap.gov.il/Common/GetParcelData", {
       method: "POST",
       headers: GOVMAP_HEADERS,
       body: JSON.stringify({ gush, helka }),
     });
-    if (!r.ok) {
+    if (r.ok) {
+      const j = await r.json();
+      const data = j?.data ?? j;
+      const x = Number(data?.X ?? data?.x ?? data?.centerX);
+      const y = Number(data?.Y ?? data?.y ?? data?.centerY);
+      if (x && y) return { x, y, via: "GetParcelData" };
+    } else {
       await r.text();
-      return null;
     }
-    const j = await r.json();
-    const data = j?.data ?? j;
-    const x = Number(data?.X ?? data?.x ?? data?.centerX);
-    const y = Number(data?.Y ?? data?.y ?? data?.centerY);
-    if (!x || !y) return null;
-    return { x, y };
   } catch {
-    return null;
+    /* fall through */
   }
+
+  // Strategy B: FreeSearch with "גוש X חלקה Y" (more robust)
+  try {
+    const keyword = `גוש ${gush} חלקה ${helka}`;
+    const r = await fetch("https://ags.govmap.gov.il/Search/FreeSearch", {
+      method: "POST",
+      headers: GOVMAP_HEADERS,
+      body: JSON.stringify({ keyword, LstResult: null }),
+    });
+    if (r.ok) {
+      const j = await r.json();
+      const first = j?.data?.Result?.[0];
+      const x = Number(first?.X);
+      const y = Number(first?.Y);
+      if (x && y) return { x, y, via: "FreeSearch" };
+    }
+  } catch {
+    /* fall through */
+  }
+
+  return null;
 }
 
 interface NadlanDeal {
