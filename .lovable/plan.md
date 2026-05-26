@@ -1,89 +1,89 @@
-## מטרה
+## הבעיה
 
-להחליף את ה-`lookup-plot-units` הנוכחי (שנופל כמעט תמיד ל-`estimate`) במנגנון רציני שמושך נתונים משלושה מקורות עצמאיים, מצליב ביניהם, מציג רמת ביטחון, ומאפשר אבחון שקוף של כל מקור.
+מקורות `nadlan` ו-`govmap_bldg` הקיימים מחזירים תוצאות חלקיות או ריקות. צריך מקור אמין יותר — עדיף ישירות מעיריית ת"א.
+
+## הפתרון: שכבת היתרי בניה של עיריית ת"א
+
+מצאתי שכבה ציבורית ב-ArcGIS REST של עיריית תל אביב:
+
+`https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/772`
+**שם:** "בקשות והיתרי בניה" (Feature Layer, פוליגון לכל בניין)
+
+שדות רלוונטיים:
+- `yechidot_diyur` (integer) — **מספר יחידות דיור מאושרות בהיתר**
+- `building_stage` — "קיים היתר" / "בתהליך היתר" / "תעודת גמר" וכו'
+- `permission_date`, `occupation`, `finished` — תאריכי היתר/אכלוס/גמר
+- `addresses`, `ms_tik_binyan`, `building_num`
+- `sw_tama_38*` — דגלים על תמ"א 38
+- `shape` (Polygon, EPSG:2039 = ITM)
+
+השכבה תומכת ב-`esriSpatialRelIntersects` ולא דורשת טוקן — כלומר אפשר לשלוח שאילתה מרחבית מה-edge function ולקבל בדיוק את ההיתרים שחותכים את החלקה.
+
+מגבלה: כיסוי **ת"א-יפו בלבד**. לחלקות מחוץ לעיר נמשיך עם המקורות הקיימים.
 
 ## ארכיטקטורה
 
-```
-PlotPicker
-   │
-   ▼
-lookup-plot-units (edge function, parallel fan-out)
-   │
-   ├─► Source A: Nadlan transactions  (nadlan.gov.il)
-   │       └─ סופר דירות ייחודיות שנמכרו בכתובת
-   │
-   ├─► Source B: TLV Open Data        (data.tel-aviv.gov.il)
-   │       ├─ שכבת מבנים (קומות + שטח)
-   │       └─ שכבת ארנונה (אם זמין לפי גוש/חלקה)
-   │
-   ├─► Source C: GovMap BLDG          (ags.govmap.gov.il)
-   │       └─ Polygon-intersect מול מעטפת החלקה
-   │
-   └─► Aggregator → בוחר ערך + confidence + רושם לכל מקור
-                    │
-                    ▼
-              plot_units_cache  (כולל היסטוריה לכל מקור)
-```
+מוסיף מקור חדש `tlv_permits` ל-`lookup-plot-units` שירוץ במקביל לשאר:
 
-## שינויי בקאנד
-
-### 1. `supabase/functions/lookup-plot-units/index.ts` — שכתוב
-
-מבנה חדש: כל מקור הוא פונקציה אסינכרונית שמחזירה אובייקט `SourceResult`:
-
-```ts
-type SourceResult = {
-  source: "nadlan" | "tlv_buildings" | "tlv_arnona" | "govmap_bldg" | "heuristic";
-  units: number | null;
-  floors: number | null;
-  totalFloorArea: number | null;
-  raw: unknown;          // raw response snippet for debug
-  status: "ok" | "empty" | "error" | "skipped";
-  errorMsg?: string;
-  durationMs: number;
-};
+```text
+┌─ getParcelCentroidItm (כבר קיים) ──── x, y בITM ──┐
+│                                                    │
+├─ sourceNadlan (קיים)                              │
+├─ sourceGovmapBldg (קיים)                          │
+├─ sourceTlvPermits (חדש) ─────────────────────────┐│
+│   1. נקודה + tolerance 5מ' → /772/query           ││
+│      where=1=1, geometry=point, geometryType=     ││
+│      esriGeometryPoint, inSR=2039, spatialRel=    ││
+│      esriSpatialRelIntersects, outFields=*        ││
+│   2. אם ריק: נסה buffer 15מ' (ENVELOPE)           ││
+│   3. סנן: yechidot_diyur > 0                      ││
+│   4. בחר את ההיתר הרלוונטי:                       ││
+│      • עדיפות: יש occupation/finished → built     ││
+│      • אחרת: latest permission_date               ││
+│   5. חבר תמ"א 38 — אם sw_tama_38 פעיל, סמן בdetail││
+└─ sourceHeuristic (fallback)                       │
+                                                    │
+              pickBest (עדיפויות מעודכנות):         │
+              manual > tlv_permits(built) >         │
+              nadlan > tlv_permits(approved) >      │
+              govmap_bldg > heuristic               │
 ```
 
-ה-handler יריץ את כל המקורות ב-`Promise.allSettled`, יחזיר `sources: SourceResult[]` + שדה מאוחד `best: { units, floors, source, confidence }`.
+### Confidence Mapping למקור החדש
+- `building_stage = "תעודת גמר"` או יש `occupation` → **high** (קיים בפועל)
+- `building_stage = "קיים היתר"` עם `permission_date` → **medium-high**
+- `building_stage = "בתהליך היתר"` → **medium** (מתוכנן, לא קיים עדיין)
+- `yechidot_diyur = 0` → דלג (לרוב ייעוד לא-מגורים)
 
-**שיטות שליפה לכל מקור:**
+### תצוגה ב-PlotPicker (פאנל אבחון קיים)
+שורה חדשה במקור: `עיריית ת"א - היתרים` עם:
+- מספר יח"ד מההיתר
+- תאריך היתר + שלב
+- דגל "כולל תמ"א 38" אם רלוונטי
+- כפתור Raw עם כל ההיתרים שנמצאו (לבדיקת מקרים של ריבוי היתרים על אותה חלקה)
 
-- **Nadlan**: POST ל-`nadlan.gov.il/Nadlan.REST/Main/GetAssestAndDeals` עם `Gush`/`Parcel`. סופר `dealNature` / מספרי דירה ייחודיים → רף תחתון של יח״ד (כי לא כל דירה נמכרה).
-- **TLV Buildings**: ArcGIS REST של עיריית ת״א — `services1.tlv.gov.il/.../Buildings/FeatureServer/0/query?where=GUSH=X AND HELKA=Y&outFields=NumberOfFloors,NumberOfApartments,...`. כשיש שדה `NumberOfApartments` — זה ה-ground truth.
-- **TLV Arnona**: בדיקת data.tel-aviv.gov.il לסט נכסי ארנונה לפי גוש/חלקה. אם קיים → ספירת רשומות נפרדות = יח״ד.
-- **GovMap BLDG (משופר)**: במקום Identify בנקודה, להשתמש ב-`FindParcels` → קבלת polygon → `QueryFeatures` על שכבת `BUILDINGS` עם פילטר `ST_Intersects`.
-- **Heuristic**: כפי שהיום (fallback אחרון).
+## קבצים שישתנו
 
-**Aggregator (`pickBest`)**: סדר עדיפות לפי `confidence`:
-1. `tlv_buildings` אם מחזיר `NumberOfApartments` ישיר → confidence `high`
-2. `tlv_arnona` → `high`
-3. `nadlan` → `medium` (רף תחתון; מוצג כ-"לפחות N")
-4. `govmap_bldg` (footprint×floors÷80) → `low`
-5. `heuristic` → `very_low`
+1. **`supabase/functions/lookup-plot-units/index.ts`**
+   - הוספת `sourceTlvPermits(centroidItm)` עם 2 שלבי שאילתה (point → buffer).
+   - עדכון `pickBest` לסדר עדיפות חדש.
+   - החזרת `tlv_permits` ב-`sources_json`.
 
-הקאש (`plot_units_cache`) ירחיב כדי לשמור JSON של כל המקורות לצרכי דיבאג והיסטוריה. ה-TTL נשאר ידני (המשתמש לוחץ "רענן").
+2. **`src/components/PlotPicker.tsx`**
+   - תווית UI חדשה במפת המקורות: `tlv_permits → "עיריית ת"א - היתרים"`.
+   - תג בעמודת detail להצגת `building_stage` + תאריך + תמ"א 38.
 
-### 2. מיגרציית DB
+3. **`supabase/migrations/...sql`** — *לא נדרשת מיגרציה*; `sources_json` כבר jsonb גמיש ו-`source` כבר text.
 
-הוספת עמודות ל-`plot_units_cache`:
-- `sources_json jsonb` — מערך SourceResult המקורי
-- `confidence text` — `high`/`medium`/`low`/`very_low`
-- `last_refreshed_at timestamptz default now()`
+## בדיקה ידנית
 
-## שינויי פרונט
+לאחר הפריסה:
+1. ויצמן 33 (גוש 6111 חלקה 483) — נצפה לראות יח"ד מההיתר בפאנל.
+2. כתובת מחוץ לת"א — `tlv_permits` יחזיר `empty` ונגזר ל-nadlan/govmap.
+3. חלקה עם מספר היתרים — Raw אמור להציג את כולם, ה-best הוא הרלוונטי.
 
-### 3. `PlotPicker.tsx` — תוספת פאנל אבחון
+## סיכון / Edge cases
 
-מתחת לבאדג׳ "מאומת ידנית / GovMap / הערכה" יתווסף כפתור קטן **"מקורות נתונים (N/M הצליחו)"**. בלחיצה — פותח Collapsible עם טבלה:
-
-| מקור | סטטוס | יח״ד | קומות | זמן (ms) | פעולות |
-|---|---|---|---|---|---|
-| נדל"ן.gov | ✓ | ≥6 | — | 420 | [Raw] |
-| מבני ת"א | ✓ | 8 | 3 | 180 | [Raw] |
-| ארנונה ת"א | — | — | — | 90 | [Raw] |
-| GovMap BLDG | ✗ timeout | — | — | 5000 | [Raw] |
-| Heuristic | ✓ | 8 | 3 | 1 | — |
-
-- צבעי סטטוס מ-design tokens (success/warning/destructive).
-- כפתור **[Raw]** פותח Dialog עם JSON pretty-printed (לעריכה ידנית ע
+- חלקה עם כמה בניינים נפרדים: שאילתת point תתפוס רק אחד. ה-buffer 15מ' יתפוס בדרך כלל את כולם; נסכום `yechidot_diyur` ע"פ `ms_tik_binyan` (תיק בניין ייחודי).
+- תמ"א 38 תוספת: ההיתר העדכני יכלול את **סה"כ** היחידות אחרי התוספת, אז זה כבר נכון.
+- חלקה ללא היתר דיגיטלי (בניינים ישנים מ-1930s לפני שהמערכת תועדה) — יחזור `empty`, נופלים ל-nadlan/heuristic כרגיל.
