@@ -72,10 +72,17 @@ interface ParcelField {
   fieldValue?: string;
 }
 
-function extractGushHelka(idJson: unknown): { gush: number; helka: number; multiple: boolean } {
+interface ParcelMatch {
+  gush: number;
+  helka: number;
+  centroidX: number;
+  centroidY: number;
+}
+
+function extractParcels(idJson: unknown): ParcelMatch[] {
   const root = idJson as { data?: Array<Record<string, unknown>> };
   const dataArr = root?.data ?? [];
-  const parcels: Array<{ gush: number; helka: number }> = [];
+  const parcels: ParcelMatch[] = [];
 
   for (const layer of dataArr) {
     const results = (layer.Result as unknown[]) ?? [];
@@ -105,15 +112,33 @@ function extractGushHelka(idJson: unknown): { gush: number; helka: number; multi
           helka = Number(value);
         }
       }
-      if (gush && helka) parcels.push({ gush, helka });
+      const centroid = rr.centroid as { x?: number; y?: number } | undefined;
+      if (gush && helka) {
+        parcels.push({
+          gush,
+          helka,
+          centroidX: Number(centroid?.x) || 0,
+          centroidY: Number(centroid?.y) || 0,
+        });
+      }
     }
   }
-
-  if (parcels.length === 0) return { gush: 0, helka: 0, multiple: false };
-  // Take the first parcel to avoid overwriting when GovMap returns multiple matches
-  // (happens near parcel boundaries with mapTolerance > 0).
-  return { ...parcels[0], multiple: parcels.length > 1 };
+  return parcels;
 }
+
+function pickBestParcel(parcels: ParcelMatch[], x: number, y: number): ParcelMatch | null {
+  if (parcels.length === 0) return null;
+  if (parcels.length === 1) return parcels[0];
+  // Pick the parcel whose centroid is closest to the search point — handles
+  // the case where the address X/Y falls on a parcel boundary and GovMap
+  // returns multiple matches (or the wrong one is first).
+  return parcels.reduce((best, p) => {
+    const dB = Math.hypot(best.centroidX - x, best.centroidY - y);
+    const dP = Math.hypot(p.centroidX - x, p.centroidY - y);
+    return dP < dB ? p : best;
+  });
+}
+
 
 
 Deno.serve(async (req) => {
@@ -163,12 +188,15 @@ Deno.serve(async (req) => {
     const resolvedAddress = String(first.ResultLable ?? query);
     if (!x || !y) throw new Error("התקבלה כתובת ללא קואורדינטות");
 
-    // Step 2: IdentifyByXY → Gush/Helka
+    // Step 2: IdentifyByXY → Gush/Helka.
+    // Use a generous tolerance so that addresses whose pin falls on the road
+    // or on a parcel boundary still surface the real parcel; we then choose
+    // the closest one to the search point.
     const idRes = await fetch("https://ags.govmap.gov.il/Identify/IdentifyByXY", {
       method: "POST",
       headers: GOVMAP_HEADERS,
       body: JSON.stringify({
-        x, y, mapTolerance: 5, IsPersonalSite: false,
+        x, y, mapTolerance: 25, IsPersonalSite: false,
         layers: [{ LayerType: 0, LayerName: "PARCEL_ALL" }],
       }),
     });
@@ -183,10 +211,11 @@ Deno.serve(async (req) => {
       throw new Error(`Identify לא תקין: ${idText.slice(0, 120)}`);
     }
 
-    const { gush, helka, multiple } = extractGushHelka(idJson);
+    const parcels = extractParcels(idJson);
+    const best = pickBestParcel(parcels, x, y);
     const { lat, lon } = itmToWgs84(x, y);
 
-    if (!gush || !helka) {
+    if (!best) {
       return new Response(
         JSON.stringify({
           error: "לא נמצא גוש/חלקה עבור הכתובת. נסה/י כתובת מדויקת יותר.",
@@ -198,9 +227,18 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ gush, helka, address: resolvedAddress, x, y, lat, lon, multipleParcels: multiple }),
+      JSON.stringify({
+        gush: best.gush,
+        helka: best.helka,
+        address: resolvedAddress,
+        x, y, lat, lon,
+        candidates: parcels.length > 1
+          ? parcels.map((p) => ({ gush: p.gush, helka: p.helka }))
+          : undefined,
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+
 
   } catch (err) {
     console.error("geocode-address error:", err);
