@@ -807,16 +807,20 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (cached) {
+        const cachedSources = (cached.sources_json ?? []) as SourceResult[];
+        const cachedFloorsBest = Array.isArray(cachedSources) ? pickBestFloors(cachedSources) : null;
         return new Response(
           JSON.stringify({
             units: cached.existing_units,
             floors: cached.existing_floors,
             source: cached.source,
             confidence: cached.confidence ?? null,
+            floorsSource: cachedFloorsBest?.source ?? null,
+            floorsConfidence: cachedFloorsBest?.confidence ?? null,
             buildingCount: cached.building_count,
             totalFloorArea: cached.total_floor_area,
             notes: cached.notes,
-            sources: cached.sources_json ?? [],
+            sources: cachedSources,
             lastRefreshedAt: cached.last_refreshed_at,
             cached: true,
           }),
