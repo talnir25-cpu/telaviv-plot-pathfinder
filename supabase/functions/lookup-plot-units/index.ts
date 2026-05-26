@@ -580,6 +580,40 @@ async function sourceTlvPermits(
     if (latestDate) detailParts.push(`היתר ${latestDate}`);
     if (anyTama) detailParts.push("כולל תמ\"א 38");
 
+    const classify = (f: TlvPermitFeature): "built" | "approved" | "in_process" | "unknown" => {
+      const a = f.attributes;
+      if ((a.occupation && a.occupation.trim()) || (a.finished && a.finished.trim())) return "built";
+      const s = (a.building_stage ?? "").trim();
+      if (s.includes("תעודת גמר") || s.includes("אכלוס")) return "built";
+      if (s.includes("קיים היתר")) return "approved";
+      if (s.includes("בתהליך")) return "in_process";
+      return "unknown";
+    };
+
+    const chosenRaw = chosen.map((f) => {
+      const physicalStatus = classify(f);
+      return {
+        physicalStatus,
+        ms_tik_binyan: f.attributes.ms_tik_binyan,
+        yechidot_diyur: f.attributes.yechidot_diyur,
+        building_stage: f.attributes.building_stage,
+        permission_date: f.attributes.permission_date
+          ? new Date(f.attributes.permission_date).toISOString().slice(0, 10)
+          : null,
+        occupation: f.attributes.occupation,
+        finished: f.attributes.finished,
+        tama38: f.attributes.sw_tama_38,
+        tama38_new: f.attributes.sw_tama_38_chadash,
+        tama38_addition: f.attributes.sw_tama_38_tosefet,
+        addresses: f.attributes.addresses,
+      };
+    });
+
+    const summary = {
+      builtUnits: chosenRaw.filter((c) => c.physicalStatus === "built").reduce((s, c) => s + (c.yechidot_diyur ?? 0), 0),
+      approvedUnits: chosenRaw.filter((c) => c.physicalStatus === "approved" || c.physicalStatus === "in_process").reduce((s, c) => s + (c.yechidot_diyur ?? 0), 0),
+    };
+
     return {
       ...base,
       status: "ok",
@@ -592,18 +626,8 @@ async function sourceTlvPermits(
         totalFound: features.length,
         withUnits: withUnits.length,
         chosenCount: chosen.length,
-        chosen: chosen.map((f) => ({
-          ms_tik_binyan: f.attributes.ms_tik_binyan,
-          yechidot_diyur: f.attributes.yechidot_diyur,
-          building_stage: f.attributes.building_stage,
-          permission_date: f.attributes.permission_date
-            ? new Date(f.attributes.permission_date).toISOString().slice(0, 10)
-            : null,
-          occupation: f.attributes.occupation,
-          finished: f.attributes.finished,
-          tama38: f.attributes.sw_tama_38,
-          addresses: f.attributes.addresses,
-        })),
+        summary,
+        chosen: chosenRaw,
       },
     };
   } catch (e) {
