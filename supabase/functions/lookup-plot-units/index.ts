@@ -638,21 +638,40 @@ async function sourceTlvPermits(
       approvedUnits: chosenRaw.filter((c) => c.physicalStatus === "approved" || c.physicalStatus === "in_process").reduce((s, c) => s + (c.yechidot_diyur ?? 0), 0),
     };
 
+    const rawPayload = {
+      totalFound: features.length,
+      withUnits: withUnits.length,
+      chosenCount: chosen.length,
+      summary,
+      chosen: chosenRaw,
+    };
+
+    // Only "built" units represent the EXISTING state. Permits in
+    // "in_process"/"approved" stages — especially Tama 38 — describe a
+    // FUTURE unit count and must not be reported as existing.
+    if (summary.builtUnits > 0) {
+      return {
+        ...base,
+        status: "ok",
+        units: summary.builtUnits,
+        floors: null,
+        totalFloorArea: null,
+        confidence: summary.approvedUnits > 0 ? "medium" : "high",
+        detail: `${summary.builtUnits} יחידות בנויות${summary.approvedUnits > 0 ? ` (+${summary.approvedUnits} מתוכננות)` : ""}${anyTama ? " · כולל תמ\"א 38" : ""}`,
+        raw: rawPayload,
+      };
+    }
+
+    // Only planned/in-process permits — do not surface as existing units.
     return {
       ...base,
-      status: "ok",
-      units: totalUnits,
+      status: "empty",
+      units: null,
       floors: null,
       totalFloorArea: null,
-      confidence,
-      detail: detailParts.join(" · "),
-      raw: {
-        totalFound: features.length,
-        withUnits: withUnits.length,
-        chosenCount: chosen.length,
-        summary,
-        chosen: chosenRaw,
-      },
+      confidence: "low",
+      detail: `נמצא היתר עתידי (${anyTama ? "תמ\"א 38 / " : ""}${stages[0] ?? "בתהליך"}) — אין נתון על המצב הקיים`,
+      raw: rawPayload,
     };
   } catch (e) {
     return { ...base, status: "error", errorMsg: e instanceof Error ? e.message : String(e) };
