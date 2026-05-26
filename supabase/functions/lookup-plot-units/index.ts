@@ -30,7 +30,7 @@ const GOVMAP_HEADERS = {
 
 const AVG_UNIT_AREA = 80;
 
-type SourceName = "nadlan" | "govmap_bldg" | "heuristic" | "manual";
+type SourceName = "nadlan" | "govmap_bldg" | "tlv_permits" | "heuristic" | "manual";
 type Confidence = "high" | "medium" | "low" | "very_low";
 type SourceStatus = "ok" | "empty" | "error" | "skipped";
 
