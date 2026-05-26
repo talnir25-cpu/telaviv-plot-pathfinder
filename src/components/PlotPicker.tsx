@@ -458,25 +458,92 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           />
         </div>
 
+        {selectedPlot && sources.length > 0 && (
+          <div className="md:col-span-2">
+            <Collapsible open={diagOpen} onOpenChange={setDiagOpen}>
+              <div className="flex items-center justify-between gap-2">
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs text-muted-foreground">
+                    <Activity className="h-3.5 w-3.5" />
+                    מקורות נתונים ({sources.filter((s) => s.status === "ok").length}/{sources.length} הצליחו)
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${diagOpen ? "rotate-180" : ""}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => runLookup(true)} disabled={unitsLoading}>
+                  <RefreshCw className={`h-3.5 w-3.5 ${unitsLoading ? "animate-spin" : ""}`} />
+                  רענן מהמקור
+                </Button>
+              </div>
+              <CollapsibleContent className="mt-2 overflow-hidden rounded-lg border bg-muted/20">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/40 text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-1.5 text-right font-medium">מקור</th>
+                      <th className="px-2 py-1.5 text-center font-medium">סטטוס</th>
+                      <th className="px-2 py-1.5 text-center font-medium">יח"ד</th>
+                      <th className="px-2 py-1.5 text-center font-medium">קומות</th>
+                      <th className="px-2 py-1.5 text-center font-medium">זמן</th>
+                      <th className="px-2 py-1.5"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sources.map((s, i) => {
+                      const { Icon, tone } = STATUS_ICON[s.status];
+                      return (
+                        <tr key={i} className="border-t">
+                          <td className="px-3 py-1.5">
+                            <div className="font-medium">{s.label}</div>
+                            <div className="text-[10px] text-muted-foreground">{s.detail}</div>
+                            {s.errorMsg && <div className="text-[10px] text-destructive">{s.errorMsg}</div>}
+                          </td>
+                          <td className="px-2 py-1.5 text-center">
+                            <Icon className={`mx-auto h-3.5 w-3.5 ${tone}`} />
+                          </td>
+                          <td className="px-2 py-1.5 text-center tabular-nums">{s.units ?? "—"}</td>
+                          <td className="px-2 py-1.5 text-center tabular-nums">{s.floors ?? "—"}</td>
+                          <td className="px-2 py-1.5 text-center tabular-nums text-muted-foreground">
+                            {s.durationMs > 0 ? `${s.durationMs}ms` : "—"}
+                          </td>
+                          <td className="px-2 py-1.5 text-center">
+                            {s.raw != null && (
+                              <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => setRawDialog(s)}>
+                                Raw
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        )}
+
         {selectedPlot && unitsSource && unitsSource !== "manual" && (
           <div className="md:col-span-2 flex items-center justify-between gap-3 rounded-lg border border-dashed bg-muted/20 px-4 py-2.5 text-xs">
             <span className="text-muted-foreground">
-              {unitsSource === "govmap_bldg"
-                ? "הערכה לפי שכבת מבנים של GovMap. אם הנתון שגוי — תקן/י וסמן/י כמאומת."
-                : 'הערכה היוריסטית (שטח × קומות ÷ 80 מ"ר). אם ידוע לך הנתון — תקן/י ושמור.'}
+              הנתון אינו מאומת — אם ידוע לך הערך הנכון, תקן/י ושמור כדי לעדכן את הקאש לכל המשתמשים.
             </span>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={saveManualUnits}
-              className="shrink-0"
-            >
+            <Button type="button" size="sm" variant="outline" onClick={saveManualUnits} className="shrink-0">
               <Database className="ml-1.5 h-3.5 w-3.5" />
               שמור כמאומת
             </Button>
           </div>
         )}
+
+        <Dialog open={!!rawDialog} onOpenChange={(o) => !o && setRawDialog(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{rawDialog?.label} — נתונים גולמיים</DialogTitle>
+            </DialogHeader>
+            <pre dir="ltr" className="max-h-[60vh] overflow-auto rounded bg-muted p-3 text-[11px] leading-tight">
+              {rawDialog ? JSON.stringify(rawDialog.raw, null, 2) : ""}
+            </pre>
+          </DialogContent>
+        </Dialog>
+
 
         <div className="md:col-span-2 flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
           <div>
