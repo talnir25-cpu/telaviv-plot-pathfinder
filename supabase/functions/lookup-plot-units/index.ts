@@ -322,6 +322,13 @@ async function sourceGovmapBldg(
   const buildings: BuildingInfo[] = [];
   let lastErr = "";
 
+  // Dynamic tolerance based on plot size — larger plots need a wider search
+  // radius so we catch buildings that aren't exactly under the centroid.
+  // Default 35m; grows with sqrt(plotArea/π) + 10m buffer; capped at 80m.
+  const dynTolerance = plotArea
+    ? Math.min(80, Math.max(35, Math.round(Math.sqrt(plotArea / Math.PI) + 10)))
+    : 40;
+
   for (const layerName of layerNames) {
     try {
       const r = await withTimeout(
@@ -331,7 +338,7 @@ async function sourceGovmapBldg(
           body: JSON.stringify({
             x: centroid.x,
             y: centroid.y,
-            mapTolerance: 25,
+            mapTolerance: dynTolerance,
             IsPersonalSite: false,
             layers: [{ LayerType: 0, LayerName: layerName }],
           }),
