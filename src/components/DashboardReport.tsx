@@ -102,13 +102,13 @@ const ComparisonRow = ({
   proposed: string | number;
   unit?: string;
 }) => (
-  <tr className="border-b last:border-0">
-    <td className="py-2.5 text-right text-sm font-medium text-muted-foreground">{label}</td>
-    <td className="w-28 py-2.5 text-center text-sm tabular-nums">
+  <tr>
+    <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">{label}</td>
+    <td className="w-32 border-b border-border/60 py-3 text-center text-sm tabular-nums">
       {existing}
       {unit && existing !== "—" && <span className="mr-1 text-muted-foreground">{unit}</span>}
     </td>
-    <td className="w-28 py-2.5 text-center text-sm font-semibold tabular-nums text-primary">
+    <td className="w-32 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
       {proposed}
       {unit && <span className="mr-1 text-muted-foreground">{unit}</span>}
     </td>
@@ -231,16 +231,16 @@ export const DashboardReport = ({
                 <h3 className="text-base font-bold">קיים מול מוצע</h3>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full border-separate border-spacing-x-6 border-spacing-y-0">
                   <thead>
                     <tr className="border-b-2 border-border">
-                      <th className="pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="border-b-2 border-border pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         פרמטר
                       </th>
-                      <th className="w-28 pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="w-32 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         קיים
                       </th>
-                      <th className="w-28 pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
+                      <th className="w-32 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
                         מוצע
                       </th>
                     </tr>
