@@ -55,6 +55,7 @@ interface RequestBody {
   refresh?: boolean;
   manualUnits?: number;
   manualFloors?: number;
+  manualBuiltArea?: number;
   manualNotes?: string;
 }
 
