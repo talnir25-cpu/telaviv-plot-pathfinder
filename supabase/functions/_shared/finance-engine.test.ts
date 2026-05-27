@@ -70,10 +70,15 @@ Deno.test("verdict matches ROC threshold", () => {
     assertEquals(profitable.verdict, "loss");
   }
 
-  // force loss with very low sale price
-  const loss = assembleReport({ ...baseInput, avgSalePricePerSqm: 20_000 });
+  // force loss with very low sale price + high cost
+  const loss = assembleReport({
+    ...baseInput,
+    avgSalePricePerSqm: 8_000,
+    buildCostPerSqm: 15_000,
+  });
   assertEquals(loss.verdict, "loss");
   assert(loss.developerProfit < 0);
+
 });
 
 Deno.test("sensitivity center cell ≈ base scenario", () => {
