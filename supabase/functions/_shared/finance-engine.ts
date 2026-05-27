@@ -599,6 +599,7 @@ export function assembleReport(input: EngineInput): EngineReport {
     totalSalesRevenue: Math.round(core.totalSalesRevenue),
     netSalesRevenue: Math.round(core.netSalesRevenue),
     hardCosts: Math.round(core.hardCosts),
+    constructionBreakdown: core.constructionBreakdown,
     softCosts: Math.round(core.softCosts),
     tenantCosts: Math.round(core.tenantCosts),
     bettermentTax: Math.round(core.bettermentTax),
