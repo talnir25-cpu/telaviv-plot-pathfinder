@@ -4,6 +4,9 @@
 export type ProjectType = "urban_renewal" | "new_construction" | "combination";
 export type RenewalSubtype = "tama38" | "pinui_binui";
 export type FinishLevel = "standard" | "premium" | "luxury";
+// full_rebuild = הריסה + בנייה מחדש על כל השטח (תמ"א 38/2, פינוי-בינוי, בנייה חדשה)
+// addition_only = חיזוק קיים + תוספת בלבד (תמ"א 38/1)
+export type ConstructionMode = "full_rebuild" | "addition_only";
 
 export interface ZoningConstraints {
   treesForConservation?: number | null;
