@@ -29,7 +29,9 @@ import type {
   FinancialInput,
   FinancialReport,
   ProjectType,
+  RenewalSubtype,
 } from "@/types/feasibility";
+
 
 interface Props {
   plot: { gush: number; helka: number; quarter: 3 | 4; area: number };
@@ -126,6 +128,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
         const d = data.defaults;
         setInput({
           projectType: "urban_renewal",
+          renewalSubtype: "tama38",
           developerLandSharePct: 50,
           avgSalePricePerSqm: d.avgSalePricePerSqm,
           buildCostPerSqm: d.buildCostPerSqm,
@@ -140,6 +143,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           landValuePerSqm: d.landValuePerSqm,
           bettermentTaxPct: d.bettermentTaxPct,
         });
+
       } finally {
         if (!cancelled) setLoadingDefaults(false);
       }
