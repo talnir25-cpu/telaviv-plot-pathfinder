@@ -77,10 +77,13 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [helka, setHelka] = useState("");
   const [existingUnits, setExistingUnits] = useState("8");
   const [existingFloors, setExistingFloors] = useState("3");
+  const [existingBuiltArea, setExistingBuiltArea] = useState("");
   const [unitsSource, setUnitsSource] = useState<UnitsSource>(null);
   const [unitsConfidence, setUnitsConfidence] = useState<SourceResult["confidence"]>(null);
   const [floorsSource, setFloorsSource] = useState<UnitsSource>(null);
   const [floorsConfidence, setFloorsConfidence] = useState<SourceResult["confidence"]>(null);
+  const [builtAreaSource, setBuiltAreaSource] = useState<UnitsSource>(null);
+  const [builtAreaConfidence, setBuiltAreaConfidence] = useState<SourceResult["confidence"]>(null);
   const [sources, setSources] = useState<SourceResult[]>([]);
   const [diagOpen, setDiagOpen] = useState(false);
   const [rawDialog, setRawDialog] = useState<SourceResult | null>(null);
