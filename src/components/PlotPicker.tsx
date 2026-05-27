@@ -213,6 +213,9 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       setUnitsConfidence(null);
       setFloorsSource(null);
       setFloorsConfidence(null);
+      setBuiltAreaSource(null);
+      setBuiltAreaConfidence(null);
+      setExistingBuiltArea("");
       setSources([]);
       return;
     }
@@ -225,6 +228,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     if (!selectedPlot) return;
     const u = Number(existingUnits);
     const f = Number(existingFloors);
+    const a = Number(existingBuiltArea);
     if (!u || u < 1) {
       toast.error("הזן/י מספר יח״ד תקין");
       return;
@@ -236,6 +240,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           helka: selectedPlot.helka,
           manualUnits: u,
           manualFloors: f || undefined,
+          manualBuiltArea: a > 0 ? a : undefined,
         },
       });
       if (error || data?.error) {
@@ -243,6 +248,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         return;
       }
       setUnitsSource("manual");
+      if (a > 0) setBuiltAreaSource("manual");
       toast.success("הנתון נשמר ויהיה זמין לכל המשתמשים");
     } catch (e) {
       console.error(e);
@@ -253,6 +259,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlot) return;
+    const ba = Number(existingBuiltArea);
     onAnalyze({
       quarter,
       gush: selectedPlot.gush,
@@ -261,6 +268,9 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       shapeArea: selectedPlot.shapeArea,
       existingUnits: Number(existingUnits) || 0,
       existingFloors: Number(existingFloors) || 0,
+      existingBuiltAreaSqm: ba > 0 ? ba : undefined,
+      existingBuiltAreaSource: ba > 0 ? builtAreaSource ?? undefined : undefined,
+      existingBuiltAreaConfidence: ba > 0 ? builtAreaConfidence ?? undefined : undefined,
       conservation,
       notes: notes.trim() || undefined,
     });
