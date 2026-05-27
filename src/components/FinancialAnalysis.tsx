@@ -203,7 +203,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
     );
   }
 
-  const groups = ["מכירות", "מימון"];
+  const groups = ["מכירות", "בנייה", "מימון"];
   const visibleFields = fieldsForType(input.projectType);
 
   return (
