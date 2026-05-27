@@ -214,13 +214,10 @@ export function computeConstructionCost(input: EngineInput): ConstructionBreakdo
   );
 
   // Basement area: ratio × plot × required basement floors
-  // (new underground parking — built in both modes)
+  // (new underground parking — built in both modes, additive to above-ground built area)
   const basementFloors = Math.max(0, input.zoning?.requiredBasementFloors ?? 1);
   const basementRatio = clamp(input.basementAreaPerFloorRatio ?? 0.85, 0.5, 1.0);
-  const basementAreaSqm = Math.min(
-    input.proposedBuiltAreaSqm,
-    basementFloors * basementRatio * input.plotArea,
-  );
+  const basementAreaSqm = basementFloors * basementRatio * input.plotArea;
 
   // Above-ground area priced at full new-build rate.
   // NOTE: `proposedBuiltAreaSqm` represents the planned ABOVE-GROUND built area
