@@ -23,23 +23,33 @@ export interface EngineInput {
   plotArea: number;
   existingBuiltAreaSqm: number;
   proposedBuiltAreaSqm: number;
+  proposedFloors?: number; // for height premium
   estimatedSellableArea: number;
   proposedUnits: number;
   zoning?: ZoningConstraints;
 
   // financial inputs
   avgSalePricePerSqm: number;
-  buildCostPerSqm: number;
-  softCostsPct: number;     // %
-  vatPct: number;           // %
+  buildCostPerSqm: number;        // base above-ground residential rate (₪/m²)
+  softCostsPct: number;
+  vatPct: number;
   equity: number;
-  loanInterestPct: number;  // annual %
+  loanInterestPct: number;
   constructionMonths: number;
   tenantRentPerMonth: number;
   tenantEvacuationCost: number;
-  targetDeveloperProfitPct: number; // %
+  targetDeveloperProfitPct: number;
   landValuePerSqm: number;
-  bettermentTaxPct: number; // % of uplift
+  bettermentTaxPct: number;
+
+  // ─── construction-cost refinements (all optional, sensible defaults) ───
+  finishLevel?: FinishLevel;              // default "standard"
+  basementCostMultiplier?: number;        // default 0.70 (basement vs above-ground)
+  basementAreaPerFloorRatio?: number;     // default 0.85 (of plot area)
+  demolitionCostPerSqm?: number;          // default 400 ₪/m² (urban renewal only)
+  siteDevelopmentCostPerSqmPlot?: number; // default 450 ₪/m² of plot
+  escalationPctPerYear?: number;          // default 3% — construction inflation
+  contingencyPct?: number;                // default 5% — בלת"מ on hard cost
 }
 
 export interface SensitivityCell {
