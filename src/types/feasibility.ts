@@ -115,12 +115,35 @@ export interface SensitivityCell {
   roc: number;            // %
 }
 
+export interface ConstructionBreakdown {
+  aboveGroundAreaSqm: number;
+  basementAreaSqm: number;
+  effectiveAboveGroundRate: number;
+  effectiveBasementRate: number;
+  aboveGroundCost: number;
+  basementCost: number;
+  finishLevel: FinishLevel;
+  finishMultiplier: number;
+  heightPremiumMultiplier: number;
+  floorsAboveGround: number;
+  demolitionCost: number;
+  siteDevelopmentCost: number;
+  baseHardCost: number;
+  escalationMultiplier: number;
+  escalationCost: number;
+  contingencyPct: number;
+  contingencyCost: number;
+  totalHardCost: number;
+  effectiveCostPerSqmBuilt: number;
+}
+
 export interface FinancialReport {
   // הכנסות
   totalSalesRevenue: number;            // פדיון ממכירות (כולל מע"מ)
   netSalesRevenue: number;              // נטו (ללא מע"מ)
   // עלויות
-  hardCosts: number;                    // עלות בנייה ישירה
+  hardCosts: number;                    // עלות בנייה ישירה (כולל הריסה, פיתוח, אסקלציה, בלת"מ)
+  constructionBreakdown: ConstructionBreakdown;
   softCosts: number;                    // תכנון/ניהול
   tenantCosts: number;                  // פינוי + שכ"ד דיירים
   bettermentTax: number;                // היטל השבחה
