@@ -235,6 +235,41 @@ verdict: profitable אם ROC ≥ ${financial.targetDeveloperProfitPct}, marginal
       return new Response(JSON.stringify({ error: "AI did not return structured response" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const result = JSON.parse(args);
+
+    // ── Post-validation for analyze mode: deterministic sanity overrides ──
+    if (mode === "analyze") {
+      try {
+        result.notes = Array.isArray(result.notes) ? result.notes : [];
+        const target = body.financial.targetDeveloperProfitPct ?? 18;
+        const price = body.financial.avgSalePricePerSqm ?? 0;
+
+        // Force verdict consistency with profit & ROC
+        if (typeof result.developerProfit === "number" && result.developerProfit < 0) {
+          if (result.verdict !== "loss") {
+            result.verdict = "loss";
+            result.verdictLabel = "הפסד";
+            result.notes.push("⚠ verdict תוקן אוטומטית ל-loss כי הרווח שלילי.");
+          }
+        } else if (typeof result.rocPct === "number") {
+          const expected = result.rocPct >= target ? "profitable" : result.rocPct >= 0 ? "marginal" : "loss";
+          if (result.verdict !== expected) {
+            result.verdict = expected;
+            result.verdictLabel = expected === "profitable" ? "רווחי" : expected === "marginal" ? "גבולי" : "הפסד";
+            result.notes.push(`⚠ verdict תוקן אוטומטית ל-${expected} לפי ROC ${result.rocPct.toFixed(1)}% (יעד ${target}%).`);
+          }
+        }
+
+        // Breakeven warning
+        if (typeof result.breakevenPricePerSqm === "number" && price > 0 && result.breakevenPricePerSqm > price * 0.95) {
+          result.notes.push(
+            `⚠ נקודת איזון (${Math.round(result.breakevenPricePerSqm).toLocaleString("he-IL")} ₪/מ"ר) קרובה למחיר השוק (${price.toLocaleString("he-IL")}) — שולי בטחון נמוכים.`,
+          );
+        }
+      } catch (e) {
+        console.error("post-validation error (non-fatal)", e);
+      }
+    }
+
     return new Response(JSON.stringify(mode === "defaults" ? { defaults: result } : { report: result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
