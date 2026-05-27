@@ -188,10 +188,17 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       }
       if (typeof data.units === "number") setExistingUnits(String(data.units));
       if (typeof data.floors === "number") setExistingFloors(String(data.floors));
+      if (typeof data.builtArea === "number" && data.builtArea > 0) {
+        setExistingBuiltArea(String(Math.round(data.builtArea)));
+      } else if (!refresh) {
+        setExistingBuiltArea("");
+      }
       setUnitsSource((data.source as UnitsSource) ?? "estimate");
       setUnitsConfidence((data.confidence as SourceResult["confidence"]) ?? null);
       setFloorsSource((data.floorsSource as UnitsSource) ?? null);
       setFloorsConfidence((data.floorsConfidence as SourceResult["confidence"]) ?? null);
+      setBuiltAreaSource((data.builtAreaSource as UnitsSource) ?? null);
+      setBuiltAreaConfidence((data.builtAreaConfidence as SourceResult["confidence"]) ?? null);
       setSources(Array.isArray(data.sources) ? (data.sources as SourceResult[]) : []);
     } catch (e) {
       console.warn("units lookup error", e);
