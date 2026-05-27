@@ -237,10 +237,10 @@ export const DashboardReport = ({
                       <th className="pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         פרמטר
                       </th>
-                      <th className="pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="w-28 pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         קיים
                       </th>
-                      <th className="pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-primary">
+                      <th className="w-28 pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
                         מוצע
                       </th>
                     </tr>
