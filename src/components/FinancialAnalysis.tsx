@@ -477,7 +477,56 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
   );
 };
 
-const ConstraintCell = ({ label, value }: { label: string; value: number }) => (
+const ConstructionBreakdownPanel = ({ report }: { report: FinancialReport }) => {
+  const b = report.constructionBreakdown;
+  if (!b) return null;
+  const row = (label: string, value: string, sub?: string, bold?: boolean) => (
+    <div className={`flex justify-between gap-2 text-sm ${bold ? "border-t pt-2 font-semibold" : ""}`}>
+      <span className="text-muted-foreground">
+        {label}
+        {sub && <span className="ml-1 text-[10px] opacity-70">{sub}</span>}
+      </span>
+      <span className="tabular-nums">{value}</span>
+    </div>
+  );
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold">פירוט עלות בנייה (Hard)</h4>
+        <Badge variant="outline" className="text-[10px]">
+          ממוצע {b.effectiveCostPerSqmBuilt.toLocaleString("he-IL")} ₪/מ״ר
+        </Badge>
+      </div>
+      <div className="space-y-1.5">
+        {row(
+          `מעל-קרקע (${b.aboveGroundAreaSqm.toLocaleString("he-IL")} מ״ר)`,
+          fmtNIS(b.aboveGroundCost),
+          `× ${b.effectiveAboveGroundRate.toLocaleString("he-IL")} ₪ • גמר ×${b.finishMultiplier.toFixed(2)} • גובה ×${b.heightPremiumMultiplier.toFixed(2)} (${b.floorsAboveGround} קומות)`,
+        )}
+        {b.basementAreaSqm > 0 &&
+          row(
+            `מרתפי חניה (${b.basementAreaSqm.toLocaleString("he-IL")} מ״ר)`,
+            fmtNIS(b.basementCost),
+            `× ${b.effectiveBasementRate.toLocaleString("he-IL")} ₪`,
+          )}
+        {b.demolitionCost > 0 && row("הריסת קיים", fmtNIS(b.demolitionCost))}
+        {b.siteDevelopmentCost > 0 && row("פיתוח שטח", fmtNIS(b.siteDevelopmentCost))}
+        {row("בסיס לפני אסקלציה", fmtNIS(b.baseHardCost), undefined, true)}
+        {b.escalationCost > 0 &&
+          row(
+            "אסקלציה (אינפלציית בנייה)",
+            `+${fmtNIS(b.escalationCost)}`,
+            `×${b.escalationMultiplier.toFixed(3)}`,
+          )}
+        {b.contingencyCost > 0 &&
+          row('בלת"מ', `+${fmtNIS(b.contingencyCost)}`, `${b.contingencyPct}%`)}
+        {row('סה״כ Hard', fmtNIS(b.totalHardCost), undefined, true)}
+      </div>
+    </div>
+  );
+};
+
+
   <div className={`rounded-lg border px-3 py-2 ${value > 0 ? "border-amber-500/30 bg-card" : "border-muted bg-muted/20 opacity-60"}`}>
     <div className="text-[10px] text-muted-foreground">{label}</div>
     <div className="mt-0.5 text-sm font-semibold tabular-nums">{value > 0 ? fmtNIS(value) : "—"}</div>
