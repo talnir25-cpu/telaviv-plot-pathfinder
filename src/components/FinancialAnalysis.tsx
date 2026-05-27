@@ -538,16 +538,46 @@ const ConstructionBreakdownPanel = ({ report }: { report: FinancialReport }) => 
     <div className="rounded-xl border bg-card p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h4 className="text-sm font-semibold">פירוט עלות בנייה (Hard)</h4>
-        <Badge variant="outline" className="text-[10px]">
-          ממוצע {b.effectiveCostPerSqmBuilt.toLocaleString("he-IL")} ₪/מ״ר
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-[10px]">
+            {b.constructionMode === "addition_only" ? "חיזוק + תוספת" : "הריסה + בנייה מחדש"}
+          </Badge>
+          <Badge variant="outline" className="text-[10px]">
+            ממוצע {b.effectiveCostPerSqmBuilt.toLocaleString("he-IL")} ₪/מ״ר
+          </Badge>
+        </div>
       </div>
+
+      {/* Area context */}
+      <div className="mb-3 grid grid-cols-3 gap-2 rounded-lg bg-muted/20 p-2 text-[11px]">
+        <div>
+          <div className="text-muted-foreground">שטח קיים</div>
+          <div className="font-semibold tabular-nums">{b.existingBuiltAreaSqm.toLocaleString("he-IL")} מ״ר</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">שטח מתווסף</div>
+          <div className="font-semibold tabular-nums text-primary">+{b.addedBuiltAreaSqm.toLocaleString("he-IL")} מ״ר</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">שטח מוצע סה״כ</div>
+          <div className="font-semibold tabular-nums">{(b.existingBuiltAreaSqm + b.addedBuiltAreaSqm).toLocaleString("he-IL")} מ״ר</div>
+        </div>
+      </div>
+
       <div className="space-y-1.5">
         {row(
-          `מעל-קרקע (${b.aboveGroundAreaSqm.toLocaleString("he-IL")} מ״ר)`,
+          b.constructionMode === "addition_only"
+            ? `בנייה חדשה — תוספת מעל-קרקע (${b.aboveGroundAreaSqm.toLocaleString("he-IL")} מ״ר)`
+            : `מעל-קרקע (${b.aboveGroundAreaSqm.toLocaleString("he-IL")} מ״ר)`,
           fmtNIS(b.aboveGroundCost),
           `× ${b.effectiveAboveGroundRate.toLocaleString("he-IL")} ₪ • גמר ×${b.finishMultiplier.toFixed(2)} • גובה ×${b.heightPremiumMultiplier.toFixed(2)} (${b.floorsAboveGround} קומות)`,
         )}
+        {b.strengtheningCost > 0 &&
+          row(
+            `חיזוק קיים (${b.existingBuiltAreaSqm.toLocaleString("he-IL")} מ״ר)`,
+            fmtNIS(b.strengtheningCost),
+            `× ${b.strengtheningCostPerSqm.toLocaleString("he-IL")} ₪/מ״ר`,
+          )}
         {b.basementAreaSqm > 0 &&
           row(
             `מרתפי חניה (${b.basementAreaSqm.toLocaleString("he-IL")} מ״ר)`,
