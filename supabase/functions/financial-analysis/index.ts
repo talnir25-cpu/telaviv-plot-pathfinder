@@ -152,7 +152,18 @@ Deno.serve(async (req) => {
       tool = DEFAULTS_TOOL;
     } else if (mode === "analyze") {
       const { plot, planning, financial } = body;
+      const projectType: "urban_renewal" | "new_construction" | "combination" = financial.projectType ?? "urban_renewal";
+      const developerShare = financial.developerLandSharePct ?? 100;
+
+      const landRule = projectType === "urban_renewal"
+        ? "סוג הפרויקט: התחדשות עירונית — הקרקע בבעלות הדיירים. landCost = 0 בכל מקרה. כן יש עלויות דיירים (פינוי + שכ\"ד). היטל השבחה: ברוב פרויקטי תמ\"א 38 יש פטור מלא לפי סעיף 19; בפינוי-בינוי יש פטור חלקי. הגדר bettermentTax = 0 אלא אם המשתמש הזין ערך חיובי במפורש (אז קח 50% מהמופע). הוסף ל-notes הסבר על הפטור. הוסף עלות ערבויות חוק מכר + ליווי משפטי דיירים = hardCosts × 0.025."
+        : projectType === "new_construction"
+        ? "סוג הפרויקט: בנייה חדשה — היזם קונה קרקע פנויה. landCost = landValuePerSqm × plotArea. tenantCosts = 0 (אין דיירים). היטל השבחה מלא לפי הנוסחה הרגילה."
+        : `סוג הפרויקט: עסקת קומבינציה — חלק היזם בקרקע: ${developerShare}%. landCost = landValuePerSqm × plotArea × (${developerShare}/100). היתר משולם בדירות לבעלים (כלול כבר ב-hardCosts דרך שטח הבנייה). tenantCosts לפי הזנת המשתמש (לרוב 0 בקומבינציה).`;
+
       userPrompt = `חשב היתכנות פיננסית מלאה לפרויקט.
+
+${landRule}
 
 נתוני תכנון (מהדוח התכנוני):
 - שטח מגרש: ${plot.area} מ"ר
@@ -186,11 +197,10 @@ Deno.serve(async (req) => {
 חישובים נדרשים:
 1. פדיון = שטח_מכירה × מחיר_מ"ר. נטו = פדיון / (1+מע"מ)
 2. Hard = שטח_בנייה × עלות_מ"ר; Soft = Hard × softPct
-3. עלויות דיירים = יח"ד_קיימות × (פינוי + שכ"ד×חודשי_הקמה)
+3. עלויות דיירים — בהתאם לסוג הפרויקט (ראה landRule למעלה)
 4. דמי היתר ≈ 1% מעלות בנייה
 5. עלויות מימון: financingCosts = (totalCost - equity) × (constructionMonths/12) × (rate/100) × 0.55
-   המקדם 0.55 משקף S-curve של משיכות בנייה (לא 0.5 שמניח משיכה לינארית).
-6. אילוצים פיזיים (ראה system prompt לנוסחאות): treePreservationCost, parkingBasementCost, dewateringCost, physicalConstraintsCost
+6. אילוצים פיזיים (ראה system prompt): treePreservationCost, parkingBasementCost, dewateringCost, physicalConstraintsCost
 7. סה"כ_עלות = Hard + Soft + tenant + landCost + bettermentTax + permitFees + financingCosts + physicalConstraintsCost
 8. רווח = נטו - סה"כ_עלות
 9. ROC = רווח/עלות × 100; ROS = רווח/נטו × 100; IRR ≈ ((1 + ROC/100)^(12/constructionMonths) - 1) × 100
