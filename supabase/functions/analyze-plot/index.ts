@@ -216,6 +216,10 @@ Deno.serve(async (req) => {
       });
     }
 
+    const builtAreaLine = body.existingBuiltAreaSqm && body.existingBuiltAreaSqm > 0
+      ? `שטח בנוי קיים (מדוד ממקור: ${body.existingBuiltAreaSource ?? "לא ידוע"}, אמינות: ${body.existingBuiltAreaConfidence ?? "לא ידוע"}): ${body.existingBuiltAreaSqm} מ"ר — השתמש בערך הזה ישירות כ-existing.builtAreaSqm; אל תאמוד מחדש.`
+      : `שטח בנוי קיים: לא ידוע — חשב לפי existingUnits × ~85 מ"ר`;
+
     const userPrompt = `נתח את ההיתכנות להתחדשות עירונית של החלקה הבאה:
 
 רובע: ${body.quarter}
@@ -225,6 +229,7 @@ Deno.serve(async (req) => {
 שטח לפי GIS: ${body.shapeArea ?? "לא ידוע"} מ"ר
 מספר יח"ד קיימות: ${body.existingUnits}
 מספר קומות קיים: ${body.existingFloors}
+${builtAreaLine}
 סטטוס שימור (לפי המשתמש): ${body.conservation ? "כן" : "לא ידוע / לא"}
 ${body.notes ? `הערות נוספות: ${body.notes}` : ""}
 
