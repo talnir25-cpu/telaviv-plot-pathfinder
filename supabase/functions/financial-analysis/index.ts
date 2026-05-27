@@ -106,6 +106,7 @@ const AnalyzeBodySchema = z.object({
     proposed: z.object({
       units: z.number().min(0),
       builtAreaSqm: z.number().min(0),
+      floors: z.number().min(0).optional(),
     }).passthrough(),
     metrics: z.object({
       estimatedSellableArea: z.number().min(0),
