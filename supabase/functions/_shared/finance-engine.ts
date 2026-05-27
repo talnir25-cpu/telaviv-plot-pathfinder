@@ -615,6 +615,16 @@ export function assembleReport(input: EngineInput): EngineReport {
     `מנוע חישוב דטרמיניסטי v2 — תזרים חודשי ל-${core.monthly.length - 1} חודשים, IRR ב-Newton-Raphson.`,
   );
   const cb = core.constructionBreakdown;
+  if (cb.constructionMode === "addition_only") {
+    notes.push(
+      `מצב בנייה: חיזוק + תוספת (תמ"א 38/1). שטח מתווסף ${cb.addedBuiltAreaSqm.toLocaleString("he-IL")} מ"ר בעלות בנייה חדשה, ` +
+        `שטח קיים ${cb.existingBuiltAreaSqm.toLocaleString("he-IL")} מ"ר בחיזוק (${cb.strengtheningCostPerSqm.toLocaleString("he-IL")} ₪/מ"ר = ${cb.strengtheningCost.toLocaleString("he-IL")} ₪). ללא הריסה.`,
+    );
+  } else {
+    notes.push(
+      `מצב בנייה: הריסה ובנייה מחדש על מלוא השטח המוצע (${input.proposedBuiltAreaSqm.toLocaleString("he-IL")} מ"ר). שטח קיים ${input.existingBuiltAreaSqm.toLocaleString("he-IL")} מ"ר → הריסה.`,
+    );
+  }
   notes.push(
     `עלות בנייה בפועל: ${cb.effectiveCostPerSqmBuilt.toLocaleString("he-IL")} ₪/מ"ר ` +
       `(מעל-קרקע ${cb.aboveGroundAreaSqm.toLocaleString("he-IL")} מ"ר × ${cb.effectiveAboveGroundRate.toLocaleString("he-IL")} ₪, ` +
