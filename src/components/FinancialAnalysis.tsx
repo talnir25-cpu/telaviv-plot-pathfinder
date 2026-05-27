@@ -526,7 +526,7 @@ const ConstructionBreakdownPanel = ({ report }: { report: FinancialReport }) => 
   );
 };
 
-
+const ConstraintCell = ({ label, value }: { label: string; value: number }) => (
   <div className={`rounded-lg border px-3 py-2 ${value > 0 ? "border-amber-500/30 bg-card" : "border-muted bg-muted/20 opacity-60"}`}>
     <div className="text-[10px] text-muted-foreground">{label}</div>
     <div className="mt-0.5 text-sm font-semibold tabular-nums">{value > 0 ? fmtNIS(value) : "—"}</div>
