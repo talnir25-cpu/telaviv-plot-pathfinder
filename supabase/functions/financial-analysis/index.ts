@@ -188,13 +188,15 @@ Deno.serve(async (req) => {
 2. Hard = שטח_בנייה × עלות_מ"ר; Soft = Hard × softPct
 3. עלויות דיירים = יח"ד_קיימות × (פינוי + שכ"ד×חודשי_הקמה)
 4. דמי היתר ≈ 1% מעלות בנייה
-5. עלויות מימון: על (סה"כ_עלות - הון_עצמי), במשך חצי תקופת הקמה (תקבולי דירות מתחילים באמצע)
+5. עלויות מימון: financingCosts = (totalCost - equity) × (constructionMonths/12) × (rate/100) × 0.55
+   המקדם 0.55 משקף S-curve של משיכות בנייה (לא 0.5 שמניח משיכה לינארית).
 6. אילוצים פיזיים (ראה system prompt לנוסחאות): treePreservationCost, parkingBasementCost, dewateringCost, physicalConstraintsCost
 7. סה"כ_עלות = Hard + Soft + tenant + landCost + bettermentTax + permitFees + financingCosts + physicalConstraintsCost
 8. רווח = נטו - סה"כ_עלות
-9. ROC = רווח/עלות; ROS = רווח/נטו; IRR ≈ הערכה מבוססת רווח/(תקופה_שנים × הון_עצמי)
-10. נקודת איזון = (סה"כ_עלות × (1+מע"מ)) / שטח_מכירה
+9. ROC = רווח/עלות × 100; ROS = רווח/נטו × 100; IRR ≈ ((1 + ROC/100)^(12/constructionMonths) - 1) × 100
+10. נקודת איזון = (סה"כ_עלות × (1+מע"מ/100)) / שטח_מכירה
 11. רגישות: לכל שילוב מ-{-5,0,+5}% במחיר × {-5,0,+5}% בעלות הבנייה — חשב רווח ו-ROC.
+    חשוב: ב-priceDelta=0, costDelta=0 — חייב להיות בדיוק רווח ו-ROC של התרחיש הראשי.
 verdict: profitable אם ROC ≥ ${financial.targetDeveloperProfitPct}, marginal אם 0 ≤ ROC < target, אחרת loss.
 החזר דרך render_financial_report.`;
       tool = ANALYZE_TOOL;
@@ -208,7 +210,7 @@ verdict: profitable אם ROC ≥ ${financial.targetDeveloperProfitPct}, marginal
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "openai/gpt-5.4",
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: userPrompt },
@@ -233,6 +235,41 @@ verdict: profitable אם ROC ≥ ${financial.targetDeveloperProfitPct}, marginal
       return new Response(JSON.stringify({ error: "AI did not return structured response" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const result = JSON.parse(args);
+
+    // ── Post-validation for analyze mode: deterministic sanity overrides ──
+    if (mode === "analyze") {
+      try {
+        result.notes = Array.isArray(result.notes) ? result.notes : [];
+        const target = body.financial.targetDeveloperProfitPct ?? 18;
+        const price = body.financial.avgSalePricePerSqm ?? 0;
+
+        // Force verdict consistency with profit & ROC
+        if (typeof result.developerProfit === "number" && result.developerProfit < 0) {
+          if (result.verdict !== "loss") {
+            result.verdict = "loss";
+            result.verdictLabel = "הפסד";
+            result.notes.push("⚠ verdict תוקן אוטומטית ל-loss כי הרווח שלילי.");
+          }
+        } else if (typeof result.rocPct === "number") {
+          const expected = result.rocPct >= target ? "profitable" : result.rocPct >= 0 ? "marginal" : "loss";
+          if (result.verdict !== expected) {
+            result.verdict = expected;
+            result.verdictLabel = expected === "profitable" ? "רווחי" : expected === "marginal" ? "גבולי" : "הפסד";
+            result.notes.push(`⚠ verdict תוקן אוטומטית ל-${expected} לפי ROC ${result.rocPct.toFixed(1)}% (יעד ${target}%).`);
+          }
+        }
+
+        // Breakeven warning
+        if (typeof result.breakevenPricePerSqm === "number" && price > 0 && result.breakevenPricePerSqm > price * 0.95) {
+          result.notes.push(
+            `⚠ נקודת איזון (${Math.round(result.breakevenPricePerSqm).toLocaleString("he-IL")} ₪/מ"ר) קרובה למחיר השוק (${price.toLocaleString("he-IL")}) — שולי בטחון נמוכים.`,
+          );
+        }
+      } catch (e) {
+        console.error("post-validation error (non-fatal)", e);
+      }
+    }
+
     return new Response(JSON.stringify(mode === "defaults" ? { defaults: result } : { report: result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
