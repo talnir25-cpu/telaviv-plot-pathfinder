@@ -306,6 +306,9 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
         </div>
       </div>
 
+      {/* Profit gauge */}
+      <ProfitGauge roc={report.rocPct} target={report.targetProfitPct ?? 15} verdict={report.verdict} />
+
       {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KPI label="רווח יזמי" value={fmtNIS(report.developerProfit)} highlight />
@@ -313,6 +316,7 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
         <KPI label="ROS (רווח/מחזור)" value={fmtPct(report.rosPct)} />
         <KPI label="IRR משוער" value={fmtPct(report.irrPct)} />
       </div>
+
 
       {/* Cost / revenue breakdown */}
       <div className="grid gap-4 md:grid-cols-2">
