@@ -139,4 +139,13 @@ export interface FinancialReport {
   // רגישות
   sensitivity: SensitivityCell[];       // 9 תאים: -5/0/+5 × -5/0/+5
   notes: string[];                      // הערות / הנחות עבודה
+  // תזרים חודשי (אופציונלי — להצגה בגרף)
+  monthlyCashflow?: Array<{
+    month: number;
+    inflow: number;
+    outflow: number;
+    net: number;
+    debtBalance: number;
+  }>;
 }
+
