@@ -264,7 +264,17 @@ export const DashboardReport = ({
                   <tbody>
                     <ComparisonRow label="יחידות דיור" existing={fmt(report.existing.units)} proposed={fmt(report.proposed.units)} />
                     <ComparisonRow label="קומות" existing={fmt(report.existing.floors)} proposed={fmt(report.proposed.floors)} />
-                    <ComparisonRow label="שטח בנוי" existing={fmt(report.existing.builtAreaSqm)} proposed={fmt(report.proposed.builtAreaSqm)} unit='מ"ר' />
+                    <ComparisonRow
+                      label="שטח בנוי"
+                      existing={fmt(report.existing.builtAreaSqm)}
+                      proposed={fmt(report.proposed.builtAreaSqm)}
+                      unit='מ"ר'
+                      badge={input.existingBuiltAreaSource ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          {BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource}
+                        </Badge>
+                      ) : undefined}
+                    />
                     <ComparisonRow label="FAR" existing={`${fmt(report.existing.far * 100)}%`} proposed={`${fmt(report.proposed.far * 100)}%`} />
                     <ComparisonRow label="גובה מקס׳" existing="—" proposed={fmt(report.proposed.heightMeters, 1)} unit="מ׳" />
                   </tbody>
