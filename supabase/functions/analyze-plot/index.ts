@@ -287,6 +287,54 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}
       });
     }
 
+    // ── Post-validation: deterministic sanity checks on AI output ──
+    try {
+      report.redFlags = Array.isArray(report.redFlags) ? report.redFlags : [];
+
+      const existingU = report.existing?.units ?? body.existingUnits;
+      const proposedU = report.proposed?.units ?? 0;
+      const multiplier = existingU > 0 ? proposedU / existingU : 0;
+
+      if (multiplier > 4.5) {
+        report.redFlags.push({
+          level: "warning",
+          title: "מכפיל יח\"ד חריג",
+          description: `מכפיל ${multiplier.toFixed(2)}× חורג מהמקובל (2.5-4×). דורש אישור ועדה מיוחדת והצדקה תכנונית.`,
+          source: "בדיקת עקביות אוטומטית",
+        });
+      }
+
+      const maxFloors = report.zoning?.maxFloors;
+      const proposedFloors = report.proposed?.floors;
+      if (maxFloors && proposedFloors && proposedFloors > maxFloors) {
+        report.redFlags.push({
+          level: "critical",
+          title: "חריגה ממגבלת קומות",
+          description: `${proposedFloors} קומות מוצעות חורגות מתקנון הרובע (מקסימום ${maxFloors}).`,
+          source: "בדיקת עקביות אוטומטית",
+        });
+        if (report.status !== "blocked") report.status = "high_risk";
+      }
+
+      const plotArea = body.area ?? body.shapeArea ?? 0;
+      if (plotArea > 0 && plotArea < 500 && existingU < 6) {
+        report.redFlags.push({
+          level: "warning",
+          title: "מגרש קטן — סף כלכלי",
+          description: `מגרש ${plotArea} מ"ר עם ${existingU} יח"ד קיימות — קושי לעבור סף כלכלי לפינוי-בינוי.`,
+          source: "בדיקת עקביות אוטומטית",
+        });
+      }
+
+      if (body.existingFloors >= 5 && plotArea > 0 && plotArea < 800 && report.status === "high_potential") {
+        report.status = "medium_potential";
+      }
+    } catch (e) {
+      console.error("post-validation error (non-fatal)", e);
+    }
+
+
+
     return new Response(JSON.stringify({ report }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
