@@ -312,10 +312,12 @@ export function computeBettermentTax(input: EngineInput): number {
 export function computePhysicalConstraints(input: EngineInput) {
   const z = input.zoning ?? {};
   const treePreservationCost = (z.treesForConservation ?? 0) * 25_000;
+  // NOTE: basement construction cost is already itemized inside computeConstructionCost
+  // (by area × basement rate). We no longer add a per-unit basement charge here to
+  // avoid double-counting. TOD relief is reflected separately if needed via a
+  // reduction of the basement area input by the caller.
+  const parkingBasementCost = 0;
   const requiredBasements = z.requiredBasementFloors ?? 1;
-  let parkingBasementCost =
-    Math.max(0, requiredBasements - 1) * input.proposedUnits * 100_000;
-  if (z.todReliefApplies) parkingBasementCost *= 0.85;
   const dewateringCost = z.dewateringRequired
     ? input.plotArea * requiredBasements * 350
     : 0;
