@@ -275,6 +275,31 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           )}
         </div>
 
+        {/* Finish level selector */}
+        <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+          <Label className="text-xs font-semibold">רמת גמר (קובעת מכפיל על עלות בנייה מעל-קרקע)</Label>
+          <div className="flex gap-2">
+            {(["standard", "premium", "luxury"] as FinishLevel[]).map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                onClick={() => setInput({ ...input, finishLevel: lvl })}
+                className={`flex-1 rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                  (input.finishLevel ?? "standard") === lvl
+                    ? "border-primary bg-primary/10 text-primary font-semibold"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {FINISH_LABEL[lvl].label} <span className="opacity-60">{FINISH_LABEL[lvl].hint}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            מכפיל על עלות הבנייה מעל-קרקע בלבד. מרתפים לא מושפעים. נוסף עליו פרמיית גובה אוטומטית מעל 9 קומות.
+          </p>
+        </div>
+
+
 
         {groups.map((g) => (
           <div key={g} className="space-y-3">
