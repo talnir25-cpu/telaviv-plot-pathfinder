@@ -495,7 +495,7 @@ interface CoreOpts {
 
 function coreAnalyze(input: EngineInput, opts: CoreOpts = {}) {
   const { totalSalesRevenue, netSalesRevenue } = computeRevenues(input);
-  const { hardCosts, softCosts, permitFees } = computeHardSoft(input);
+  const { hardCosts, softCosts, permitFees, breakdown } = computeHardSoft(input);
   const landCost = computeLandCost(input);
   const tenantCosts = computeTenantCosts(input, hardCosts);
   const bettermentTax = computeBettermentTax(input);
@@ -525,6 +525,7 @@ function coreAnalyze(input: EngineInput, opts: CoreOpts = {}) {
     totalSalesRevenue,
     netSalesRevenue,
     hardCosts,
+    constructionBreakdown: breakdown,
     softCosts,
     permitFees,
     landCost,
