@@ -561,7 +561,28 @@ export function assembleReport(input: EngineInput): EngineReport {
 
   const notes: string[] = [];
   notes.push(
-    `מנוע חישוב דטרמיניסטי v1 — תזרים חודשי ל-${core.monthly.length - 1} חודשים, IRR ב-Newton-Raphson.`,
+    `מנוע חישוב דטרמיניסטי v2 — תזרים חודשי ל-${core.monthly.length - 1} חודשים, IRR ב-Newton-Raphson.`,
+  );
+  const cb = core.constructionBreakdown;
+  notes.push(
+    `עלות בנייה בפועל: ${cb.effectiveCostPerSqmBuilt.toLocaleString("he-IL")} ₪/מ"ר ` +
+      `(מעל-קרקע ${cb.aboveGroundAreaSqm.toLocaleString("he-IL")} מ"ר × ${cb.effectiveAboveGroundRate.toLocaleString("he-IL")} ₪, ` +
+      `מרתפים ${cb.basementAreaSqm.toLocaleString("he-IL")} מ"ר × ${cb.effectiveBasementRate.toLocaleString("he-IL")} ₪).`,
+  );
+  if (cb.heightPremiumMultiplier > 1) {
+    notes.push(
+      `פרמיית גובה: ${cb.floorsAboveGround} קומות → +${((cb.heightPremiumMultiplier - 1) * 100).toFixed(1)}% על עלות מעל-קרקע.`,
+    );
+  }
+  if (cb.finishMultiplier > 1) {
+    notes.push(`רמת גמר "${cb.finishLevel}" → +${((cb.finishMultiplier - 1) * 100).toFixed(0)}%.`);
+  }
+  if (cb.demolitionCost > 0) {
+    notes.push(`הריסה: ${cb.demolitionCost.toLocaleString("he-IL")} ₪.`);
+  }
+  notes.push(
+    `אסקלציה (×${cb.escalationMultiplier.toFixed(3)}): ${cb.escalationCost.toLocaleString("he-IL")} ₪. ` +
+      `בלת"מ ${cb.contingencyPct}%: ${cb.contingencyCost.toLocaleString("he-IL")} ₪.`,
   );
   if (input.projectType === "urban_renewal") {
     notes.push("✓ קרקע = 0 (התחדשות עירונית — בבעלות הדיירים).");
