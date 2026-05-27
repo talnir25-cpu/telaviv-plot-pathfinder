@@ -1,5 +1,13 @@
-// Financial feasibility analyst — calls Lovable AI Gateway
-// Modes: "defaults" (suggest input values) | "analyze" (compute full financial report)
+// Financial feasibility — deterministic engine + AI for defaults only.
+// Modes: "defaults" (AI suggests input values) | "analyze" (pure TS engine, no AI)
+
+import { z } from "npm:zod@3.23.8";
+import {
+  assembleReport,
+  type EngineInput,
+  type ProjectType,
+  type RenewalSubtype,
+} from "../_shared/finance-engine.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,6 +15,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+// ───────── AI defaults (kept as-is) ─────────
 
 const DEFAULTS_TOOL = {
   type: "function",
@@ -16,17 +26,17 @@ const DEFAULTS_TOOL = {
     parameters: {
       type: "object",
       properties: {
-        avgSalePricePerSqm: { type: "number", description: "₪/sqm typical sale price for new units in this quarter" },
-        buildCostPerSqm: { type: "number", description: "₪/sqm direct construction cost" },
-        softCostsPct: { type: "number", description: "% soft costs over hard costs (planning, mgmt, consultants)" },
+        avgSalePricePerSqm: { type: "number" },
+        buildCostPerSqm: { type: "number" },
+        softCostsPct: { type: "number" },
         vatPct: { type: "number" },
-        loanInterestPct: { type: "number", description: "Annual % interest on construction loan" },
+        loanInterestPct: { type: "number" },
         constructionMonths: { type: "number" },
-        tenantRentPerMonth: { type: "number", description: "₪/month rent paid per displaced tenant" },
-        tenantEvacuationCost: { type: "number", description: "₪ one-time evacuation cost per tenant" },
-        landValuePerSqm: { type: "number", description: "₪/sqm raw land value" },
-        bettermentTaxPct: { type: "number", description: "% betterment tax over uplift" },
-        rationale: { type: "string", description: "Hebrew, 1-2 sentences explaining the basis" },
+        tenantRentPerMonth: { type: "number" },
+        tenantEvacuationCost: { type: "number" },
+        landValuePerSqm: { type: "number" },
+        bettermentTaxPct: { type: "number" },
+        rationale: { type: "string" },
       },
       required: [
         "avgSalePricePerSqm", "buildCostPerSqm", "softCostsPct", "vatPct",
@@ -38,71 +48,10 @@ const DEFAULTS_TOOL = {
   },
 };
 
-const ANALYZE_TOOL = {
-  type: "function",
-  function: {
-    name: "render_financial_report",
-    description: "Return structured financial feasibility for a Tel Aviv urban renewal project.",
-    parameters: {
-      type: "object",
-      properties: {
-        totalSalesRevenue: { type: "number" },
-        netSalesRevenue: { type: "number" },
-        hardCosts: { type: "number" },
-        softCosts: { type: "number" },
-        tenantCosts: { type: "number" },
-        bettermentTax: { type: "number" },
-        permitFees: { type: "number" },
-        landCost: { type: "number" },
-        financingCosts: { type: "number" },
-        treePreservationCost: { type: "number", description: "₪ for tree conservation/relocation/fines (0 if no trees)" },
-        parkingBasementCost: { type: "number", description: "₪ extra cost for required basement parking floors beyond standard Hard cost" },
-        dewateringCost: { type: "number", description: "₪ dewatering cost (0 if not required)" },
-        physicalConstraintsCost: { type: "number", description: "Sum of tree + parking basement + dewatering" },
-        totalProjectCost: { type: "number", description: "Includes physicalConstraintsCost" },
-        developerProfit: { type: "number" },
-        rocPct: { type: "number", description: "Return on Cost = profit / total cost * 100" },
-        rosPct: { type: "number", description: "Return on Sales = profit / net revenue * 100" },
-        irrPct: { type: "number", description: "Internal Rate of Return %" },
-        breakevenPricePerSqm: { type: "number" },
-        verdict: { type: "string", enum: ["profitable", "marginal", "loss"] },
-        verdictLabel: { type: "string", description: "Hebrew label" },
-        headline: { type: "string", description: "Hebrew 1-sentence summary" },
-        sensitivity: {
-          type: "array",
-          description: "Exactly 9 cells: combinations of priceDelta {-5,0,5} × costDelta {-5,0,5}",
-          items: {
-            type: "object",
-            properties: {
-              priceDelta: { type: "number" },
-              costDelta: { type: "number" },
-              profit: { type: "number" },
-              roc: { type: "number" },
-            },
-            required: ["priceDelta", "costDelta", "profit", "roc"],
-            additionalProperties: false,
-          },
-        },
-        notes: { type: "array", items: { type: "string" } },
-      },
-      required: [
-        "totalSalesRevenue", "netSalesRevenue", "hardCosts", "softCosts",
-        "tenantCosts", "bettermentTax", "permitFees", "landCost",
-        "financingCosts",
-        "treePreservationCost", "parkingBasementCost", "dewateringCost", "physicalConstraintsCost",
-        "totalProjectCost", "developerProfit",
-        "rocPct", "rosPct", "irrPct", "breakevenPricePerSqm",
-        "verdict", "verdictLabel", "headline", "sensitivity", "notes",
-      ],
-      additionalProperties: false,
-    },
-  },
-};
-
-const SYSTEM = `אתה אנליסט פיננסי בכיר לפרויקטי התחדשות עירונית בתל אביב (רובעים 3 ו-4).
+const SYSTEM_DEFAULTS = `אתה אנליסט פיננסי בכיר לפרויקטי התחדשות עירונית בתל אביב (רובעים 3 ו-4).
 ידע שוק (2026):
-- מחיר מכירה ממוצע ברובעים 3-4: 50,000-75,000 ₪/מ"ר (תלוי במיקום, חזית, קומה)
-- עלות בנייה Hard: 8,500-11,000 ₪/מ"ר (פרויקטים בינוניים-גבוהים)
+- מחיר מכירה ממוצע ברובעים 3-4: 50,000-75,000 ₪/מ"ר
+- עלות בנייה Hard: 8,500-11,000 ₪/מ"ר
 - Soft costs: 12-18% מ-Hard
 - מע"מ: 18%
 - ריבית מימון בנייה: 6-7.5% שנתי
@@ -111,230 +60,202 @@ const SYSTEM = `אתה אנליסט פיננסי בכיר לפרויקטי הת�
 - פינוי חד-פעמי: 25,000-40,000 ₪/דייר
 - היטל השבחה: 50% משווי ההשבחה
 - שווי קרקע ברובעים 3-4: 35,000-55,000 ₪/מ"ר זכויות
-
-עלויות אילוצים פיזיים-רגולטוריים:
-- עצים לשימור / כופר / העתקה: 15,000-50,000 ₪ לעץ בוגר (בממוצע ~25,000 ₪)
-- מרתפי חניה: כל מרתף נוסף מעבר לראשון מוסיף 80,000-120,000 ₪ ליח״ד (חפירה, דיפון, אוורור). חשב פי (מרתפים-1) × יח״ד × 100K.
-- השפלת מי תהום: כאשר נדרשת — 250-450 ₪/מ״ר שטח חפירה במרתפים (בקירוב: שטח_מגרש × מרתפים × 350). ברובע 3 ליד הים — בקצה העליון.
-- treePreservationCost = treesForConservation × 25,000 (אם 0 או חסר — 0)
-- parkingBasementCost = max(0, requiredBasementFloors - 1) × proposedUnits × 100,000
-- dewateringCost = dewateringRequired ? (plotArea × requiredBasementFloors × 350) : 0
-- physicalConstraintsCost = סכום השלושה. כלול אותו ב-totalProjectCost.
-- אם todReliefApplies = true, הפחת ~15% מ-parkingBasementCost (הקלת תקן).
-- הוסף ל-notes שורה לכל אילוץ פעיל המסבירה את השפעתו.
-
 החזר תמיד מספרים ריאליסטיים. כל הסכומים בשקלים.`;
+
+// ───────── Zod schemas ─────────
+
+const FinancialInputSchema = z.object({
+  projectType: z.enum(["urban_renewal", "new_construction", "combination"]),
+  renewalSubtype: z.enum(["tama38", "pinui_binui"]).optional(),
+  developerLandSharePct: z.number().min(0).max(100).optional(),
+  avgSalePricePerSqm: z.number().min(0).max(500_000),
+  buildCostPerSqm: z.number().min(0).max(100_000),
+  softCostsPct: z.number().min(0).max(100),
+  vatPct: z.number().min(0).max(100),
+  equity: z.number().min(0),
+  loanInterestPct: z.number().min(0).max(50),
+  constructionMonths: z.number().min(6).max(60),
+  tenantRentPerMonth: z.number().min(0),
+  tenantEvacuationCost: z.number().min(0),
+  targetDeveloperProfitPct: z.number().min(0).max(100),
+  landValuePerSqm: z.number().min(0).max(500_000),
+  bettermentTaxPct: z.number().min(0).max(100),
+});
+
+const AnalyzeBodySchema = z.object({
+  mode: z.literal("analyze"),
+  plot: z.object({
+    area: z.number().min(1),
+    gush: z.number(),
+    helka: z.number(),
+    quarter: z.union([z.literal(3), z.literal(4)]),
+  }),
+  planning: z.object({
+    existing: z.object({
+      units: z.number().min(0),
+      builtAreaSqm: z.number().min(0),
+    }).passthrough(),
+    proposed: z.object({
+      units: z.number().min(0),
+      builtAreaSqm: z.number().min(0),
+    }).passthrough(),
+    metrics: z.object({
+      estimatedSellableArea: z.number().min(0),
+    }).passthrough(),
+    zoning: z.object({
+      treesForConservation: z.number().nullable().optional(),
+      requiredBasementFloors: z.number().nullable().optional(),
+      todReliefApplies: z.boolean().nullable().optional(),
+      dewateringRequired: z.boolean().nullable().optional(),
+    }).passthrough().optional(),
+  }).passthrough(),
+  financial: FinancialInputSchema,
+});
+
+const DefaultsBodySchema = z.object({
+  mode: z.literal("defaults"),
+  quarter: z.union([z.literal(3), z.literal(4)]),
+  gush: z.number(),
+  helka: z.number(),
+  plotArea: z.number().min(1),
+  proposedUnits: z.number().min(0),
+  proposedBuiltArea: z.number().min(0),
+});
+
+// ───────── handler ─────────
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const body = await req.json();
-    const mode = body.mode as "defaults" | "analyze";
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY missing" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const mode = body?.mode;
+
+    // ── ANALYZE: pure deterministic engine ──
+    if (mode === "analyze") {
+      const parsed = AnalyzeBodySchema.safeParse(body);
+      if (!parsed.success) {
+        return new Response(
+          JSON.stringify({
+            error: "קלט לא תקין",
+            details: parsed.error.flatten().fieldErrors,
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const { plot, planning, financial } = parsed.data;
+
+      const engineInput: EngineInput = {
+        projectType: financial.projectType as ProjectType,
+        renewalSubtype: financial.renewalSubtype as RenewalSubtype | undefined,
+        developerLandSharePct: financial.developerLandSharePct,
+        plotArea: plot.area,
+        existingBuiltAreaSqm: planning.existing.builtAreaSqm,
+        proposedBuiltAreaSqm: planning.proposed.builtAreaSqm,
+        estimatedSellableArea: planning.metrics.estimatedSellableArea,
+        proposedUnits: planning.proposed.units,
+        zoning: planning.zoning
+          ? {
+              treesForConservation: planning.zoning.treesForConservation ?? 0,
+              requiredBasementFloors: planning.zoning.requiredBasementFloors ?? 1,
+              todReliefApplies: planning.zoning.todReliefApplies ?? false,
+              dewateringRequired: planning.zoning.dewateringRequired ?? false,
+            }
+          : undefined,
+        avgSalePricePerSqm: financial.avgSalePricePerSqm,
+        buildCostPerSqm: financial.buildCostPerSqm,
+        softCostsPct: financial.softCostsPct,
+        vatPct: financial.vatPct,
+        equity: financial.equity,
+        loanInterestPct: financial.loanInterestPct,
+        constructionMonths: financial.constructionMonths,
+        tenantRentPerMonth: financial.tenantRentPerMonth,
+        tenantEvacuationCost: financial.tenantEvacuationCost,
+        targetDeveloperProfitPct: financial.targetDeveloperProfitPct,
+        landValuePerSqm: financial.landValuePerSqm,
+        bettermentTaxPct: financial.bettermentTaxPct,
+      };
+
+      const report = assembleReport(engineInput);
+
+      return new Response(JSON.stringify({ report }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    let userPrompt = "";
-    let tool;
-
+    // ── DEFAULTS: AI suggestion ──
     if (mode === "defaults") {
-      const { quarter, gush, helka, plotArea, proposedUnits, proposedBuiltArea } = body;
-      userPrompt = `הצע ערכי ברירת מחדל פיננסיים לפרויקט הבא:
+      const parsed = DefaultsBodySchema.safeParse(body);
+      if (!parsed.success) {
+        return new Response(
+          JSON.stringify({ error: "קלט לא תקין", details: parsed.error.flatten().fieldErrors }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const { quarter, gush, helka, plotArea, proposedUnits, proposedBuiltArea } = parsed.data;
+
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) {
+        return new Response(JSON.stringify({ error: "LOVABLE_API_KEY missing" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const userPrompt = `הצע ערכי ברירת מחדל פיננסיים לפרויקט הבא:
 רובע ${quarter}, גוש ${gush}, חלקה ${helka}
 שטח מגרש: ${plotArea} מ"ר
 יח"ד מתוכננות: ${proposedUnits}
 שטח בנייה כולל: ${proposedBuiltArea} מ"ר
 החזר ערכים ריאליסטיים דרך הכלי suggest_financial_defaults.`;
-      tool = DEFAULTS_TOOL;
-    } else if (mode === "analyze") {
-      const { plot, planning, financial } = body;
-      const projectType: "urban_renewal" | "new_construction" | "combination" = financial.projectType ?? "urban_renewal";
-      const developerShare = financial.developerLandSharePct ?? 100;
 
-      const landRule = projectType === "urban_renewal"
-        ? "סוג הפרויקט: התחדשות עירונית — הקרקע בבעלות הדיירים. landCost = 0 בכל מקרה. כן יש עלויות דיירים (פינוי + שכ\"ד). היטל השבחה: ברוב פרויקטי תמ\"א 38 יש פטור מלא לפי סעיף 19; בפינוי-בינוי יש פטור חלקי. הגדר bettermentTax = 0 אלא אם המשתמש הזין ערך חיובי במפורש (אז קח 50% מהמופע). הוסף ל-notes הסבר על הפטור. הוסף עלות ערבויות חוק מכר + ליווי משפטי דיירים = hardCosts × 0.025."
-        : projectType === "new_construction"
-        ? "סוג הפרויקט: בנייה חדשה — היזם קונה קרקע פנויה. landCost = landValuePerSqm × plotArea. tenantCosts = 0 (אין דיירים). היטל השבחה מלא לפי הנוסחה הרגילה."
-        : `סוג הפרויקט: עסקת קומבינציה — חלק היזם בקרקע: ${developerShare}%. landCost = landValuePerSqm × plotArea × (${developerShare}/100). היתר משולם בדירות לבעלים (כלול כבר ב-hardCosts דרך שטח הבנייה). tenantCosts לפי הזנת המשתמש (לרוב 0 בקומבינציה).`;
+      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: SYSTEM_DEFAULTS },
+            { role: "user", content: userPrompt },
+          ],
+          tools: [DEFAULTS_TOOL],
+          tool_choice: { type: "function", function: { name: DEFAULTS_TOOL.function.name } },
+        }),
+      });
 
-      userPrompt = `חשב היתכנות פיננסית מלאה לפרויקט.
+      if (!aiResp.ok) {
+        if (aiResp.status === 429) {
+          return new Response(JSON.stringify({ error: "חרגת ממכסת בקשות — נסה שוב" }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (aiResp.status === 402) {
+          return new Response(JSON.stringify({ error: "אזל הקרדיט בחשבון Lovable AI" }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const t = await aiResp.text();
+        console.error("AI error", aiResp.status, t);
+        return new Response(JSON.stringify({ error: "AI gateway error" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-${landRule}
+      const aiJson = await aiResp.json();
+      const args = aiJson?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+      if (!args) {
+        console.error("no tool call", JSON.stringify(aiJson));
+        return new Response(JSON.stringify({ error: "AI did not return structured response" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-נתוני תכנון (מהדוח התכנוני):
-- שטח מגרש: ${plot.area} מ"ר
-- יח"ד קיימות: ${planning.existing.units}, חדשות: ${planning.proposed.units}
-- שטח בנייה מוצע (עיקרי): ${planning.proposed.builtAreaSqm} מ"ר
-- שטח מכירה משוער: ${planning.metrics.estimatedSellableArea} מ"ר
-- מכפיל יח"ד: ${planning.metrics.multiplier}
-
-אילוצים פיזיים-רגולטוריים מהדוח התכנוני:
-- עצים בחלקה: ${planning.zoning?.treesOnPlot ?? "לא ידוע"}, מתוכם לשימור: ${planning.zoning?.treesForConservation ?? 0}
-- תקן חניה ליח״ד: ${planning.zoning?.parkingStandardPerUnit ?? "לא ידוע"}
-- מרתפי חניה נדרשים: ${planning.zoning?.requiredBasementFloors ?? 1}
-- הקלות TOD: ${planning.zoning?.todReliefApplies ? "כן" : "לא"}
-- עומק מי תהום: ${planning.zoning?.groundwaterDepthM ?? "לא ידוע"} מ׳
-- השפלת מי תהום נדרשת: ${planning.zoning?.dewateringRequired ? "כן" : "לא"}
-
-קלט פיננסי:
-- מחיר מכירה: ${financial.avgSalePricePerSqm} ₪/מ"ר
-- עלות בנייה: ${financial.buildCostPerSqm} ₪/מ"ר
-- Soft costs: ${financial.softCostsPct}%
-- מע"מ: ${financial.vatPct}%
-- הון עצמי: ${financial.equity} ₪
-- ריבית הלוואה: ${financial.loanInterestPct}% שנתי
-- משך הקמה: ${financial.constructionMonths} חודשים
-- שכ"ד לדייר: ${financial.tenantRentPerMonth} ₪/חודש
-- פינוי לדייר: ${financial.tenantEvacuationCost} ₪
-- שווי קרקע: ${financial.landValuePerSqm} ₪/מ"ר
-- היטל השבחה: ${financial.bettermentTaxPct}%
-- רף רווח מבוקש: ${financial.targetDeveloperProfitPct}%
-
-חישובים נדרשים:
-1. פדיון = שטח_מכירה × מחיר_מ"ר. נטו = פדיון / (1+מע"מ)
-2. Hard = שטח_בנייה × עלות_מ"ר; Soft = Hard × softPct
-3. עלויות דיירים — בהתאם לסוג הפרויקט (ראה landRule למעלה)
-4. דמי היתר ≈ 1% מעלות בנייה
-5. עלויות מימון: financingCosts = (totalCost - equity) × (constructionMonths/12) × (rate/100) × 0.55
-6. אילוצים פיזיים (ראה system prompt): treePreservationCost, parkingBasementCost, dewateringCost, physicalConstraintsCost
-7. סה"כ_עלות = Hard + Soft + tenant + landCost + bettermentTax + permitFees + financingCosts + physicalConstraintsCost
-8. רווח = נטו - סה"כ_עלות
-9. ROC = רווח/עלות × 100; ROS = רווח/נטו × 100; IRR ≈ ((1 + ROC/100)^(12/constructionMonths) - 1) × 100
-10. נקודת איזון = (סה"כ_עלות × (1+מע"מ/100)) / שטח_מכירה
-11. רגישות: לכל שילוב מ-{-5,0,+5}% במחיר × {-5,0,+5}% בעלות הבנייה — חשב רווח ו-ROC.
-    חשוב: ב-priceDelta=0, costDelta=0 — חייב להיות בדיוק רווח ו-ROC של התרחיש הראשי.
-verdict: profitable אם ROC ≥ ${financial.targetDeveloperProfitPct}, marginal אם 0 ≤ ROC < target, אחרת loss.
-החזר דרך render_financial_report.`;
-      tool = ANALYZE_TOOL;
-    } else {
-      return new Response(JSON.stringify({ error: "invalid mode" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ defaults: JSON.parse(args) }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "openai/gpt-5.4",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [tool],
-        tool_choice: { type: "function", function: { name: tool.function.name } },
-      }),
-    });
-
-    if (!aiResp.ok) {
-      if (aiResp.status === 429) return new Response(JSON.stringify({ error: "חרגת ממכסת בקשות — נסה שוב" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (aiResp.status === 402) return new Response(JSON.stringify({ error: "אזל הקרדיט בחשבון Lovable AI" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      const t = await aiResp.text();
-      console.error("AI error", aiResp.status, t);
-      return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const aiJson = await aiResp.json();
-    const args = aiJson?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    if (!args) {
-      console.error("no tool call", JSON.stringify(aiJson));
-      return new Response(JSON.stringify({ error: "AI did not return structured response" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const result = JSON.parse(args);
-
-    // ── Post-validation for analyze mode: deterministic sanity overrides ──
-    if (mode === "analyze") {
-      try {
-        result.notes = Array.isArray(result.notes) ? result.notes : [];
-        const target = body.financial.targetDeveloperProfitPct ?? 18;
-        const price = body.financial.avgSalePricePerSqm ?? 0;
-        const projectType = body.financial.projectType ?? "urban_renewal";
-        const developerShare = body.financial.developerLandSharePct ?? 100;
-        const plotArea = body.plot?.area ?? 0;
-        const landValuePerSqm = body.financial.landValuePerSqm ?? 0;
-
-        // Enforce land-cost logic by project type (deterministic, overrides AI)
-        const recomputeTotals = () => {
-          const components = [
-            result.hardCosts, result.softCosts, result.tenantCosts,
-            result.bettermentTax, result.permitFees, result.landCost,
-            result.financingCosts, result.physicalConstraintsCost ?? 0,
-          ].map((n) => (typeof n === "number" ? n : 0));
-          const newTotal = components.reduce((a, b) => a + b, 0);
-          result.totalProjectCost = newTotal;
-          if (typeof result.netSalesRevenue === "number") {
-            result.developerProfit = result.netSalesRevenue - newTotal;
-            if (newTotal > 0) result.rocPct = (result.developerProfit / newTotal) * 100;
-            if (result.netSalesRevenue > 0) result.rosPct = (result.developerProfit / result.netSalesRevenue) * 100;
-          }
-        };
-
-        if (projectType === "urban_renewal") {
-          if ((result.landCost ?? 0) > 0) {
-            result.landCost = 0;
-            result.notes.push("✓ שווי קרקע אופס: בהתחדשות עירונית הקרקע בבעלות הדיירים — לא נכלל בעלויות היזם.");
-            recomputeTotals();
-          }
-        } else if (projectType === "new_construction") {
-          const expectedLand = landValuePerSqm * plotArea;
-          if (Math.abs((result.landCost ?? 0) - expectedLand) > expectedLand * 0.05 && expectedLand > 0) {
-            result.landCost = expectedLand;
-            result.notes.push(`✓ שווי קרקע הוגדר ל-${Math.round(expectedLand).toLocaleString("he-IL")} ₪ (${landValuePerSqm.toLocaleString("he-IL")} × ${plotArea}).`);
-            recomputeTotals();
-          }
-          if ((result.tenantCosts ?? 0) > 0) {
-            result.tenantCosts = 0;
-            result.notes.push("✓ עלויות דיירים אופסו: פרויקט בנייה חדשה על קרקע פנויה.");
-            recomputeTotals();
-          }
-        } else if (projectType === "combination") {
-          const expectedLand = landValuePerSqm * plotArea * (developerShare / 100);
-          if (Math.abs((result.landCost ?? 0) - expectedLand) > expectedLand * 0.05 && expectedLand > 0) {
-            result.landCost = expectedLand;
-            result.notes.push(`✓ שווי קרקע משוקלל לפי חלק היזם (${developerShare}%): ${Math.round(expectedLand).toLocaleString("he-IL")} ₪.`);
-            recomputeTotals();
-          }
-        }
-
-
-
-        // Force verdict consistency with profit & ROC
-        if (typeof result.developerProfit === "number" && result.developerProfit < 0) {
-          if (result.verdict !== "loss") {
-            result.verdict = "loss";
-            result.verdictLabel = "הפסד";
-            result.notes.push("⚠ verdict תוקן אוטומטית ל-loss כי הרווח שלילי.");
-          }
-        } else if (typeof result.rocPct === "number") {
-          const expected = result.rocPct >= target ? "profitable" : result.rocPct >= 0 ? "marginal" : "loss";
-          if (result.verdict !== expected) {
-            result.verdict = expected;
-            result.verdictLabel = expected === "profitable" ? "רווחי" : expected === "marginal" ? "גבולי" : "הפסד";
-            result.notes.push(`⚠ verdict תוקן אוטומטית ל-${expected} לפי ROC ${result.rocPct.toFixed(1)}% (יעד ${target}%).`);
-          }
-        }
-
-        // Breakeven warning
-        if (typeof result.breakevenPricePerSqm === "number" && price > 0 && result.breakevenPricePerSqm > price * 0.95) {
-          result.notes.push(
-            `⚠ נקודת איזון (${Math.round(result.breakevenPricePerSqm).toLocaleString("he-IL")} ₪/מ"ר) קרובה למחיר השוק (${price.toLocaleString("he-IL")}) — שולי בטחון נמוכים.`,
-          );
-        }
-
-        // Expose target on report for UI gauge
-        result.targetProfitPct = target;
-      } catch (e) {
-        console.error("post-validation error (non-fatal)", e);
-      }
-    }
-
-
-    return new Response(JSON.stringify(mode === "defaults" ? { defaults: result } : { report: result }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ error: "invalid mode" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("financial-analysis error:", e);
