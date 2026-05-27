@@ -225,10 +225,10 @@ export const DashboardReport = ({
         <TabsContent value="overview" className="mt-4 space-y-4">
           <div className="grid gap-4 lg:grid-cols-3">
             {/* Comparison */}
-            <Card className="p-5 shadow-card lg:col-span-2">
-              <div className="mb-3 flex items-center gap-2">
-                <Layers className="h-4 w-4 text-primary" />
+            <Card dir="rtl" className="p-5 shadow-card lg:col-span-2">
+              <div className="mb-3 flex items-center justify-end gap-2">
                 <h3 className="text-base font-bold">קיים מול מוצע</h3>
+                <Layers className="h-4 w-4 text-primary" />
               </div>
               <div className="overflow-x-auto">
                 <table dir="rtl" className="w-full border-separate border-spacing-x-6 border-spacing-y-0">
