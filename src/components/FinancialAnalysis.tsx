@@ -28,6 +28,7 @@ import type {
   FeasibilityReport,
   FinancialInput,
   FinancialReport,
+  FinishLevel,
   ProjectType,
   RenewalSubtype,
 } from "@/types/feasibility";
