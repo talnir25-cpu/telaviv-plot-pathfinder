@@ -67,6 +67,9 @@ export interface AnalysisInput {
   shapeArea: number | null;
   existingUnits: number;
   existingFloors: number;
+  existingBuiltAreaSqm?: number;
+  existingBuiltAreaSource?: string;
+  existingBuiltAreaConfidence?: string;
   conservation: boolean;
   notes?: string;
 }

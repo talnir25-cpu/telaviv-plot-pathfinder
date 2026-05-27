@@ -1,5 +1,6 @@
 import type { FeasibilityReport, AnalysisInput } from "@/types/feasibility";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PlotMap } from "@/components/PlotMap";
@@ -96,14 +97,21 @@ const ComparisonRow = ({
   existing,
   proposed,
   unit,
+  badge,
 }: {
   label: string;
   existing: string | number;
   proposed: string | number;
   unit?: string;
+  badge?: React.ReactNode;
 }) => (
   <tr>
-    <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">{label}</td>
+    <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
+      <div className="flex items-center justify-end gap-2">
+        {badge}
+        <span>{label}</span>
+      </div>
+    </td>
     <td className="w-32 border-b border-border/60 py-3 text-center text-sm tabular-nums">
       {existing}
       {unit && existing !== "—" && <span className="mr-1 text-muted-foreground">{unit}</span>}
@@ -114,6 +122,14 @@ const ComparisonRow = ({
     </td>
   </tr>
 );
+
+const BUILT_AREA_SOURCE_LABEL: Record<string, string> = {
+  manual: "מאומת",
+  tlv_permits: 'היתר ת"א',
+  govmap_bldg: "GovMap",
+  nadlan: 'נדל"ן',
+  heuristic: "אומדן",
+};
 
 export const DashboardReport = ({
   report,
@@ -248,7 +264,17 @@ export const DashboardReport = ({
                   <tbody>
                     <ComparisonRow label="יחידות דיור" existing={fmt(report.existing.units)} proposed={fmt(report.proposed.units)} />
                     <ComparisonRow label="קומות" existing={fmt(report.existing.floors)} proposed={fmt(report.proposed.floors)} />
-                    <ComparisonRow label="שטח בנוי" existing={fmt(report.existing.builtAreaSqm)} proposed={fmt(report.proposed.builtAreaSqm)} unit='מ"ר' />
+                    <ComparisonRow
+                      label="שטח בנוי"
+                      existing={fmt(report.existing.builtAreaSqm)}
+                      proposed={fmt(report.proposed.builtAreaSqm)}
+                      unit='מ"ר'
+                      badge={input.existingBuiltAreaSource ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          {BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource}
+                        </Badge>
+                      ) : undefined}
+                    />
                     <ComparisonRow label="FAR" existing={`${fmt(report.existing.far * 100)}%`} proposed={`${fmt(report.proposed.far * 100)}%`} />
                     <ComparisonRow label="גובה מקס׳" existing="—" proposed={fmt(report.proposed.heightMeters, 1)} unit="מ׳" />
                   </tbody>

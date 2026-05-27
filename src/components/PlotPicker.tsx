@@ -77,10 +77,13 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [helka, setHelka] = useState("");
   const [existingUnits, setExistingUnits] = useState("8");
   const [existingFloors, setExistingFloors] = useState("3");
+  const [existingBuiltArea, setExistingBuiltArea] = useState("");
   const [unitsSource, setUnitsSource] = useState<UnitsSource>(null);
   const [unitsConfidence, setUnitsConfidence] = useState<SourceResult["confidence"]>(null);
   const [floorsSource, setFloorsSource] = useState<UnitsSource>(null);
   const [floorsConfidence, setFloorsConfidence] = useState<SourceResult["confidence"]>(null);
+  const [builtAreaSource, setBuiltAreaSource] = useState<UnitsSource>(null);
+  const [builtAreaConfidence, setBuiltAreaConfidence] = useState<SourceResult["confidence"]>(null);
   const [sources, setSources] = useState<SourceResult[]>([]);
   const [diagOpen, setDiagOpen] = useState(false);
   const [rawDialog, setRawDialog] = useState<SourceResult | null>(null);
@@ -185,10 +188,17 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       }
       if (typeof data.units === "number") setExistingUnits(String(data.units));
       if (typeof data.floors === "number") setExistingFloors(String(data.floors));
+      if (typeof data.builtArea === "number" && data.builtArea > 0) {
+        setExistingBuiltArea(String(Math.round(data.builtArea)));
+      } else if (!refresh) {
+        setExistingBuiltArea("");
+      }
       setUnitsSource((data.source as UnitsSource) ?? "estimate");
       setUnitsConfidence((data.confidence as SourceResult["confidence"]) ?? null);
       setFloorsSource((data.floorsSource as UnitsSource) ?? null);
       setFloorsConfidence((data.floorsConfidence as SourceResult["confidence"]) ?? null);
+      setBuiltAreaSource((data.builtAreaSource as UnitsSource) ?? null);
+      setBuiltAreaConfidence((data.builtAreaConfidence as SourceResult["confidence"]) ?? null);
       setSources(Array.isArray(data.sources) ? (data.sources as SourceResult[]) : []);
     } catch (e) {
       console.warn("units lookup error", e);
@@ -203,6 +213,9 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       setUnitsConfidence(null);
       setFloorsSource(null);
       setFloorsConfidence(null);
+      setBuiltAreaSource(null);
+      setBuiltAreaConfidence(null);
+      setExistingBuiltArea("");
       setSources([]);
       return;
     }
@@ -215,6 +228,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     if (!selectedPlot) return;
     const u = Number(existingUnits);
     const f = Number(existingFloors);
+    const a = Number(existingBuiltArea);
     if (!u || u < 1) {
       toast.error("הזן/י מספר יח״ד תקין");
       return;
@@ -226,6 +240,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           helka: selectedPlot.helka,
           manualUnits: u,
           manualFloors: f || undefined,
+          manualBuiltArea: a > 0 ? a : undefined,
         },
       });
       if (error || data?.error) {
@@ -233,6 +248,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         return;
       }
       setUnitsSource("manual");
+      if (a > 0) setBuiltAreaSource("manual");
       toast.success("הנתון נשמר ויהיה זמין לכל המשתמשים");
     } catch (e) {
       console.error(e);
@@ -243,6 +259,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlot) return;
+    const ba = Number(existingBuiltArea);
     onAnalyze({
       quarter,
       gush: selectedPlot.gush,
@@ -251,6 +268,9 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       shapeArea: selectedPlot.shapeArea,
       existingUnits: Number(existingUnits) || 0,
       existingFloors: Number(existingFloors) || 0,
+      existingBuiltAreaSqm: ba > 0 ? ba : undefined,
+      existingBuiltAreaSource: ba > 0 ? builtAreaSource ?? undefined : undefined,
+      existingBuiltAreaConfidence: ba > 0 ? builtAreaConfidence ?? undefined : undefined,
       conservation,
       notes: notes.trim() || undefined,
     });
@@ -483,6 +503,43 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             value={existingFloors}
             onChange={(e) => setExistingFloors(e.target.value.replace(/\D/g, ""))}
           />
+        </div>
+
+        <div className="space-y-2 md:col-span-2">
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="builtArea">שטח בנוי קיים (מ"ר)</Label>
+            {builtAreaSource && (() => {
+              const meta = SOURCE_META[builtAreaSource] ?? SOURCE_META.estimate;
+              const Icon = meta.icon;
+              const conf = builtAreaConfidence ? CONFIDENCE_META[builtAreaConfidence] : null;
+              return (
+                <div className="flex items-center gap-1">
+                  <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
+                    <Icon className="h-3 w-3" />
+                    {meta.label}
+                  </Badge>
+                  {conf && (
+                    <Badge variant="outline" className={`text-[10px] ${conf.tone}`}>
+                      {conf.label}
+                    </Badge>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+          <Input
+            id="builtArea"
+            inputMode="numeric"
+            placeholder='לדוגמה 720'
+            value={existingBuiltArea}
+            onChange={(e) => {
+              setExistingBuiltArea(e.target.value.replace(/\D/g, ""));
+              if (builtAreaSource && builtAreaSource !== "manual") setBuiltAreaSource(null);
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            שטח בנוי כולל מעל הקרקע. נשאב מהיתרי עיריית ת"א / GovMap / נדל"ן כשאפשרי, ומשמש לחישוב עלות חיזוק בתמ"א 38 ולמכפיל הזכויות.
+          </p>
         </div>
 
         {selectedPlot && sources.length > 0 && (

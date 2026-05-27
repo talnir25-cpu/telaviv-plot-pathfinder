@@ -17,6 +17,9 @@ export type Database = {
       plot_units_cache: {
         Row: {
           building_count: number | null
+          built_area: number | null
+          built_area_confidence: string | null
+          built_area_source: string | null
           confidence: string | null
           created_at: string
           existing_floors: number | null
@@ -33,6 +36,9 @@ export type Database = {
         }
         Insert: {
           building_count?: number | null
+          built_area?: number | null
+          built_area_confidence?: string | null
+          built_area_source?: string | null
           confidence?: string | null
           created_at?: string
           existing_floors?: number | null
@@ -49,6 +55,9 @@ export type Database = {
         }
         Update: {
           building_count?: number | null
+          built_area?: number | null
+          built_area_confidence?: string | null
+          built_area_source?: string | null
           confidence?: string | null
           created_at?: string
           existing_floors?: number | null

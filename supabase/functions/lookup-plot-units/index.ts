@@ -55,6 +55,7 @@ interface RequestBody {
   refresh?: boolean;
   manualUnits?: number;
   manualFloors?: number;
+  manualBuiltArea?: number;
   manualNotes?: string;
 }
 
@@ -267,17 +268,28 @@ async function sourceNadlan(
     // numbers are typically sequential 1..N.
     const lowerBound = Math.max(maxSub, subParcels.size);
 
+    // סיכום שטח דירות ייחודיות (קצה תחתון של שטח בנוי דירות בלבד, ללא שטחי שירות)
+    const areaBySub = new Map<number, number>();
+    for (const d of allDeals) {
+      if (typeof d.subParcelNum === "number" && typeof d.assetArea === "number" && d.assetArea > 10) {
+        const prev = areaBySub.get(d.subParcelNum) ?? 0;
+        if (d.assetArea > prev) areaBySub.set(d.subParcelNum, d.assetArea);
+      }
+    }
+    const summedArea = Array.from(areaBySub.values()).reduce((s, v) => s + v, 0);
+
     return {
       ...base,
       status: "ok",
       units: lowerBound,
       floors: topFloor > 0 ? topFloor + 1 : null,
-      totalFloorArea: null,
-      detail: `${allDeals.length} עסקאות, ${subParcels.size} תת-חלקות שונות`,
+      totalFloorArea: summedArea > 0 ? Math.round(summedArea) : null,
+      detail: `${allDeals.length} עסקאות, ${subParcels.size} תת-חלקות שונות${summedArea > 0 ? ` · ${Math.round(summedArea).toLocaleString()} מ"ר נמכר` : ""}`,
       raw: {
         dealsCount: allDeals.length,
         subParcels: Array.from(subParcels).sort((a, b) => a - b),
         maxSubParcel: maxSub,
+        summedSoldArea: Math.round(summedArea),
         sample: allDeals.slice(0, 3).map((d) => ({
           subParcel: d.subParcelNum,
           floor: d.floorNo,
@@ -451,7 +463,31 @@ interface TlvPermitFeature {
     ms_tik_binyan?: number | null;
     addresses?: string | null;
     sug_bakasha?: string | null;
+    // שטחי בנייה — שמות שדה אפשריים בשכבה 772
+    shetach_kolel?: number | null;
+    shetach_eikari?: number | null;
+    shetach_sherut?: number | null;
+    sach_hakol_shetach?: number | null;
+    shetach_binyan?: number | null;
+    total_area?: number | null;
+    [key: string]: unknown;
   };
+}
+
+// בוחר את שדה השטח הזמין מתוך מספר שמות אפשריים
+function tlvPermitArea(a: TlvPermitFeature["attributes"]): number | null {
+  const sum = (a.shetach_eikari ?? 0) + (a.shetach_sherut ?? 0);
+  const candidates: Array<number | null | undefined> = [
+    a.shetach_kolel,
+    a.sach_hakol_shetach,
+    a.total_area,
+    a.shetach_binyan,
+    sum > 0 ? sum : null,
+  ];
+  for (const v of candidates) {
+    if (typeof v === "number" && v > 20) return v;
+  }
+  return null;
 }
 
 function tlvStageRank(stage?: string | null, occupation?: string | null, finished?: string | null): number {
@@ -615,12 +651,14 @@ async function sourceTlvPermits(
         tama38_new: f.attributes.sw_tama_38_chadash,
         tama38_addition: f.attributes.sw_tama_38_tosefet,
         addresses: f.attributes.addresses,
+        area: tlvPermitArea(f.attributes),
       };
     });
 
     const summary = {
       builtUnits: chosenRaw.filter((c) => c.physicalStatus === "built").reduce((s, c) => s + (c.yechidot_diyur ?? 0), 0),
       approvedUnits: chosenRaw.filter((c) => c.physicalStatus === "approved" || c.physicalStatus === "in_process").reduce((s, c) => s + (c.yechidot_diyur ?? 0), 0),
+      builtArea: chosenRaw.filter((c) => c.physicalStatus === "built").reduce((s, c) => s + (c.area ?? 0), 0),
     };
 
     const rawPayload = {
@@ -640,9 +678,9 @@ async function sourceTlvPermits(
         status: "ok",
         units: summary.builtUnits,
         floors: null,
-        totalFloorArea: null,
+        totalFloorArea: summary.builtArea > 0 ? Math.round(summary.builtArea) : null,
         confidence: summary.approvedUnits > 0 ? "medium" : "high",
-        detail: `${summary.builtUnits} יחידות בנויות${summary.approvedUnits > 0 ? ` (+${summary.approvedUnits} מתוכננות)` : ""}${anyTama ? " · כולל תמ\"א 38" : ""}`,
+        detail: `${summary.builtUnits} יחידות בנויות${summary.builtArea > 0 ? ` · ${Math.round(summary.builtArea).toLocaleString()} מ"ר` : ""}${summary.approvedUnits > 0 ? ` (+${summary.approvedUnits} מתוכננות)` : ""}${anyTama ? " · כולל תמ\"א 38" : ""}`,
         raw: rawPayload,
       };
     }
@@ -745,6 +783,38 @@ function pickBestFloors(sources: SourceResult[]): SourceResult | null {
   return null;
 }
 
+// Built-area picker: prioritize permits (sanctioned) > GovMap (real floors)
+// > nadlan (apartments-only lower bound) > GovMap estimate > heuristic.
+function pickBestBuiltArea(sources: SourceResult[]): SourceResult | null {
+  const manual = sources.find((s) => s.source === "manual" && s.status === "ok" && s.totalFloorArea !== null && s.totalFloorArea > 0);
+  if (manual) return manual;
+
+  const tlv = sources.find(
+    (s) => s.source === "tlv_permits" && s.status === "ok" && typeof s.totalFloorArea === "number" && s.totalFloorArea > 0,
+  );
+  if (tlv) return tlv;
+
+  const bldgReal = sources.find((s) => {
+    if (s.source !== "govmap_bldg" || s.status !== "ok" || !s.totalFloorArea) return false;
+    const raw = s.raw as { hasRealFloors?: boolean } | undefined;
+    return raw?.hasRealFloors === true;
+  });
+  if (bldgReal) return bldgReal;
+
+  const nadlanArea = sources.find(
+    (s) => s.source === "nadlan" && s.status === "ok" && typeof s.totalFloorArea === "number" && s.totalFloorArea > 0,
+  );
+  if (nadlanArea) return nadlanArea;
+
+  const bldgAny = sources.find((s) => s.source === "govmap_bldg" && s.status === "ok" && s.totalFloorArea);
+  if (bldgAny) return bldgAny;
+
+  const heur = sources.find((s) => s.source === "heuristic" && s.totalFloorArea);
+  if (heur) return heur;
+
+  return null;
+}
+
 // ────────────────────────── HTTP handler ───────────────────────
 
 Deno.serve(async (req) => {
@@ -770,7 +840,7 @@ Deno.serve(async (req) => {
         source: "manual",
         units: body.manualUnits,
         floors: body.manualFloors ?? null,
-        totalFloorArea: null,
+        totalFloorArea: body.manualBuiltArea ?? null,
         confidence: "high",
         status: "ok",
         label: "מאומת ידנית",
@@ -786,6 +856,9 @@ Deno.serve(async (req) => {
         notes: body.manualNotes ?? null,
         sources_json: [manualSource],
         confidence: "high",
+        built_area: body.manualBuiltArea ?? null,
+        built_area_source: body.manualBuiltArea ? "manual" : null,
+        built_area_confidence: body.manualBuiltArea ? "high" : null,
         last_refreshed_at: new Date().toISOString(),
       };
       const { error } = await supabase
@@ -803,6 +876,9 @@ Deno.serve(async (req) => {
           floors: body.manualFloors ?? null,
           source: "manual",
           confidence: "high",
+          builtArea: body.manualBuiltArea ?? null,
+          builtAreaSource: body.manualBuiltArea ? "manual" : null,
+          builtAreaConfidence: body.manualBuiltArea ? "high" : null,
           sources: [manualSource],
           cached: true,
         }),
@@ -815,7 +891,7 @@ Deno.serve(async (req) => {
       const { data: cached } = await supabase
         .from("plot_units_cache")
         .select(
-          "existing_units, existing_floors, source, building_count, total_floor_area, notes, sources_json, confidence, last_refreshed_at",
+          "existing_units, existing_floors, source, building_count, total_floor_area, built_area, built_area_source, built_area_confidence, notes, sources_json, confidence, last_refreshed_at",
         )
         .eq("gush", body.gush)
         .eq("helka", body.helka)
@@ -831,6 +907,7 @@ Deno.serve(async (req) => {
         if (!isStale) {
           const cachedSources = (cached.sources_json ?? []) as SourceResult[];
           const cachedFloorsBest = Array.isArray(cachedSources) ? pickBestFloors(cachedSources) : null;
+          const cachedAreaBest = Array.isArray(cachedSources) ? pickBestBuiltArea(cachedSources) : null;
           return new Response(
             JSON.stringify({
               units: cached.existing_units,
@@ -841,6 +918,9 @@ Deno.serve(async (req) => {
               floorsConfidence: cachedFloorsBest?.confidence ?? null,
               buildingCount: cached.building_count,
               totalFloorArea: cached.total_floor_area,
+              builtArea: cached.built_area ?? cachedAreaBest?.totalFloorArea ?? null,
+              builtAreaSource: cached.built_area_source ?? cachedAreaBest?.source ?? null,
+              builtAreaConfidence: cached.built_area_confidence ?? cachedAreaBest?.confidence ?? null,
               notes: cached.notes,
               sources: cachedSources,
               lastRefreshedAt: cached.last_refreshed_at,
@@ -872,7 +952,9 @@ Deno.serve(async (req) => {
 
     const best = pickBest(sources);
     const bestFloors = pickBestFloors(sources);
+    const bestArea = pickBestBuiltArea(sources);
     const chosenFloors = bestFloors?.floors ?? best.floors;
+    const chosenArea = bestArea?.totalFloorArea ?? best.totalFloorArea ?? null;
 
     // Cache (best-effort)
     const { error: upsertErr } = await supabase
@@ -888,6 +970,9 @@ Deno.serve(async (req) => {
             ? ((bldg.value.raw as { buildings?: unknown[] }).buildings?.length ?? 0)
             : 0,
           total_floor_area: best.totalFloorArea,
+          built_area: chosenArea,
+          built_area_source: bestArea?.source ?? null,
+          built_area_confidence: bestArea?.confidence ?? null,
           sources_json: sources,
           confidence: best.confidence,
           last_refreshed_at: new Date().toISOString(),
@@ -904,6 +989,9 @@ Deno.serve(async (req) => {
         confidence: best.confidence,
         floorsSource: bestFloors?.source ?? null,
         floorsConfidence: bestFloors?.confidence ?? null,
+        builtArea: chosenArea,
+        builtAreaSource: bestArea?.source ?? null,
+        builtAreaConfidence: bestArea?.confidence ?? null,
         sources,
         centroid: centroidItm
           ? { x: centroidItm.x, y: centroidItm.y, via: centroidItm.via }

@@ -16,6 +16,9 @@ interface PlotInput {
   shapeArea: number | null;
   existingUnits: number;
   existingFloors: number;
+  existingBuiltAreaSqm?: number;
+  existingBuiltAreaSource?: string;
+  existingBuiltAreaConfidence?: string;
   conservation: boolean;
   notes?: string;
 }
@@ -213,6 +216,10 @@ Deno.serve(async (req) => {
       });
     }
 
+    const builtAreaLine = body.existingBuiltAreaSqm && body.existingBuiltAreaSqm > 0
+      ? `שטח בנוי קיים (מדוד ממקור: ${body.existingBuiltAreaSource ?? "לא ידוע"}, אמינות: ${body.existingBuiltAreaConfidence ?? "לא ידוע"}): ${body.existingBuiltAreaSqm} מ"ר — השתמש בערך הזה ישירות כ-existing.builtAreaSqm; אל תאמוד מחדש.`
+      : `שטח בנוי קיים: לא ידוע — חשב לפי existingUnits × ~85 מ"ר`;
+
     const userPrompt = `נתח את ההיתכנות להתחדשות עירונית של החלקה הבאה:
 
 רובע: ${body.quarter}
@@ -222,6 +229,7 @@ Deno.serve(async (req) => {
 שטח לפי GIS: ${body.shapeArea ?? "לא ידוע"} מ"ר
 מספר יח"ד קיימות: ${body.existingUnits}
 מספר קומות קיים: ${body.existingFloors}
+${builtAreaLine}
 סטטוס שימור (לפי המשתמש): ${body.conservation ? "כן" : "לא ידוע / לא"}
 ${body.notes ? `הערות נוספות: ${body.notes}` : ""}
 
@@ -290,6 +298,17 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}
     // ── Post-validation: deterministic sanity checks on AI output ──
     try {
       report.redFlags = Array.isArray(report.redFlags) ? report.redFlags : [];
+
+      // אם המשתמש העביר שטח בנוי מדוד — דורסים את אומדן ה-AI
+      if (body.existingBuiltAreaSqm && body.existingBuiltAreaSqm > 0) {
+        if (!report.existing) report.existing = {};
+        report.existing.builtAreaSqm = body.existingBuiltAreaSqm;
+        const plotArea = body.area ?? body.shapeArea ?? 0;
+        if (plotArea > 0) {
+          report.existing.far = Number((body.existingBuiltAreaSqm / plotArea).toFixed(2));
+        }
+      }
+
 
       const existingU = report.existing?.units ?? body.existingUnits;
       const proposedU = report.proposed?.units ?? 0;
