@@ -3,6 +3,7 @@
 
 export type ProjectType = "urban_renewal" | "new_construction" | "combination";
 export type RenewalSubtype = "tama38" | "pinui_binui";
+export type FinishLevel = "standard" | "premium" | "luxury";
 
 export interface ZoningConstraints {
   treesForConservation?: number | null;
