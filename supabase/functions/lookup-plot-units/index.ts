@@ -839,7 +839,7 @@ Deno.serve(async (req) => {
         source: "manual",
         units: body.manualUnits,
         floors: body.manualFloors ?? null,
-        totalFloorArea: null,
+        totalFloorArea: body.manualBuiltArea ?? null,
         confidence: "high",
         status: "ok",
         label: "מאומת ידנית",
@@ -855,6 +855,9 @@ Deno.serve(async (req) => {
         notes: body.manualNotes ?? null,
         sources_json: [manualSource],
         confidence: "high",
+        built_area: body.manualBuiltArea ?? null,
+        built_area_source: body.manualBuiltArea ? "manual" : null,
+        built_area_confidence: body.manualBuiltArea ? "high" : null,
         last_refreshed_at: new Date().toISOString(),
       };
       const { error } = await supabase
@@ -872,6 +875,9 @@ Deno.serve(async (req) => {
           floors: body.manualFloors ?? null,
           source: "manual",
           confidence: "high",
+          builtArea: body.manualBuiltArea ?? null,
+          builtAreaSource: body.manualBuiltArea ? "manual" : null,
+          builtAreaConfidence: body.manualBuiltArea ? "high" : null,
           sources: [manualSource],
           cached: true,
         }),
@@ -884,7 +890,7 @@ Deno.serve(async (req) => {
       const { data: cached } = await supabase
         .from("plot_units_cache")
         .select(
-          "existing_units, existing_floors, source, building_count, total_floor_area, notes, sources_json, confidence, last_refreshed_at",
+          "existing_units, existing_floors, source, building_count, total_floor_area, built_area, built_area_source, built_area_confidence, notes, sources_json, confidence, last_refreshed_at",
         )
         .eq("gush", body.gush)
         .eq("helka", body.helka)
