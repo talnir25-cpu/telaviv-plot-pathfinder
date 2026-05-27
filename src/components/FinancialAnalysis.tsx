@@ -92,17 +92,22 @@ const PROJECT_TYPE_HINT: Record<ProjectType, string> = {
   combination: "היזם מקבל אחוז מהקרקע מהבעלים — שווי קרקע משוקלל לפי 'חלק היזם'. הוסף עלויות דיירים אם נדרש פינוי.",
 };
 
-const fieldsForType = (type: ProjectType): FieldDef[] => {
+const fieldsForType = (input: FinancialInput): FieldDef[] => {
   const hidden = new Set<keyof FinancialInput>();
-  if (type === "urban_renewal") {
+  if (input.projectType === "urban_renewal") {
     hidden.add("landValuePerSqm");
     hidden.add("developerLandSharePct");
-  } else if (type === "new_construction") {
+  } else if (input.projectType === "new_construction") {
     hidden.add("tenantRentPerMonth");
     hidden.add("tenantEvacuationCost");
     hidden.add("developerLandSharePct");
   }
-  // combination: show all
+  // strengthening cost only relevant in addition_only mode
+  const effectiveMode: ConstructionMode = input.constructionMode ??
+    (input.projectType === "urban_renewal" && (input.renewalSubtype ?? "tama38") === "tama38"
+      ? "addition_only"
+      : "full_rebuild");
+  if (effectiveMode !== "addition_only") hidden.add("strengtheningCostPerSqm");
   return ALL_FIELDS.filter((f) => !hidden.has(f.key));
 };
 
