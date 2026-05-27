@@ -4,6 +4,9 @@
 export type ProjectType = "urban_renewal" | "new_construction" | "combination";
 export type RenewalSubtype = "tama38" | "pinui_binui";
 export type FinishLevel = "standard" | "premium" | "luxury";
+// full_rebuild = הריסה + בנייה מחדש על כל השטח (תמ"א 38/2, פינוי-בינוי, בנייה חדשה)
+// addition_only = חיזוק קיים + תוספת בלבד (תמ"א 38/1)
+export type ConstructionMode = "full_rebuild" | "addition_only";
 
 export interface ZoningConstraints {
   treesForConservation?: number | null;
@@ -46,10 +49,14 @@ export interface EngineInput {
   finishLevel?: FinishLevel;              // default "standard"
   basementCostMultiplier?: number;        // default 0.70 (basement vs above-ground)
   basementAreaPerFloorRatio?: number;     // default 0.85 (of plot area)
-  demolitionCostPerSqm?: number;          // default 400 ₪/m² (urban renewal only)
+  demolitionCostPerSqm?: number;          // default 400 ₪/m² (urban renewal full_rebuild only)
   siteDevelopmentCostPerSqmPlot?: number; // default 450 ₪/m² of plot
   escalationPctPerYear?: number;          // default 3% — construction inflation
   contingencyPct?: number;                // default 5% — בלת"מ on hard cost
+
+  // ─── construction mode (delta-area vs full rebuild) ───
+  constructionMode?: ConstructionMode;    // default depends on projectType+subtype
+  strengtheningCostPerSqm?: number;       // default 3,000 ₪/m² (for addition_only only)
 }
 
 export interface SensitivityCell {
@@ -68,24 +75,29 @@ export interface MonthlyCashflowRow {
 }
 
 export interface ConstructionBreakdown {
-  aboveGroundAreaSqm: number;
+  constructionMode: ConstructionMode;
+  existingBuiltAreaSqm: number;
+  addedBuiltAreaSqm: number;              // proposed - existing (≥0)
+  aboveGroundAreaSqm: number;             // area priced at new-build rate
   basementAreaSqm: number;
   effectiveAboveGroundRate: number;       // ₪/m² after finish + height premium
   effectiveBasementRate: number;          // ₪/m²
   aboveGroundCost: number;
   basementCost: number;
+  strengtheningCost: number;              // existing × strengtheningCostPerSqm (addition_only)
+  strengtheningCostPerSqm: number;
   finishLevel: FinishLevel;
-  finishMultiplier: number;               // e.g. 1.0 / 1.15 / 1.30
-  heightPremiumMultiplier: number;        // e.g. 1.00, 1.08, 1.20
+  finishMultiplier: number;
+  heightPremiumMultiplier: number;
   floorsAboveGround: number;
   demolitionCost: number;
   siteDevelopmentCost: number;
-  baseHardCost: number;                   // sum above, before escalation/contingency
-  escalationMultiplier: number;           // e.g. 1.0453
+  baseHardCost: number;
+  escalationMultiplier: number;
   escalationCost: number;
   contingencyPct: number;
   contingencyCost: number;
-  totalHardCost: number;                  // == EngineReport.hardCosts
+  totalHardCost: number;
   effectiveCostPerSqmBuilt: number;       // totalHardCost / proposedBuiltAreaSqm
 }
 
@@ -187,18 +199,43 @@ export function computeConstructionCost(input: EngineInput): ConstructionBreakdo
   const finishLevel = input.finishLevel ?? "standard";
   const finishMul = FINISH_MULTIPLIER[finishLevel];
 
+  // Construction mode default:
+  //   - urban_renewal + tama38 → addition_only (חיזוק + תוספת)
+  //   - all other cases       → full_rebuild
+  const mode: ConstructionMode = input.constructionMode ??
+    (input.projectType === "urban_renewal" && input.renewalSubtype === "tama38"
+      ? "addition_only"
+      : "full_rebuild");
+
+  // Delta area added vs existing (never negative)
+  const addedBuiltAreaSqm = Math.max(
+    0,
+    input.proposedBuiltAreaSqm - input.existingBuiltAreaSqm,
+  );
+
   // Basement area: ratio × plot × required basement floors
+  // (new underground parking — built in both modes)
   const basementFloors = Math.max(0, input.zoning?.requiredBasementFloors ?? 1);
   const basementRatio = clamp(input.basementAreaPerFloorRatio ?? 0.85, 0.5, 1.0);
   const basementAreaSqm = Math.min(
     input.proposedBuiltAreaSqm,
     basementFloors * basementRatio * input.plotArea,
   );
-  const aboveGroundAreaSqm = Math.max(0, input.proposedBuiltAreaSqm - basementAreaSqm);
+
+  // Above-ground area priced at full new-build rate:
+  //   full_rebuild  → entire proposed above-ground (proposed − basement)
+  //   addition_only → only the added above-ground (addedBuilt − basement if new basement,
+  //                   but typically all addition is above ground)
+  const aboveGroundAreaSqm = mode === "full_rebuild"
+    ? Math.max(0, input.proposedBuiltAreaSqm - basementAreaSqm)
+    : Math.max(0, addedBuiltAreaSqm - Math.max(0, basementAreaSqm - 0));
 
   // Floors above ground — fallback proxy if not provided
   const floorsAG = input.proposedFloors ??
-    Math.max(1, Math.round(aboveGroundAreaSqm / Math.max(1, input.plotArea * 0.55)));
+    Math.max(1, Math.round(
+      (mode === "full_rebuild" ? aboveGroundAreaSqm : input.proposedBuiltAreaSqm - basementAreaSqm)
+        / Math.max(1, input.plotArea * 0.55),
+    ));
   const heightMul = heightPremiumMultiplier(floorsAG);
 
   const effectiveAboveGroundRate = input.buildCostPerSqm * finishMul * heightMul;
@@ -208,7 +245,16 @@ export function computeConstructionCost(input: EngineInput): ConstructionBreakdo
   const aboveGroundCost = aboveGroundAreaSqm * effectiveAboveGroundRate;
   const basementCost = basementAreaSqm * effectiveBasementRate;
 
-  const demolitionCost = input.projectType === "urban_renewal"
+  // Strengthening of existing structure (addition_only mode only)
+  const strengtheningRate = mode === "addition_only"
+    ? Math.max(0, input.strengtheningCostPerSqm ?? 3_000)
+    : 0;
+  const strengtheningCost = mode === "addition_only"
+    ? input.existingBuiltAreaSqm * strengtheningRate
+    : 0;
+
+  // Demolition only when fully rebuilding in urban renewal
+  const demolitionCost = (mode === "full_rebuild" && input.projectType === "urban_renewal")
     ? input.existingBuiltAreaSqm * (input.demolitionCostPerSqm ?? 400)
     : 0;
 
@@ -216,7 +262,7 @@ export function computeConstructionCost(input: EngineInput): ConstructionBreakdo
     input.plotArea * (input.siteDevelopmentCostPerSqmPlot ?? 450);
 
   const baseHardCost =
-    aboveGroundCost + basementCost + demolitionCost + siteDevelopmentCost;
+    aboveGroundCost + basementCost + strengtheningCost + demolitionCost + siteDevelopmentCost;
 
   // Midpoint escalation
   const escPct = clamp(input.escalationPctPerYear ?? 3, 0, 25) / 100;
@@ -234,12 +280,17 @@ export function computeConstructionCost(input: EngineInput): ConstructionBreakdo
     : 0;
 
   return {
+    constructionMode: mode,
+    existingBuiltAreaSqm: Math.round(input.existingBuiltAreaSqm),
+    addedBuiltAreaSqm: Math.round(addedBuiltAreaSqm),
     aboveGroundAreaSqm: Math.round(aboveGroundAreaSqm),
     basementAreaSqm: Math.round(basementAreaSqm),
     effectiveAboveGroundRate: Math.round(effectiveAboveGroundRate),
     effectiveBasementRate: Math.round(effectiveBasementRate),
     aboveGroundCost: Math.round(aboveGroundCost),
     basementCost: Math.round(basementCost),
+    strengtheningCost: Math.round(strengtheningCost),
+    strengtheningCostPerSqm: Math.round(strengtheningRate),
     finishLevel,
     finishMultiplier: finishMul,
     heightPremiumMultiplier: Number(heightMul.toFixed(3)),
@@ -564,6 +615,16 @@ export function assembleReport(input: EngineInput): EngineReport {
     `מנוע חישוב דטרמיניסטי v2 — תזרים חודשי ל-${core.monthly.length - 1} חודשים, IRR ב-Newton-Raphson.`,
   );
   const cb = core.constructionBreakdown;
+  if (cb.constructionMode === "addition_only") {
+    notes.push(
+      `מצב בנייה: חיזוק + תוספת (תמ"א 38/1). שטח מתווסף ${cb.addedBuiltAreaSqm.toLocaleString("he-IL")} מ"ר בעלות בנייה חדשה, ` +
+        `שטח קיים ${cb.existingBuiltAreaSqm.toLocaleString("he-IL")} מ"ר בחיזוק (${cb.strengtheningCostPerSqm.toLocaleString("he-IL")} ₪/מ"ר = ${cb.strengtheningCost.toLocaleString("he-IL")} ₪). ללא הריסה.`,
+    );
+  } else {
+    notes.push(
+      `מצב בנייה: הריסה ובנייה מחדש על מלוא השטח המוצע (${input.proposedBuiltAreaSqm.toLocaleString("he-IL")} מ"ר). שטח קיים ${input.existingBuiltAreaSqm.toLocaleString("he-IL")} מ"ר → הריסה.`,
+    );
+  }
   notes.push(
     `עלות בנייה בפועל: ${cb.effectiveCostPerSqmBuilt.toLocaleString("he-IL")} ₪/מ"ר ` +
       `(מעל-קרקע ${cb.aboveGroundAreaSqm.toLocaleString("he-IL")} מ"ר × ${cb.effectiveAboveGroundRate.toLocaleString("he-IL")} ₪, ` +

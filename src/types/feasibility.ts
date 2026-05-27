@@ -76,6 +76,7 @@ export interface AnalysisInput {
 export type ProjectType = "urban_renewal" | "new_construction" | "combination";
 export type RenewalSubtype = "tama38" | "pinui_binui";
 export type FinishLevel = "standard" | "premium" | "luxury";
+export type ConstructionMode = "full_rebuild" | "addition_only";
 
 export interface FinancialInput {
   // סוג פרויקט — קובע את לוגיקת הקרקע, הדיירים והמיסוי
@@ -101,10 +102,13 @@ export interface FinancialInput {
   finishLevel?: FinishLevel;            // standard / premium / luxury
   basementCostMultiplier?: number;      // ברירת מחדל 0.70
   basementAreaPerFloorRatio?: number;   // מ"ר מרתף כיחס משטח המגרש (0.85)
-  demolitionCostPerSqm?: number;        // ₪/מ"ר להריסה (400)
+  demolitionCostPerSqm?: number;        // ₪/מ"ר להריסה (400) — רק במצב full_rebuild
   siteDevelopmentCostPerSqmPlot?: number; // ₪/מ"ר פיתוח שטח (450)
   escalationPctPerYear?: number;        // אינפלציית בנייה שנתית (3%)
   contingencyPct?: number;              // בלת"מ (5%)
+  // ─── מצב בנייה (דלתא מול קיים) ───
+  constructionMode?: ConstructionMode;  // full_rebuild (הריסה+בנייה) או addition_only (חיזוק+תוספת)
+  strengtheningCostPerSqm?: number;     // ₪/מ"ר חיזוק קיים (3,000) — רק ב-addition_only
 }
 
 
@@ -116,12 +120,17 @@ export interface SensitivityCell {
 }
 
 export interface ConstructionBreakdown {
+  constructionMode: ConstructionMode;
+  existingBuiltAreaSqm: number;
+  addedBuiltAreaSqm: number;
   aboveGroundAreaSqm: number;
   basementAreaSqm: number;
   effectiveAboveGroundRate: number;
   effectiveBasementRate: number;
   aboveGroundCost: number;
   basementCost: number;
+  strengtheningCost: number;
+  strengtheningCostPerSqm: number;
   finishLevel: FinishLevel;
   finishMultiplier: number;
   heightPremiumMultiplier: number;

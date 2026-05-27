@@ -88,6 +88,8 @@ const FinancialInputSchema = z.object({
   siteDevelopmentCostPerSqmPlot: z.number().min(0).max(5_000).optional(),
   escalationPctPerYear: z.number().min(0).max(25).optional(),
   contingencyPct: z.number().min(0).max(25).optional(),
+  constructionMode: z.enum(["full_rebuild", "addition_only"]).optional(),
+  strengtheningCostPerSqm: z.number().min(0).max(20_000).optional(),
 });
 
 const AnalyzeBodySchema = z.object({
@@ -192,6 +194,8 @@ Deno.serve(async (req) => {
         siteDevelopmentCostPerSqmPlot: financial.siteDevelopmentCostPerSqmPlot,
         escalationPctPerYear: financial.escalationPctPerYear,
         contingencyPct: financial.contingencyPct,
+        constructionMode: financial.constructionMode,
+        strengtheningCostPerSqm: financial.strengtheningCostPerSqm,
       };
 
       const report = assembleReport(engineInput);

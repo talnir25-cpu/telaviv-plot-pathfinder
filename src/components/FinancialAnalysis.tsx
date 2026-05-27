@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type {
+  ConstructionMode,
   FeasibilityReport,
   FinancialInput,
   FinancialReport,
@@ -57,6 +58,7 @@ type FieldDef = { key: keyof FinancialInput; label: string; suffix: string; grou
 const ALL_FIELDS: FieldDef[] = [
   { key: "avgSalePricePerSqm", label: 'מחיר מכירה ממוצע', suffix: '₪/מ"ר', group: "מכירות" },
   { key: "buildCostPerSqm", label: "עלות בנייה (Hard בסיס)", suffix: '₪/מ"ר', group: "בנייה" },
+  { key: "strengtheningCostPerSqm", label: "עלות חיזוק קיים (תמ״א 38/1)", suffix: '₪/מ"ר', group: "בנייה" },
   { key: "softCostsPct", label: "Soft costs", suffix: "%", group: "בנייה" },
   { key: "escalationPctPerYear", label: "אסקלציה שנתית", suffix: "%", group: "בנייה" },
   { key: "contingencyPct", label: 'בלת"מ', suffix: "%", group: "בנייה" },
@@ -90,17 +92,22 @@ const PROJECT_TYPE_HINT: Record<ProjectType, string> = {
   combination: "היזם מקבל אחוז מהקרקע מהבעלים — שווי קרקע משוקלל לפי 'חלק היזם'. הוסף עלויות דיירים אם נדרש פינוי.",
 };
 
-const fieldsForType = (type: ProjectType): FieldDef[] => {
+const fieldsForType = (input: FinancialInput): FieldDef[] => {
   const hidden = new Set<keyof FinancialInput>();
-  if (type === "urban_renewal") {
+  if (input.projectType === "urban_renewal") {
     hidden.add("landValuePerSqm");
     hidden.add("developerLandSharePct");
-  } else if (type === "new_construction") {
+  } else if (input.projectType === "new_construction") {
     hidden.add("tenantRentPerMonth");
     hidden.add("tenantEvacuationCost");
     hidden.add("developerLandSharePct");
   }
-  // combination: show all
+  // strengthening cost only relevant in addition_only mode
+  const effectiveMode: ConstructionMode = input.constructionMode ??
+    (input.projectType === "urban_renewal" && (input.renewalSubtype ?? "tama38") === "tama38"
+      ? "addition_only"
+      : "full_rebuild");
+  if (effectiveMode !== "addition_only") hidden.add("strengtheningCostPerSqm");
   return ALL_FIELDS.filter((f) => !hidden.has(f.key));
 };
 
@@ -154,6 +161,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           finishLevel: "standard",
           escalationPctPerYear: 3,
           contingencyPct: 5,
+          strengtheningCostPerSqm: 3000,
         });
 
       } finally {
@@ -204,7 +212,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
   }
 
   const groups = ["מכירות", "בנייה", "מימון"];
-  const visibleFields = fieldsForType(input.projectType);
+  const visibleFields = fieldsForType(input);
 
   return (
     <div className="space-y-6">
@@ -273,7 +281,44 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
               </p>
             </div>
           )}
+
+          {/* Construction mode: full rebuild vs strengthening + addition */}
+          {(input.projectType === "urban_renewal" || input.projectType === "combination") && (
+            <div className="mt-2 space-y-1.5">
+              <Label className="text-xs font-semibold">מצב בנייה</Label>
+              <div className="flex gap-2">
+                {([
+                  { id: "full_rebuild", label: "הריסה + בנייה מחדש", hint: 'תמ"א 38/2, פינוי-בינוי' },
+                  { id: "addition_only", label: "חיזוק + תוספת", hint: 'תמ"א 38/1' },
+                ] as { id: ConstructionMode; label: string; hint: string }[]).map((m) => {
+                  const effective: ConstructionMode = input.constructionMode ??
+                    (input.projectType === "urban_renewal" && (input.renewalSubtype ?? "tama38") === "tama38"
+                      ? "addition_only"
+                      : "full_rebuild");
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setInput({ ...input, constructionMode: m.id })}
+                      className={`flex-1 rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                        effective === m.id
+                          ? "border-primary bg-primary/10 text-primary font-semibold"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      <div>{m.label}</div>
+                      <div className="text-[9px] opacity-70">{m.hint}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                במצב "חיזוק + תוספת": עלות הבנייה החדשה תחול רק על השטח המתווסף (proposed − existing), ועל השטח הקיים תחושב עלות חיזוק בלבד. אין הריסה.
+              </p>
+            </div>
+          )}
         </div>
+
 
         {/* Finish level selector */}
         <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
@@ -493,16 +538,46 @@ const ConstructionBreakdownPanel = ({ report }: { report: FinancialReport }) => 
     <div className="rounded-xl border bg-card p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h4 className="text-sm font-semibold">פירוט עלות בנייה (Hard)</h4>
-        <Badge variant="outline" className="text-[10px]">
-          ממוצע {b.effectiveCostPerSqmBuilt.toLocaleString("he-IL")} ₪/מ״ר
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-[10px]">
+            {b.constructionMode === "addition_only" ? "חיזוק + תוספת" : "הריסה + בנייה מחדש"}
+          </Badge>
+          <Badge variant="outline" className="text-[10px]">
+            ממוצע {b.effectiveCostPerSqmBuilt.toLocaleString("he-IL")} ₪/מ״ר
+          </Badge>
+        </div>
       </div>
+
+      {/* Area context */}
+      <div className="mb-3 grid grid-cols-3 gap-2 rounded-lg bg-muted/20 p-2 text-[11px]">
+        <div>
+          <div className="text-muted-foreground">שטח קיים</div>
+          <div className="font-semibold tabular-nums">{b.existingBuiltAreaSqm.toLocaleString("he-IL")} מ״ר</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">שטח מתווסף</div>
+          <div className="font-semibold tabular-nums text-primary">+{b.addedBuiltAreaSqm.toLocaleString("he-IL")} מ״ר</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">שטח מוצע סה״כ</div>
+          <div className="font-semibold tabular-nums">{(b.existingBuiltAreaSqm + b.addedBuiltAreaSqm).toLocaleString("he-IL")} מ״ר</div>
+        </div>
+      </div>
+
       <div className="space-y-1.5">
         {row(
-          `מעל-קרקע (${b.aboveGroundAreaSqm.toLocaleString("he-IL")} מ״ר)`,
+          b.constructionMode === "addition_only"
+            ? `בנייה חדשה — תוספת מעל-קרקע (${b.aboveGroundAreaSqm.toLocaleString("he-IL")} מ״ר)`
+            : `מעל-קרקע (${b.aboveGroundAreaSqm.toLocaleString("he-IL")} מ״ר)`,
           fmtNIS(b.aboveGroundCost),
           `× ${b.effectiveAboveGroundRate.toLocaleString("he-IL")} ₪ • גמר ×${b.finishMultiplier.toFixed(2)} • גובה ×${b.heightPremiumMultiplier.toFixed(2)} (${b.floorsAboveGround} קומות)`,
         )}
+        {b.strengtheningCost > 0 &&
+          row(
+            `חיזוק קיים (${b.existingBuiltAreaSqm.toLocaleString("he-IL")} מ״ר)`,
+            fmtNIS(b.strengtheningCost),
+            `× ${b.strengtheningCostPerSqm.toLocaleString("he-IL")} ₪/מ״ר`,
+          )}
         {b.basementAreaSqm > 0 &&
           row(
             `מרתפי חניה (${b.basementAreaSqm.toLocaleString("he-IL")} מ״ר)`,
