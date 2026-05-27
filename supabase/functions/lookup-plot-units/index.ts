@@ -639,12 +639,14 @@ async function sourceTlvPermits(
         tama38_new: f.attributes.sw_tama_38_chadash,
         tama38_addition: f.attributes.sw_tama_38_tosefet,
         addresses: f.attributes.addresses,
+        area: tlvPermitArea(f.attributes),
       };
     });
 
     const summary = {
       builtUnits: chosenRaw.filter((c) => c.physicalStatus === "built").reduce((s, c) => s + (c.yechidot_diyur ?? 0), 0),
       approvedUnits: chosenRaw.filter((c) => c.physicalStatus === "approved" || c.physicalStatus === "in_process").reduce((s, c) => s + (c.yechidot_diyur ?? 0), 0),
+      builtArea: chosenRaw.filter((c) => c.physicalStatus === "built").reduce((s, c) => s + (c.area ?? 0), 0),
     };
 
     const rawPayload = {
@@ -664,9 +666,9 @@ async function sourceTlvPermits(
         status: "ok",
         units: summary.builtUnits,
         floors: null,
-        totalFloorArea: null,
+        totalFloorArea: summary.builtArea > 0 ? Math.round(summary.builtArea) : null,
         confidence: summary.approvedUnits > 0 ? "medium" : "high",
-        detail: `${summary.builtUnits} יחידות בנויות${summary.approvedUnits > 0 ? ` (+${summary.approvedUnits} מתוכננות)` : ""}${anyTama ? " · כולל תמ\"א 38" : ""}`,
+        detail: `${summary.builtUnits} יחידות בנויות${summary.builtArea > 0 ? ` · ${Math.round(summary.builtArea).toLocaleString()} מ"ר` : ""}${summary.approvedUnits > 0 ? ` (+${summary.approvedUnits} מתוכננות)` : ""}${anyTama ? " · כולל תמ\"א 38" : ""}`,
         raw: rawPayload,
       };
     }
