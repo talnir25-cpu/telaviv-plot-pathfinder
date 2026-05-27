@@ -222,19 +222,21 @@ export function computeConstructionCost(input: EngineInput): ConstructionBreakdo
     basementFloors * basementRatio * input.plotArea,
   );
 
-  // Above-ground area priced at full new-build rate:
-  //   full_rebuild  → entire proposed above-ground (proposed − basement)
-  //   addition_only → only the added above-ground (addedBuilt − basement if new basement,
-  //                   but typically all addition is above ground)
+  // Above-ground area priced at full new-build rate.
+  // NOTE: `proposedBuiltAreaSqm` represents the planned ABOVE-GROUND built area
+  // (שטחים עיקריים + שירות מעל הקרקע), and does NOT include basement parking.
+  // Basements are priced separately and added on top — never subtracted from above-ground.
+  //   full_rebuild  → entire proposed above-ground built area
+  //   addition_only → only the added above-ground area (delta vs existing);
+  //                   the existing area is priced at the strengthening rate below.
   const aboveGroundAreaSqm = mode === "full_rebuild"
-    ? Math.max(0, input.proposedBuiltAreaSqm - basementAreaSqm)
-    : Math.max(0, addedBuiltAreaSqm - Math.max(0, basementAreaSqm - 0));
+    ? input.proposedBuiltAreaSqm
+    : addedBuiltAreaSqm;
 
   // Floors above ground — fallback proxy if not provided
   const floorsAG = input.proposedFloors ??
     Math.max(1, Math.round(
-      (mode === "full_rebuild" ? aboveGroundAreaSqm : input.proposedBuiltAreaSqm - basementAreaSqm)
-        / Math.max(1, input.plotArea * 0.55),
+      input.proposedBuiltAreaSqm / Math.max(1, input.plotArea * 0.55),
     ));
   const heightMul = heightPremiumMultiplier(floorsAG);
 
