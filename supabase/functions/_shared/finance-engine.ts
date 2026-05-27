@@ -49,10 +49,14 @@ export interface EngineInput {
   finishLevel?: FinishLevel;              // default "standard"
   basementCostMultiplier?: number;        // default 0.70 (basement vs above-ground)
   basementAreaPerFloorRatio?: number;     // default 0.85 (of plot area)
-  demolitionCostPerSqm?: number;          // default 400 ₪/m² (urban renewal only)
+  demolitionCostPerSqm?: number;          // default 400 ₪/m² (urban renewal full_rebuild only)
   siteDevelopmentCostPerSqmPlot?: number; // default 450 ₪/m² of plot
   escalationPctPerYear?: number;          // default 3% — construction inflation
   contingencyPct?: number;                // default 5% — בלת"מ on hard cost
+
+  // ─── construction mode (delta-area vs full rebuild) ───
+  constructionMode?: ConstructionMode;    // default depends on projectType+subtype
+  strengtheningCostPerSqm?: number;       // default 3,000 ₪/m² (for addition_only only)
 }
 
 export interface SensitivityCell {
