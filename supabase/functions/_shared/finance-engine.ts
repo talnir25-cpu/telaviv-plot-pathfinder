@@ -214,27 +214,26 @@ export function computeConstructionCost(input: EngineInput): ConstructionBreakdo
   );
 
   // Basement area: ratio × plot × required basement floors
-  // (new underground parking — built in both modes)
+  // (new underground parking — built in both modes, additive to above-ground built area)
   const basementFloors = Math.max(0, input.zoning?.requiredBasementFloors ?? 1);
   const basementRatio = clamp(input.basementAreaPerFloorRatio ?? 0.85, 0.5, 1.0);
-  const basementAreaSqm = Math.min(
-    input.proposedBuiltAreaSqm,
-    basementFloors * basementRatio * input.plotArea,
-  );
+  const basementAreaSqm = basementFloors * basementRatio * input.plotArea;
 
-  // Above-ground area priced at full new-build rate:
-  //   full_rebuild  → entire proposed above-ground (proposed − basement)
-  //   addition_only → only the added above-ground (addedBuilt − basement if new basement,
-  //                   but typically all addition is above ground)
+  // Above-ground area priced at full new-build rate.
+  // NOTE: `proposedBuiltAreaSqm` represents the planned ABOVE-GROUND built area
+  // (שטחים עיקריים + שירות מעל הקרקע), and does NOT include basement parking.
+  // Basements are priced separately and added on top — never subtracted from above-ground.
+  //   full_rebuild  → entire proposed above-ground built area
+  //   addition_only → only the added above-ground area (delta vs existing);
+  //                   the existing area is priced at the strengthening rate below.
   const aboveGroundAreaSqm = mode === "full_rebuild"
-    ? Math.max(0, input.proposedBuiltAreaSqm - basementAreaSqm)
-    : Math.max(0, addedBuiltAreaSqm - Math.max(0, basementAreaSqm - 0));
+    ? input.proposedBuiltAreaSqm
+    : addedBuiltAreaSqm;
 
   // Floors above ground — fallback proxy if not provided
   const floorsAG = input.proposedFloors ??
     Math.max(1, Math.round(
-      (mode === "full_rebuild" ? aboveGroundAreaSqm : input.proposedBuiltAreaSqm - basementAreaSqm)
-        / Math.max(1, input.plotArea * 0.55),
+      input.proposedBuiltAreaSqm / Math.max(1, input.plotArea * 0.55),
     ));
   const heightMul = heightPremiumMultiplier(floorsAG);
 
