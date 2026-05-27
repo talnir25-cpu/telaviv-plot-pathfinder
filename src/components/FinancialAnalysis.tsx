@@ -56,8 +56,10 @@ type FieldDef = { key: keyof FinancialInput; label: string; suffix: string; grou
 
 const ALL_FIELDS: FieldDef[] = [
   { key: "avgSalePricePerSqm", label: 'מחיר מכירה ממוצע', suffix: '₪/מ"ר', group: "מכירות" },
-  { key: "buildCostPerSqm", label: "עלות בנייה", suffix: '₪/מ"ר', group: "מכירות" },
-  { key: "softCostsPct", label: "Soft costs", suffix: "%", group: "מכירות" },
+  { key: "buildCostPerSqm", label: "עלות בנייה (Hard בסיס)", suffix: '₪/מ"ר', group: "בנייה" },
+  { key: "softCostsPct", label: "Soft costs", suffix: "%", group: "בנייה" },
+  { key: "escalationPctPerYear", label: "אסקלציה שנתית", suffix: "%", group: "בנייה" },
+  { key: "contingencyPct", label: 'בלת"מ', suffix: "%", group: "בנייה" },
   { key: "vatPct", label: "מע״מ", suffix: "%", group: "מכירות" },
   { key: "landValuePerSqm", label: "שווי קרקע", suffix: '₪/מ"ר', group: "מכירות" },
   { key: "bettermentTaxPct", label: "היטל השבחה", suffix: "%", group: "מכירות" },
@@ -69,6 +71,12 @@ const ALL_FIELDS: FieldDef[] = [
   { key: "tenantEvacuationCost", label: "פינוי לדייר", suffix: "₪", group: "מימון" },
   { key: "targetDeveloperProfitPct", label: "רף רווח יזמי מבוקש", suffix: "%", group: "מימון" },
 ];
+
+const FINISH_LABEL: Record<FinishLevel, { label: string; hint: string }> = {
+  standard: { label: "סטנדרט", hint: "×1.00" },
+  premium: { label: "פרימיום", hint: "×1.15" },
+  luxury: { label: "יוקרה", hint: "×1.30" },
+};
 
 const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
   urban_renewal: "התחדשות עירונית (תמ״א 38/2, פינוי-בינוי)",
