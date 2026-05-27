@@ -143,6 +143,9 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           targetDeveloperProfitPct: 15,
           landValuePerSqm: d.landValuePerSqm,
           bettermentTaxPct: d.bettermentTaxPct,
+          finishLevel: "standard",
+          escalationPctPerYear: 3,
+          contingencyPct: 5,
         });
 
       } finally {
