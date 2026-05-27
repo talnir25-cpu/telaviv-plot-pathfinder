@@ -67,6 +67,28 @@ export interface MonthlyCashflowRow {
   debtBalance: number;
 }
 
+export interface ConstructionBreakdown {
+  aboveGroundAreaSqm: number;
+  basementAreaSqm: number;
+  effectiveAboveGroundRate: number;       // ₪/m² after finish + height premium
+  effectiveBasementRate: number;          // ₪/m²
+  aboveGroundCost: number;
+  basementCost: number;
+  finishLevel: FinishLevel;
+  finishMultiplier: number;               // e.g. 1.0 / 1.15 / 1.30
+  heightPremiumMultiplier: number;        // e.g. 1.00, 1.08, 1.20
+  floorsAboveGround: number;
+  demolitionCost: number;
+  siteDevelopmentCost: number;
+  baseHardCost: number;                   // sum above, before escalation/contingency
+  escalationMultiplier: number;           // e.g. 1.0453
+  escalationCost: number;
+  contingencyPct: number;
+  contingencyCost: number;
+  totalHardCost: number;                  // == EngineReport.hardCosts
+  effectiveCostPerSqmBuilt: number;       // totalHardCost / proposedBuiltAreaSqm
+}
+
 export interface EngineReport {
   // revenue
   totalSalesRevenue: number;
