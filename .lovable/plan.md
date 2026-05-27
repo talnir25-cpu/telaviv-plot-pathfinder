@@ -1,107 +1,88 @@
 
-## מטרה
-להפוך את המודל הפיננסי מ"AI מחשב + ולידציה חלקית" ל"**מנוע דטרמיניסטי + AI להנחות בלבד**". התוצאה: שתי הרצות זהות → תוצאה זהה לחלוטין, IRR אמיתי על תזרים חודשי, ולוגיקת מס נכונה.
+## מצב קיים
+
+כיום `existing.builtAreaSqm` מחושב על ידי ה-AI (`analyze-plot`) בהערכה גסה — בעיקר `existingUnits × ~80-100 מ"ר`. אין שאיבה ישירה של שטח בנוי ממקורות רשמיים. ב-`lookup-plot-units` כבר נשאבים נתונים מ-GovMap BUILDINGS, היתרי ת"א ועסקאות נדל"ן — אבל **שטח הבניין הקיים בפועל** לא נשמר ולא מוזרם הלאה ל-`analyze-plot`.
+
+המטרה: להפוך את `existingBuiltAreaSqm` משדה משוער ל-**שדה מדוד**, עם מקור ורמת אמינות, בדיוק כמו שעשינו ליח״ד וקומות.
 
 ---
 
-## שלבי העבודה
+## שלב 1 — שאיבת שטח בנוי ממקורות קיימים (`lookup-plot-units`)
 
-### שלב 1 — מנוע חישוב דטרמיניסטי (`_shared/finance-engine.ts`)
-מודול TypeScript טהור בתוך `supabase/functions/_shared/` שמקבל קלט מובנה ומחזיר `FinancialReport` מלא. **ללא AI**.
+הרחבת המקורות שכבר רצים, להחזיר גם `totalFloorArea` אמין:
 
-מבנה הפונקציות:
-- `computeRevenues(input)` — פדיון ברוטו/נטו לפי מע"מ
-- `computeHardSoft(input)` — Hard + Soft + דמי היתר
-- `computeLandCost(input)` — לפי `projectType` (התחדשות=0 / חדש=מלא / קומבינציה=משוקלל)
-- `computeTenantCosts(input)` — רק להתחדשות; כולל ערבויות חוק מכר + ליווי משפטי (2.5% מ-Hard)
-- `computeBettermentTax(input)` — לוגיקה מובנית:
-  - `urban_renewal` + תמ"א 38 → 0 (סעיף 19)
-  - `urban_renewal` + פינוי-בינוי → 0 (פטור)
-  - `new_construction` / `combination` → `uplift × bettermentTaxPct`
-- `computePhysicalConstraints(input)` — עצים/מרתפים/מי תהום (כפי שקיים, אך ב-TS)
-- `computeMonthlyCashflow(input)` — תזרים חודשי לכל אורך הפרויקט (S-curve להוצאות, מכירות לקראת סיום ו-3 חודשים אחרי איכלוס)
-- `computeFinancingCosts(cashflow)` — ריבית על יתרת חוב חודשית (במקום מקדם 0.55)
-- `computeIRR(cashflow)` — **Newton-Raphson** על NPV; bisection כ-fallback
-- `computeSensitivity(input)` — מטריצת 3×3 ע"י קריאה חוזרת למנוע (לא ל-AI) — מובטח עקבי
-- `computeBreakeven(input)` — חיפוש בינארי על מחיר המכירה
-- `assembleReport(input)` — מקבץ הכל ל-`FinancialReport`
+1. **TLV permits (עיריית ת"א — שכבה 772)** — המקור הסמכותי ביותר.
+   - להוסיף לשאילתה את שדות `shetach_eikari` (שטח עיקרי), `shetach_sherut` (שטח שירות), `shetach_kolel` (סה"כ).
+   - אם יש מספר היתרים, לבחור את האחרון לפי `tlvStageRank` (כמו שכבר עושים ליח״ד).
+   - confidence = **high**.
 
-### שלב 2 — שינוי תפקיד ה-AI ב-`financial-analysis/index.ts`
-- **`mode: "defaults"`** — נשאר כפי שהוא (AI מציע מחירים/עלויות לפי שוק)
-- **`mode: "analyze"`** — משתנה מהותית:
-  1. קורא ל-`assembleReport()` הדטרמיניסטי
-  2. שולח את התוצאה ל-AI **רק** לקבלת `headline` ו-`notes` בעברית (תיאור מילולי של התוצאה)
-  3. מחזיר תוצאה משולבת
-- יתרון: עלות זולה יותר, מהיר יותר, יציב לחלוטין
+2. **GovMap BUILDINGS** — כבר מחושב `totalFloorArea = footprint × floors` אבל לא נשמר במאגרגייטור.
+   - לשאוב גם שדות נוספים מהשכבה: `BLDG_AREA`, `TOTAL_AREA`, `Shape__Area` (טביעת רגל אמיתית במקום ההערכה `plotArea × 0.4`).
+   - confidence = **high** כשיש קומות מדודות; **medium** עם טביעת רגל בלבד; **low** כשהכל סינתטי.
 
-### שלב 3 — ולידציית קלט (Zod)
-בכניסה ל-edge function:
-- כל המספרים `>= 0`
-- `vatPct`, `softCostsPct`, `bettermentTaxPct` בטווח `0–100`
-- `constructionMonths` בטווח `6–60`
-- `developerLandSharePct` בטווח `0–100` (אם `combination`)
-- שגיאות 400 ברורות בעברית
+3. **שכבת חלקות עיריית ת"א (שכבה 514 או דומה)** — לעיתים כוללת `built_area` ברמת חלקה. לבדוק זמינות.
 
-### שלב 4 — הרחבת `FinancialInput` ו-`FinancialReport`
-- `FinancialInput`: הוספת `renewalSubtype?: "tama38" | "pinui_binui"` (משפיע על היטל השבחה)
-- `FinancialReport`: הוספת `monthlyCashflow: Array<{month, inflow, outflow, balance}>` להצגה עתידית בגרף
+4. **נדל"ן** — לסכום `assetArea` של תת-חלקות ייחודיות כקצה תחתון נוסף (confidence = low, כי מכסה רק דירות שנמכרו).
 
-### שלב 5 — טסטים (`finance-engine.test.ts`)
-טסטי Deno עם תרחישים ידועים:
-- תרחיש 1: התחדשות רגילה רווחית (ROC ~18%)
-- תרחיש 2: בנייה חדשה גבולית
-- תרחיש 3: קומבינציה 60/40
-- תרחיש 4: הפסד (verdict=loss)
-- בדיקת עקביות רגישות (תא 0,0 = תרחיש בסיס)
-- בדיקת IRR מול ערך ידוע
+5. **Heuristic fallback** — `existingUnits × 85` (אם הוזן ידנית) או `plotArea × FAR_מקומי טיפוסי`.
 
-### שלב 6 — שמירת תאימות UI
-`FinancialAnalysis.tsx` ו-`ProfitGauge` ממשיכים לעבוד ללא שינוי — מבנה ה-`FinancialReport` נשמר (רק נוספים שדות, לא מוסרים).
+**מבנה החזרה חדש מ-`lookup-plot-units`:**
+```ts
+{
+  units, floors, source, confidence,                 // קיים
+  builtArea: number | null,                          // חדש
+  builtAreaSource: SourceName | null,                // חדש
+  builtAreaConfidence: Confidence | null,            // חדש
+  sources: SourceResult[]                            // כל מקור יחזיר גם totalFloorArea
+}
+```
+
+ה-aggregator יבחר את ה-`builtArea` ברמת אמינות הגבוהה ביותר (היתרי ת"א > GovMap מדוד > נדל"ן > heuristic), בדיוק כמו שעושה ליח״ד.
 
 ---
 
-## קבצים שישתנו/יווצרו
+## שלב 2 — הזרמה לטופס וקלט הניתוח (`PlotPicker.tsx`)
 
-| קובץ | פעולה |
-|------|-------|
-| `supabase/functions/_shared/finance-engine.ts` | **חדש** — מנוע חישוב טהור |
-| `supabase/functions/_shared/finance-engine.test.ts` | **חדש** — טסטים |
-| `supabase/functions/financial-analysis/index.ts` | שכתוב מצב `analyze` + Zod |
-| `src/types/feasibility.ts` | הוספת `renewalSubtype` + `monthlyCashflow` |
-| `src/components/FinancialAnalysis.tsx` | תוספת קטנה: בחירת תת-סוג בהתחדשות (Radio) |
+- הוספת שדה `existingBuiltArea` ל-state, מאוכלס אוטומטית מהתוצאה.
+- תווית עם badge מקור + אמינות (אותו דפוס שכבר קיים ליח״ד וקומות).
+- מצב manual override + כפתור שמירה (כמו `saveManualUnits`).
+- שמירה ל-DB כדי שתשמש משתמשים עתידיים (להוסיף עמודות `built_area`, `built_area_source`, `built_area_confidence` ל-`plot_units_cache` במיגרציה).
+
+---
+
+## שלב 3 — העברה ל-edge function ושימוש בחישוב
+
+- הוספת `existingBuiltAreaSqm?: number` ו-`existingBuiltAreaSource?: string` ל-`AnalysisInput` ב-`src/types/feasibility.ts`.
+- ב-`analyze-plot/index.ts`:
+  - אם הוזן ערך מדוד — להעביר אותו ל-AI כעובדה קשיחה ולציין במפורש "השתמש בשדה הזה כ-`existing.builtAreaSqm` ואל תאמוד בעצמך".
+  - אחרי קבלת הדוח, לדרוס את `report.existing.builtAreaSqm` אם הערך החיצוני קיים (post-validation דטרמיניסטי).
+  - ב-`addition_only` הזרמת הערך הזה למנוע הפיננסי כ-`input.existingBuiltAreaSqm` — היום השדה כבר מנוצל ב-`finance-engine.ts` אבל מסתמך על ערך מהאומדן של ה-AI.
+
+---
+
+## שלב 4 — תצוגה ב-`DashboardReport.tsx`
+
+- ליד "שטח בנוי קיים" להוסיף badge עם המקור (היתר ת"א / GovMap / הערכה).
+- אייקון אזהרה כשהמקור הוא heuristic, כי כל תחשיב Tama 38 וכל עלות חיזוק תלויים במספר הזה.
 
 ---
 
 ## פרטים טכניים
 
-### IRR (Newton-Raphson)
-```text
-NPV(r) = Σ CFi / (1+r)^i
-NPV'(r) = -Σ i·CFi / (1+r)^(i+1)
-r(n+1) = r(n) - NPV(r) / NPV'(r)
-```
-- התחלה: `r = 0.10` (חודשי ~0.8%)
-- עצירה: `|NPV| < 1` או 100 איטרציות
-- Fallback ל-bisection בטווח `[-0.99, 10]` אם לא מתכנס
-- החזרה: ריבית שנתית `(1+r_monthly)^12 - 1`
-
-### S-curve להוצאות בנייה
-פיזור Hard+Soft על פני `constructionMonths` לפי עקומה מצטברת:
-```text
-cumulative(t) = 1 / (1 + exp(-6·(t/T - 0.5)))
-```
-60% מההוצאות במחצית האמצעית — מקובל בענף.
-
-### תזרים מכירות
-- מכירות "על הנייר" — 40% מהפדיון פרוס לינארית מחודש 6 עד סוף הבנייה
-- מסירת מפתח — 60% הנותרים בחודשים T עד T+3
+| קובץ | שינוי |
+|------|-------|
+| `supabase/functions/lookup-plot-units/index.ts` | להוסיף שאיבת `shetach_kolel/eikari/sherut` בהיתרי ת"א, שדות שטח נוספים ב-GovMap BUILDINGS, סיכום `assetArea` בנדל"ן, ושדה `builtArea` ב-aggregator. |
+| מיגרציה ל-`plot_units_cache` | הוספת `built_area numeric`, `built_area_source text`, `built_area_confidence text`. |
+| `src/types/feasibility.ts` | `AnalysisInput.existingBuiltAreaSqm?: number` + `existingBuiltAreaSource?: string`. |
+| `src/components/PlotPicker.tsx` | state + שדה קלט + badge מקור + override ידני + העברה ב-submit. |
+| `supabase/functions/analyze-plot/index.ts` | הזרמת הערך לפרומפט + override ב-post-validation. |
+| `src/components/DashboardReport.tsx` | badge מקור ליד שטח קיים. |
 
 ---
 
-## מה לא בתכנית הזו (לעתיד)
-- מודל Monte Carlo / VaR
-- ניתוח מס מע"מ מורכב (פטור דיירים, קיזוז תשומות)
-- דוחות PDF מודפסים
-- שמירת תרחישים ב-DB להשוואה
+## מה לא בתכנית
 
-נדרש אישור להתחיל ליישם.
+- שאיבת מפ"א/תיק בניין סרוקים מתיק מהנדס העיר (דורש OCR ידני / API לא ציבורי).
+- חישוב נפרד של שטח עיקרי מול שטח שירות לחישובי מס שבח — אפשר להוסיף בעתיד אם נדרש.
+
+נדרש אישור לפני יישום.
