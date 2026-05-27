@@ -161,6 +161,7 @@ Deno.serve(async (req) => {
         plotArea: plot.area,
         existingBuiltAreaSqm: planning.existing.builtAreaSqm,
         proposedBuiltAreaSqm: planning.proposed.builtAreaSqm,
+        proposedFloors: (planning.proposed as { floors?: number }).floors,
         estimatedSellableArea: planning.metrics.estimatedSellableArea,
         proposedUnits: planning.proposed.units,
         zoning: planning.zoning
@@ -183,6 +184,14 @@ Deno.serve(async (req) => {
         targetDeveloperProfitPct: financial.targetDeveloperProfitPct,
         landValuePerSqm: financial.landValuePerSqm,
         bettermentTaxPct: financial.bettermentTaxPct,
+        // construction-cost refinements (optional pass-through)
+        finishLevel: financial.finishLevel,
+        basementCostMultiplier: financial.basementCostMultiplier,
+        basementAreaPerFloorRatio: financial.basementAreaPerFloorRatio,
+        demolitionCostPerSqm: financial.demolitionCostPerSqm,
+        siteDevelopmentCostPerSqmPlot: financial.siteDevelopmentCostPerSqmPlot,
+        escalationPctPerYear: financial.escalationPctPerYear,
+        contingencyPct: financial.contingencyPct,
       };
 
       const report = assembleReport(engineInput);
