@@ -952,7 +952,9 @@ Deno.serve(async (req) => {
 
     const best = pickBest(sources);
     const bestFloors = pickBestFloors(sources);
+    const bestArea = pickBestBuiltArea(sources);
     const chosenFloors = bestFloors?.floors ?? best.floors;
+    const chosenArea = bestArea?.totalFloorArea ?? best.totalFloorArea ?? null;
 
     // Cache (best-effort)
     const { error: upsertErr } = await supabase
@@ -968,6 +970,9 @@ Deno.serve(async (req) => {
             ? ((bldg.value.raw as { buildings?: unknown[] }).buildings?.length ?? 0)
             : 0,
           total_floor_area: best.totalFloorArea,
+          built_area: chosenArea,
+          built_area_source: bestArea?.source ?? null,
+          built_area_confidence: bestArea?.confidence ?? null,
           sources_json: sources,
           confidence: best.confidence,
           last_refreshed_at: new Date().toISOString(),
@@ -984,6 +989,9 @@ Deno.serve(async (req) => {
         confidence: best.confidence,
         floorsSource: bestFloors?.source ?? null,
         floorsConfidence: bestFloors?.confidence ?? null,
+        builtArea: chosenArea,
+        builtAreaSource: bestArea?.source ?? null,
+        builtAreaConfidence: bestArea?.confidence ?? null,
         sources,
         centroid: centroidItm
           ? { x: centroidItm.x, y: centroidItm.y, via: centroidItm.via }
