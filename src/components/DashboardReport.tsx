@@ -231,7 +231,7 @@ export const DashboardReport = ({
                 <h3 className="text-base font-bold">קיים מול מוצע</h3>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full border-separate border-spacing-x-6 border-spacing-y-0">
+                <table dir="rtl" className="w-full border-separate border-spacing-x-6 border-spacing-y-0">
                   <thead>
                     <tr className="border-b-2 border-border">
                       <th className="border-b-2 border-border pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
