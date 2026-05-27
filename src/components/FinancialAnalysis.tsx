@@ -58,6 +58,7 @@ type FieldDef = { key: keyof FinancialInput; label: string; suffix: string; grou
 const ALL_FIELDS: FieldDef[] = [
   { key: "avgSalePricePerSqm", label: 'מחיר מכירה ממוצע', suffix: '₪/מ"ר', group: "מכירות" },
   { key: "buildCostPerSqm", label: "עלות בנייה (Hard בסיס)", suffix: '₪/מ"ר', group: "בנייה" },
+  { key: "strengtheningCostPerSqm", label: "עלות חיזוק קיים (תמ״א 38/1)", suffix: '₪/מ"ר', group: "בנייה" },
   { key: "softCostsPct", label: "Soft costs", suffix: "%", group: "בנייה" },
   { key: "escalationPctPerYear", label: "אסקלציה שנתית", suffix: "%", group: "בנייה" },
   { key: "contingencyPct", label: 'בלת"מ', suffix: "%", group: "בנייה" },
