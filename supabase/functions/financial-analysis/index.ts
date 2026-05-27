@@ -208,7 +208,7 @@ verdict: profitable אם ROC ≥ ${financial.targetDeveloperProfitPct}, marginal
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "openai/gpt-5.4",
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: userPrompt },
