@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type {
+  ConstructionMode,
   FeasibilityReport,
   FinancialInput,
   FinancialReport,
