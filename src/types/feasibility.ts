@@ -130,6 +130,8 @@ export interface FinancialReport {
   verdict: "profitable" | "marginal" | "loss";
   verdictLabel: string;                 // תווית בעברית
   headline: string;                     // משפט סיכום
+  targetProfitPct?: number;             // רף רווח יזמי מבוקש (%) — להשוואה ויזואלית
+
   // רגישות
   sensitivity: SensitivityCell[];       // 9 תאים: -5/0/+5 × -5/0/+5
   notes: string[];                      // הערות / הנחות עבודה

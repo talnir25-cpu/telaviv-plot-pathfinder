@@ -324,10 +324,14 @@ verdict: profitable אם ROC ≥ ${financial.targetDeveloperProfitPct}, marginal
             `⚠ נקודת איזון (${Math.round(result.breakevenPricePerSqm).toLocaleString("he-IL")} ₪/מ"ר) קרובה למחיר השוק (${price.toLocaleString("he-IL")}) — שולי בטחון נמוכים.`,
           );
         }
+
+        // Expose target on report for UI gauge
+        result.targetProfitPct = target;
       } catch (e) {
         console.error("post-validation error (non-fatal)", e);
       }
     }
+
 
     return new Response(JSON.stringify(mode === "defaults" ? { defaults: result } : { report: result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
