@@ -299,6 +299,17 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}
     try {
       report.redFlags = Array.isArray(report.redFlags) ? report.redFlags : [];
 
+      // אם המשתמש העביר שטח בנוי מדוד — דורסים את אומדן ה-AI
+      if (body.existingBuiltAreaSqm && body.existingBuiltAreaSqm > 0) {
+        if (!report.existing) report.existing = {};
+        report.existing.builtAreaSqm = body.existingBuiltAreaSqm;
+        const plotArea = body.area ?? body.shapeArea ?? 0;
+        if (plotArea > 0) {
+          report.existing.far = Number((body.existingBuiltAreaSqm / plotArea).toFixed(2));
+        }
+      }
+
+
       const existingU = report.existing?.units ?? body.existingUnits;
       const proposedU = report.proposed?.units ?? 0;
       const multiplier = existingU > 0 ? proposedU / existingU : 0;
