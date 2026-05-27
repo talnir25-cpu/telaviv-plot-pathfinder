@@ -76,6 +76,7 @@ export interface AnalysisInput {
 export type ProjectType = "urban_renewal" | "new_construction" | "combination";
 export type RenewalSubtype = "tama38" | "pinui_binui";
 export type FinishLevel = "standard" | "premium" | "luxury";
+export type ConstructionMode = "full_rebuild" | "addition_only";
 
 export interface FinancialInput {
   // סוג פרויקט — קובע את לוגיקת הקרקע, הדיירים והמיסוי
