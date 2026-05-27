@@ -1,5 +1,6 @@
 import type { FeasibilityReport, AnalysisInput } from "@/types/feasibility";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PlotMap } from "@/components/PlotMap";
