@@ -103,12 +103,12 @@ const ComparisonRow = ({
   unit?: string;
 }) => (
   <tr className="border-b last:border-0">
-    <td className="py-2.5 text-sm font-medium text-muted-foreground">{label}</td>
-    <td className="py-2.5 text-sm">
+    <td className="py-2.5 text-right text-sm font-medium text-muted-foreground">{label}</td>
+    <td className="w-28 py-2.5 text-center text-sm tabular-nums">
       {existing}
-      {unit && <span className="mr-1 text-muted-foreground">{unit}</span>}
+      {unit && existing !== "—" && <span className="mr-1 text-muted-foreground">{unit}</span>}
     </td>
-    <td className="py-2.5 text-sm font-semibold text-primary">
+    <td className="w-28 py-2.5 text-center text-sm font-semibold tabular-nums text-primary">
       {proposed}
       {unit && <span className="mr-1 text-muted-foreground">{unit}</span>}
     </td>
@@ -237,10 +237,10 @@ export const DashboardReport = ({
                       <th className="pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         פרמטר
                       </th>
-                      <th className="pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="w-28 pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         קיים
                       </th>
-                      <th className="pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-primary">
+                      <th className="w-28 pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
                         מוצע
                       </th>
                     </tr>
