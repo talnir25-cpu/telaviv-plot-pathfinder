@@ -96,14 +96,21 @@ const ComparisonRow = ({
   existing,
   proposed,
   unit,
+  badge,
 }: {
   label: string;
   existing: string | number;
   proposed: string | number;
   unit?: string;
+  badge?: React.ReactNode;
 }) => (
   <tr>
-    <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">{label}</td>
+    <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
+      <div className="flex items-center justify-end gap-2">
+        {badge}
+        <span>{label}</span>
+      </div>
+    </td>
     <td className="w-32 border-b border-border/60 py-3 text-center text-sm tabular-nums">
       {existing}
       {unit && existing !== "—" && <span className="mr-1 text-muted-foreground">{unit}</span>}
@@ -114,6 +121,14 @@ const ComparisonRow = ({
     </td>
   </tr>
 );
+
+const BUILT_AREA_SOURCE_LABEL: Record<string, string> = {
+  manual: "מאומת",
+  tlv_permits: 'היתר ת"א',
+  govmap_bldg: "GovMap",
+  nadlan: 'נדל"ן',
+  heuristic: "אומדן",
+};
 
 export const DashboardReport = ({
   report,
