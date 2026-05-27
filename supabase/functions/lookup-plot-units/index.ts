@@ -666,8 +666,12 @@ async function sourceTlvPermits(
 // ───────────────────── Source 4: Heuristic ─────────────────────
 
 function sourceHeuristic(plotArea: number | null): Omit<SourceResult, "durationMs"> {
-  const floors = 3;
-  const footprint = plotArea ? plotArea * 0.4 : 200;
+  // Estimate floors from plot size: small plots → 3 floors; large plots → up to 8.
+  const area = plotArea ?? 500;
+  const floors = Math.min(8, Math.max(3, Math.round(area / 200)));
+  // Footprint ratio: smaller plots typically have higher coverage (~50%), larger ~35%.
+  const coverage = area < 400 ? 0.5 : area < 800 ? 0.45 : 0.4;
+  const footprint = area * coverage;
   const totalFloorArea = footprint * floors;
   const units = Math.max(1, Math.round(totalFloorArea / AVG_UNIT_AREA));
   return {
@@ -678,7 +682,7 @@ function sourceHeuristic(plotArea: number | null): Omit<SourceResult, "durationM
     confidence: "very_low",
     status: "ok",
     label: "הערכה היוריסטית",
-    detail: 'שטח × 0.4 × 3 קומות ÷ 80 מ"ר',
+    detail: `שטח ${area}מ"ר × ${Math.round(coverage * 100)}% × ${floors} קומות ÷ ${AVG_UNIT_AREA} מ"ר`,
   };
 }
 
