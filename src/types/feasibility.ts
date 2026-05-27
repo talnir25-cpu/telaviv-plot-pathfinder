@@ -120,12 +120,17 @@ export interface SensitivityCell {
 }
 
 export interface ConstructionBreakdown {
+  constructionMode: ConstructionMode;
+  existingBuiltAreaSqm: number;
+  addedBuiltAreaSqm: number;
   aboveGroundAreaSqm: number;
   basementAreaSqm: number;
   effectiveAboveGroundRate: number;
   effectiveBasementRate: number;
   aboveGroundCost: number;
   basementCost: number;
+  strengtheningCost: number;
+  strengtheningCostPerSqm: number;
   finishLevel: FinishLevel;
   finishMultiplier: number;
   heightPremiumMultiplier: number;
