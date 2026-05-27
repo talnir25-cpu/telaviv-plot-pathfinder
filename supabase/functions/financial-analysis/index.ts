@@ -152,7 +152,18 @@ Deno.serve(async (req) => {
       tool = DEFAULTS_TOOL;
     } else if (mode === "analyze") {
       const { plot, planning, financial } = body;
+      const projectType: "urban_renewal" | "new_construction" | "combination" = financial.projectType ?? "urban_renewal";
+      const developerShare = financial.developerLandSharePct ?? 100;
+
+      const landRule = projectType === "urban_renewal"
+        ? "סוג הפרויקט: התחדשות עירונית — הקרקע בבעלות הדיירים. landCost = 0 בכל מקרה. כן יש עלויות דיירים (פינוי + שכ\"ד). היטל השבחה: ברוב פרויקטי תמ\"א 38 יש פטור מלא לפי סעיף 19; בפינוי-בינוי יש פטור חלקי. הגדר bettermentTax = 0 אלא אם המשתמש הזין ערך חיובי במפורש (אז קח 50% מהמופע). הוסף ל-notes הסבר על הפטור. הוסף עלות ערבויות חוק מכר + ליווי משפטי דיירים = hardCosts × 0.025."
+        : projectType === "new_construction"
+        ? "סוג הפרויקט: בנייה חדשה — היזם קונה קרקע פנויה. landCost = landValuePerSqm × plotArea. tenantCosts = 0 (אין דיירים). היטל השבחה מלא לפי הנוסחה הרגילה."
+        : `סוג הפרויקט: עסקת קומבינציה — חלק היזם בקרקע: ${developerShare}%. landCost = landValuePerSqm × plotArea × (${developerShare}/100). היתר משולם בדירות לבעלים (כלול כבר ב-hardCosts דרך שטח הבנייה). tenantCosts לפי הזנת המשתמש (לרוב 0 בקומבינציה).`;
+
       userPrompt = `חשב היתכנות פיננסית מלאה לפרויקט.
+
+${landRule}
 
 נתוני תכנון (מהדוח התכנוני):
 - שטח מגרש: ${plot.area} מ"ר
@@ -186,11 +197,10 @@ Deno.serve(async (req) => {
 חישובים נדרשים:
 1. פדיון = שטח_מכירה × מחיר_מ"ר. נטו = פדיון / (1+מע"מ)
 2. Hard = שטח_בנייה × עלות_מ"ר; Soft = Hard × softPct
-3. עלויות דיירים = יח"ד_קיימות × (פינוי + שכ"ד×חודשי_הקמה)
+3. עלויות דיירים — בהתאם לסוג הפרויקט (ראה landRule למעלה)
 4. דמי היתר ≈ 1% מעלות בנייה
 5. עלויות מימון: financingCosts = (totalCost - equity) × (constructionMonths/12) × (rate/100) × 0.55
-   המקדם 0.55 משקף S-curve של משיכות בנייה (לא 0.5 שמניח משיכה לינארית).
-6. אילוצים פיזיים (ראה system prompt לנוסחאות): treePreservationCost, parkingBasementCost, dewateringCost, physicalConstraintsCost
+6. אילוצים פיזיים (ראה system prompt): treePreservationCost, parkingBasementCost, dewateringCost, physicalConstraintsCost
 7. סה"כ_עלות = Hard + Soft + tenant + landCost + bettermentTax + permitFees + financingCosts + physicalConstraintsCost
 8. רווח = נטו - סה"כ_עלות
 9. ROC = רווח/עלות × 100; ROS = רווח/נטו × 100; IRR ≈ ((1 + ROC/100)^(12/constructionMonths) - 1) × 100
@@ -242,6 +252,55 @@ verdict: profitable אם ROC ≥ ${financial.targetDeveloperProfitPct}, marginal
         result.notes = Array.isArray(result.notes) ? result.notes : [];
         const target = body.financial.targetDeveloperProfitPct ?? 18;
         const price = body.financial.avgSalePricePerSqm ?? 0;
+        const projectType = body.financial.projectType ?? "urban_renewal";
+        const developerShare = body.financial.developerLandSharePct ?? 100;
+        const plotArea = body.plot?.area ?? 0;
+        const landValuePerSqm = body.financial.landValuePerSqm ?? 0;
+
+        // Enforce land-cost logic by project type (deterministic, overrides AI)
+        const recomputeTotals = () => {
+          const components = [
+            result.hardCosts, result.softCosts, result.tenantCosts,
+            result.bettermentTax, result.permitFees, result.landCost,
+            result.financingCosts, result.physicalConstraintsCost ?? 0,
+          ].map((n) => (typeof n === "number" ? n : 0));
+          const newTotal = components.reduce((a, b) => a + b, 0);
+          result.totalProjectCost = newTotal;
+          if (typeof result.netSalesRevenue === "number") {
+            result.developerProfit = result.netSalesRevenue - newTotal;
+            if (newTotal > 0) result.rocPct = (result.developerProfit / newTotal) * 100;
+            if (result.netSalesRevenue > 0) result.rosPct = (result.developerProfit / result.netSalesRevenue) * 100;
+          }
+        };
+
+        if (projectType === "urban_renewal") {
+          if ((result.landCost ?? 0) > 0) {
+            result.landCost = 0;
+            result.notes.push("✓ שווי קרקע אופס: בהתחדשות עירונית הקרקע בבעלות הדיירים — לא נכלל בעלויות היזם.");
+            recomputeTotals();
+          }
+        } else if (projectType === "new_construction") {
+          const expectedLand = landValuePerSqm * plotArea;
+          if (Math.abs((result.landCost ?? 0) - expectedLand) > expectedLand * 0.05 && expectedLand > 0) {
+            result.landCost = expectedLand;
+            result.notes.push(`✓ שווי קרקע הוגדר ל-${Math.round(expectedLand).toLocaleString("he-IL")} ₪ (${landValuePerSqm.toLocaleString("he-IL")} × ${plotArea}).`);
+            recomputeTotals();
+          }
+          if ((result.tenantCosts ?? 0) > 0) {
+            result.tenantCosts = 0;
+            result.notes.push("✓ עלויות דיירים אופסו: פרויקט בנייה חדשה על קרקע פנויה.");
+            recomputeTotals();
+          }
+        } else if (projectType === "combination") {
+          const expectedLand = landValuePerSqm * plotArea * (developerShare / 100);
+          if (Math.abs((result.landCost ?? 0) - expectedLand) > expectedLand * 0.05 && expectedLand > 0) {
+            result.landCost = expectedLand;
+            result.notes.push(`✓ שווי קרקע משוקלל לפי חלק היזם (${developerShare}%): ${Math.round(expectedLand).toLocaleString("he-IL")} ₪.`);
+            recomputeTotals();
+          }
+        }
+
+
 
         // Force verdict consistency with profit & ROC
         if (typeof result.developerProfit === "number" && result.developerProfit < 0) {

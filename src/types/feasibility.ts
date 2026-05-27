@@ -73,7 +73,13 @@ export interface AnalysisInput {
 
 // ============ Financial analysis ============
 
+export type ProjectType = "urban_renewal" | "new_construction" | "combination";
+
 export interface FinancialInput {
+  // סוג פרויקט — קובע את לוגיקת הקרקע, הדיירים והמיסוי
+  projectType: ProjectType;
+  // רק ל-combination: חלק היזם בקרקע (%) — היתר משולם לבעלים
+  developerLandSharePct?: number;
   // הזנה / ברירת מחדל מ-AI
   avgSalePricePerSqm: number;          // מחיר מכירה ממוצע למ"ר (₪)
   buildCostPerSqm: number;              // עלות בנייה למ"ר (₪)
@@ -82,10 +88,10 @@ export interface FinancialInput {
   equity: number;                       // הון עצמי זמין (₪)
   loanInterestPct: number;              // ריבית שנתית על מימון (%)
   constructionMonths: number;           // משך הקמה (חודשים)
-  tenantRentPerMonth: number;           // שכר דירה חודשי לדייר (₪)
-  tenantEvacuationCost: number;         // עלות פינוי חד-פעמית לדייר (₪)
+  tenantRentPerMonth: number;           // שכר דירה חודשי לדייר (₪) — רלוונטי להתחדשות
+  tenantEvacuationCost: number;         // עלות פינוי חד-פעמית לדייר (₪) — רלוונטי להתחדשות
   targetDeveloperProfitPct: number;    // רף רווח יזמי מבוקש (%)
-  landValuePerSqm: number;              // שווי קרקע למ"ר (₪)
+  landValuePerSqm: number;              // שווי קרקע למ"ר (₪) — רלוונטי לבנייה חדשה/קומבינציה
   bettermentTaxPct: number;             // היטל השבחה (%) משווי השבחה
 }
 

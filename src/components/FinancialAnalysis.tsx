@@ -17,10 +17,18 @@ import {
   AlertTriangle,
   CheckCircle2,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type {
   FeasibilityReport,
   FinancialInput,
   FinancialReport,
+  ProjectType,
 } from "@/types/feasibility";
 
 interface Props {
@@ -41,13 +49,16 @@ const VERDICT_META: Record<FinancialReport["verdict"], { label: string; tone: st
   loss: { label: "הפסד", tone: "bg-destructive/10 text-destructive border-destructive/30", icon: TrendingDown },
 };
 
-const FIELDS: Array<{ key: keyof FinancialInput; label: string; suffix: string; group: string }> = [
+type FieldDef = { key: keyof FinancialInput; label: string; suffix: string; group: string };
+
+const ALL_FIELDS: FieldDef[] = [
   { key: "avgSalePricePerSqm", label: 'מחיר מכירה ממוצע', suffix: '₪/מ"ר', group: "מכירות" },
   { key: "buildCostPerSqm", label: "עלות בנייה", suffix: '₪/מ"ר', group: "מכירות" },
   { key: "softCostsPct", label: "Soft costs", suffix: "%", group: "מכירות" },
   { key: "vatPct", label: "מע״מ", suffix: "%", group: "מכירות" },
   { key: "landValuePerSqm", label: "שווי קרקע", suffix: '₪/מ"ר', group: "מכירות" },
   { key: "bettermentTaxPct", label: "היטל השבחה", suffix: "%", group: "מכירות" },
+  { key: "developerLandSharePct", label: "חלק היזם בקרקע", suffix: "%", group: "מכירות" },
   { key: "equity", label: "הון עצמי", suffix: "₪", group: "מימון" },
   { key: "loanInterestPct", label: "ריבית מימון", suffix: "% שנתי", group: "מימון" },
   { key: "constructionMonths", label: "משך הקמה", suffix: "חודשים", group: "מימון" },
@@ -55,6 +66,32 @@ const FIELDS: Array<{ key: keyof FinancialInput; label: string; suffix: string; 
   { key: "tenantEvacuationCost", label: "פינוי לדייר", suffix: "₪", group: "מימון" },
   { key: "targetDeveloperProfitPct", label: "רף רווח יזמי מבוקש", suffix: "%", group: "מימון" },
 ];
+
+const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
+  urban_renewal: "התחדשות עירונית (תמ״א 38/2, פינוי-בינוי)",
+  new_construction: "בנייה חדשה (קרקע פנויה)",
+  combination: "עסקת קומבינציה",
+};
+
+const PROJECT_TYPE_HINT: Record<ProjectType, string> = {
+  urban_renewal: "הקרקע בבעלות הדיירים — שווי הקרקע לא נכלל. עלויות הדיירים (פינוי+שכ״ד) פעילות. פטור היטל השבחה לפי סעיף 19.",
+  new_construction: "היזם רוכש קרקע פנויה — שווי הקרקע מלא. אין עלויות דיירים. היטל השבחה מלא.",
+  combination: "היזם מקבל אחוז מהקרקע מהבעלים — שווי קרקע משוקלל לפי 'חלק היזם'. הוסף עלויות דיירים אם נדרש פינוי.",
+};
+
+const fieldsForType = (type: ProjectType): FieldDef[] => {
+  const hidden = new Set<keyof FinancialInput>();
+  if (type === "urban_renewal") {
+    hidden.add("landValuePerSqm");
+    hidden.add("developerLandSharePct");
+  } else if (type === "new_construction") {
+    hidden.add("tenantRentPerMonth");
+    hidden.add("tenantEvacuationCost");
+    hidden.add("developerLandSharePct");
+  }
+  // combination: show all
+  return ALL_FIELDS.filter((f) => !hidden.has(f.key));
+};
 
 export const FinancialAnalysis = ({ plot, planning }: Props) => {
   const [input, setInput] = useState<FinancialInput | null>(null);
@@ -88,6 +125,8 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
         }
         const d = data.defaults;
         setInput({
+          projectType: "urban_renewal",
+          developerLandSharePct: 50,
           avgSalePricePerSqm: d.avgSalePricePerSqm,
           buildCostPerSqm: d.buildCostPerSqm,
           softCostsPct: d.softCostsPct,
@@ -149,6 +188,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
   }
 
   const groups = ["מכירות", "מימון"];
+  const visibleFields = fieldsForType(input.projectType);
 
   return (
     <div className="space-y-6">
@@ -171,11 +211,34 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           </Badge>
         </div>
 
+        {/* Project type selector */}
+        <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+          <Label className="text-xs font-semibold">סוג הפרויקט</Label>
+          <Select
+            value={input.projectType}
+            onValueChange={(v) => setInput({ ...input, projectType: v as ProjectType })}
+          >
+            <SelectTrigger className="bg-card text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(PROJECT_TYPE_LABEL) as ProjectType[]).map((t) => (
+                <SelectItem key={t} value={t}>
+                  {PROJECT_TYPE_LABEL[t]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            {PROJECT_TYPE_HINT[input.projectType]}
+          </p>
+        </div>
+
         {groups.map((g) => (
           <div key={g} className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">{g}</h3>
             <div className="grid gap-4 md:grid-cols-3">
-              {FIELDS.filter((f) => f.group === g).map((f) => (
+              {visibleFields.filter((f) => f.group === g).map((f) => (
                 <div key={f.key} className="space-y-1.5">
                   <Label htmlFor={f.key} className="text-xs">
                     {f.label}
@@ -184,7 +247,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
                     <Input
                       id={f.key}
                       inputMode="decimal"
-                      value={input[f.key]}
+                      value={input[f.key] ?? 0}
                       onChange={(e) => updateField(f.key, e.target.value)}
                       className="pl-16 text-sm"
                     />
