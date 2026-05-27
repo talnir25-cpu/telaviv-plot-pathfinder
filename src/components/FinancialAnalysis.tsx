@@ -211,7 +211,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
   }
 
   const groups = ["מכירות", "בנייה", "מימון"];
-  const visibleFields = fieldsForType(input.projectType);
+  const visibleFields = fieldsForType(input);
 
   return (
     <div className="space-y-6">
