@@ -139,21 +139,21 @@ Deno.test("physical constraints add cost when active", () => {
   assert(withTrees.totalProjectCost > baseR.totalProjectCost);
 });
 
-Deno.test("construction breakdown (full_rebuild): above-ground + basement = proposed built area", () => {
+Deno.test("construction breakdown (full_rebuild): above-ground equals full proposed built area, basement is additive", () => {
   const r = assembleReport({ ...baseInput, constructionMode: "full_rebuild" });
   const b = r.constructionBreakdown;
-  assertAlmostEquals(b.aboveGroundAreaSqm + b.basementAreaSqm, baseInput.proposedBuiltAreaSqm, 2);
+  assertEquals(b.aboveGroundAreaSqm, baseInput.proposedBuiltAreaSqm);
+  assert(b.basementAreaSqm > 0);
   assert(b.effectiveBasementRate < b.effectiveAboveGroundRate);
   assert(b.totalHardCost === r.hardCosts);
 });
 
-Deno.test("addition_only (tama38/1): no demolition, strengthens existing, prices only the delta", () => {
+Deno.test("addition_only (tama38/1): no demolition, strengthens existing, prices the added delta at full rate", () => {
   const r = assembleReport({ ...baseInput, constructionMode: "addition_only", strengtheningCostPerSqm: 3000 });
   const b = r.constructionBreakdown;
   assertEquals(b.demolitionCost, 0);
   assertEquals(b.strengtheningCost, baseInput.existingBuiltAreaSqm * 3000);
-  // above-ground priced area should equal added area minus any basement overlap (≈ added when basement small)
-  assert(b.aboveGroundAreaSqm <= b.addedBuiltAreaSqm);
+  assertEquals(b.aboveGroundAreaSqm, b.addedBuiltAreaSqm);
 });
 
 Deno.test("addition_only is cheaper than full_rebuild for same project (no demolition + cheaper existing)", () => {
