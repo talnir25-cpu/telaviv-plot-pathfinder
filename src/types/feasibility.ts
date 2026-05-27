@@ -75,6 +75,7 @@ export interface AnalysisInput {
 
 export type ProjectType = "urban_renewal" | "new_construction" | "combination";
 export type RenewalSubtype = "tama38" | "pinui_binui";
+export type FinishLevel = "standard" | "premium" | "luxury";
 
 export interface FinancialInput {
   // סוג פרויקט — קובע את לוגיקת הקרקע, הדיירים והמיסוי
@@ -85,7 +86,7 @@ export interface FinancialInput {
   developerLandSharePct?: number;
   // הזנה / ברירת מחדל מ-AI
   avgSalePricePerSqm: number;          // מחיר מכירה ממוצע למ"ר (₪)
-  buildCostPerSqm: number;              // עלות בנייה למ"ר (₪)
+  buildCostPerSqm: number;              // עלות בנייה Hard בסיסית למ"ר מעל-קרקע (₪)
   softCostsPct: number;                 // % מעלות הבנייה (תכנון, ניהול, יועצים)
   vatPct: number;                       // שיעור מע"מ (%)
   equity: number;                       // הון עצמי זמין (₪)
@@ -96,6 +97,14 @@ export interface FinancialInput {
   targetDeveloperProfitPct: number;    // רף רווח יזמי מבוקש (%)
   landValuePerSqm: number;              // שווי קרקע למ"ר (₪) — רלוונטי לבנייה חדשה/קומבינציה
   bettermentTaxPct: number;             // היטל השבחה (%) משווי השבחה
+  // ─── דיוק חישוב עלות בנייה (אופציונלי) ───
+  finishLevel?: FinishLevel;            // standard / premium / luxury
+  basementCostMultiplier?: number;      // ברירת מחדל 0.70
+  basementAreaPerFloorRatio?: number;   // מ"ר מרתף כיחס משטח המגרש (0.85)
+  demolitionCostPerSqm?: number;        // ₪/מ"ר להריסה (400)
+  siteDevelopmentCostPerSqmPlot?: number; // ₪/מ"ר פיתוח שטח (450)
+  escalationPctPerYear?: number;        // אינפלציית בנייה שנתית (3%)
+  contingencyPct?: number;              // בלת"מ (5%)
 }
 
 
@@ -106,12 +115,35 @@ export interface SensitivityCell {
   roc: number;            // %
 }
 
+export interface ConstructionBreakdown {
+  aboveGroundAreaSqm: number;
+  basementAreaSqm: number;
+  effectiveAboveGroundRate: number;
+  effectiveBasementRate: number;
+  aboveGroundCost: number;
+  basementCost: number;
+  finishLevel: FinishLevel;
+  finishMultiplier: number;
+  heightPremiumMultiplier: number;
+  floorsAboveGround: number;
+  demolitionCost: number;
+  siteDevelopmentCost: number;
+  baseHardCost: number;
+  escalationMultiplier: number;
+  escalationCost: number;
+  contingencyPct: number;
+  contingencyCost: number;
+  totalHardCost: number;
+  effectiveCostPerSqmBuilt: number;
+}
+
 export interface FinancialReport {
   // הכנסות
   totalSalesRevenue: number;            // פדיון ממכירות (כולל מע"מ)
   netSalesRevenue: number;              // נטו (ללא מע"מ)
   // עלויות
-  hardCosts: number;                    // עלות בנייה ישירה
+  hardCosts: number;                    // עלות בנייה ישירה (כולל הריסה, פיתוח, אסקלציה, בלת"מ)
+  constructionBreakdown: ConstructionBreakdown;
   softCosts: number;                    // תכנון/ניהול
   tenantCosts: number;                  // פינוי + שכ"ד דיירים
   bettermentTax: number;                // היטל השבחה

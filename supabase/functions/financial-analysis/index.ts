@@ -80,6 +80,14 @@ const FinancialInputSchema = z.object({
   targetDeveloperProfitPct: z.number().min(0).max(100),
   landValuePerSqm: z.number().min(0).max(500_000),
   bettermentTaxPct: z.number().min(0).max(100),
+  // construction-cost refinements
+  finishLevel: z.enum(["standard", "premium", "luxury"]).optional(),
+  basementCostMultiplier: z.number().min(0.4).max(1.2).optional(),
+  basementAreaPerFloorRatio: z.number().min(0.5).max(1.0).optional(),
+  demolitionCostPerSqm: z.number().min(0).max(5_000).optional(),
+  siteDevelopmentCostPerSqmPlot: z.number().min(0).max(5_000).optional(),
+  escalationPctPerYear: z.number().min(0).max(25).optional(),
+  contingencyPct: z.number().min(0).max(25).optional(),
 });
 
 const AnalyzeBodySchema = z.object({
@@ -98,6 +106,7 @@ const AnalyzeBodySchema = z.object({
     proposed: z.object({
       units: z.number().min(0),
       builtAreaSqm: z.number().min(0),
+      floors: z.number().min(0).optional(),
     }).passthrough(),
     metrics: z.object({
       estimatedSellableArea: z.number().min(0),
@@ -152,6 +161,7 @@ Deno.serve(async (req) => {
         plotArea: plot.area,
         existingBuiltAreaSqm: planning.existing.builtAreaSqm,
         proposedBuiltAreaSqm: planning.proposed.builtAreaSqm,
+        proposedFloors: (planning.proposed as { floors?: number }).floors,
         estimatedSellableArea: planning.metrics.estimatedSellableArea,
         proposedUnits: planning.proposed.units,
         zoning: planning.zoning
@@ -174,6 +184,14 @@ Deno.serve(async (req) => {
         targetDeveloperProfitPct: financial.targetDeveloperProfitPct,
         landValuePerSqm: financial.landValuePerSqm,
         bettermentTaxPct: financial.bettermentTaxPct,
+        // construction-cost refinements (optional pass-through)
+        finishLevel: financial.finishLevel,
+        basementCostMultiplier: financial.basementCostMultiplier,
+        basementAreaPerFloorRatio: financial.basementAreaPerFloorRatio,
+        demolitionCostPerSqm: financial.demolitionCostPerSqm,
+        siteDevelopmentCostPerSqmPlot: financial.siteDevelopmentCostPerSqmPlot,
+        escalationPctPerYear: financial.escalationPctPerYear,
+        contingencyPct: financial.contingencyPct,
       };
 
       const report = assembleReport(engineInput);

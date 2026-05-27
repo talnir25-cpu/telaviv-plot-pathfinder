@@ -28,6 +28,7 @@ import type {
   FeasibilityReport,
   FinancialInput,
   FinancialReport,
+  FinishLevel,
   ProjectType,
   RenewalSubtype,
 } from "@/types/feasibility";
@@ -55,8 +56,10 @@ type FieldDef = { key: keyof FinancialInput; label: string; suffix: string; grou
 
 const ALL_FIELDS: FieldDef[] = [
   { key: "avgSalePricePerSqm", label: 'מחיר מכירה ממוצע', suffix: '₪/מ"ר', group: "מכירות" },
-  { key: "buildCostPerSqm", label: "עלות בנייה", suffix: '₪/מ"ר', group: "מכירות" },
-  { key: "softCostsPct", label: "Soft costs", suffix: "%", group: "מכירות" },
+  { key: "buildCostPerSqm", label: "עלות בנייה (Hard בסיס)", suffix: '₪/מ"ר', group: "בנייה" },
+  { key: "softCostsPct", label: "Soft costs", suffix: "%", group: "בנייה" },
+  { key: "escalationPctPerYear", label: "אסקלציה שנתית", suffix: "%", group: "בנייה" },
+  { key: "contingencyPct", label: 'בלת"מ', suffix: "%", group: "בנייה" },
   { key: "vatPct", label: "מע״מ", suffix: "%", group: "מכירות" },
   { key: "landValuePerSqm", label: "שווי קרקע", suffix: '₪/מ"ר', group: "מכירות" },
   { key: "bettermentTaxPct", label: "היטל השבחה", suffix: "%", group: "מכירות" },
@@ -68,6 +71,12 @@ const ALL_FIELDS: FieldDef[] = [
   { key: "tenantEvacuationCost", label: "פינוי לדייר", suffix: "₪", group: "מימון" },
   { key: "targetDeveloperProfitPct", label: "רף רווח יזמי מבוקש", suffix: "%", group: "מימון" },
 ];
+
+const FINISH_LABEL: Record<FinishLevel, { label: string; hint: string }> = {
+  standard: { label: "סטנדרט", hint: "×1.00" },
+  premium: { label: "פרימיום", hint: "×1.15" },
+  luxury: { label: "יוקרה", hint: "×1.30" },
+};
 
 const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
   urban_renewal: "התחדשות עירונית (תמ״א 38/2, פינוי-בינוי)",
@@ -142,6 +151,9 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           targetDeveloperProfitPct: 15,
           landValuePerSqm: d.landValuePerSqm,
           bettermentTaxPct: d.bettermentTaxPct,
+          finishLevel: "standard",
+          escalationPctPerYear: 3,
+          contingencyPct: 5,
         });
 
       } finally {
@@ -191,7 +203,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
     );
   }
 
-  const groups = ["מכירות", "מימון"];
+  const groups = ["מכירות", "בנייה", "מימון"];
   const visibleFields = fieldsForType(input.projectType);
 
   return (
@@ -262,6 +274,31 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
             </div>
           )}
         </div>
+
+        {/* Finish level selector */}
+        <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+          <Label className="text-xs font-semibold">רמת גמר (קובעת מכפיל על עלות בנייה מעל-קרקע)</Label>
+          <div className="flex gap-2">
+            {(["standard", "premium", "luxury"] as FinishLevel[]).map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                onClick={() => setInput({ ...input, finishLevel: lvl })}
+                className={`flex-1 rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                  (input.finishLevel ?? "standard") === lvl
+                    ? "border-primary bg-primary/10 text-primary font-semibold"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {FINISH_LABEL[lvl].label} <span className="opacity-60">{FINISH_LABEL[lvl].hint}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            מכפיל על עלות הבנייה מעל-קרקע בלבד. מרתפים לא מושפעים. נוסף עליו פרמיית גובה אוטומטית מעל 9 קומות.
+          </p>
+        </div>
+
 
 
         {groups.map((g) => (
@@ -381,6 +418,11 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
         />
       </div>
 
+      {/* Construction-cost breakdown */}
+      <ConstructionBreakdownPanel report={report} />
+
+
+
       {/* Physical constraints impact */}
       {report.physicalConstraintsCost && report.physicalConstraintsCost > 0 && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
@@ -432,6 +474,55 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
         </div>
       )}
     </Card>
+  );
+};
+
+const ConstructionBreakdownPanel = ({ report }: { report: FinancialReport }) => {
+  const b = report.constructionBreakdown;
+  if (!b) return null;
+  const row = (label: string, value: string, sub?: string, bold?: boolean) => (
+    <div className={`flex justify-between gap-2 text-sm ${bold ? "border-t pt-2 font-semibold" : ""}`}>
+      <span className="text-muted-foreground">
+        {label}
+        {sub && <span className="ml-1 text-[10px] opacity-70">{sub}</span>}
+      </span>
+      <span className="tabular-nums">{value}</span>
+    </div>
+  );
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold">פירוט עלות בנייה (Hard)</h4>
+        <Badge variant="outline" className="text-[10px]">
+          ממוצע {b.effectiveCostPerSqmBuilt.toLocaleString("he-IL")} ₪/מ״ר
+        </Badge>
+      </div>
+      <div className="space-y-1.5">
+        {row(
+          `מעל-קרקע (${b.aboveGroundAreaSqm.toLocaleString("he-IL")} מ״ר)`,
+          fmtNIS(b.aboveGroundCost),
+          `× ${b.effectiveAboveGroundRate.toLocaleString("he-IL")} ₪ • גמר ×${b.finishMultiplier.toFixed(2)} • גובה ×${b.heightPremiumMultiplier.toFixed(2)} (${b.floorsAboveGround} קומות)`,
+        )}
+        {b.basementAreaSqm > 0 &&
+          row(
+            `מרתפי חניה (${b.basementAreaSqm.toLocaleString("he-IL")} מ״ר)`,
+            fmtNIS(b.basementCost),
+            `× ${b.effectiveBasementRate.toLocaleString("he-IL")} ₪`,
+          )}
+        {b.demolitionCost > 0 && row("הריסת קיים", fmtNIS(b.demolitionCost))}
+        {b.siteDevelopmentCost > 0 && row("פיתוח שטח", fmtNIS(b.siteDevelopmentCost))}
+        {row("בסיס לפני אסקלציה", fmtNIS(b.baseHardCost), undefined, true)}
+        {b.escalationCost > 0 &&
+          row(
+            "אסקלציה (אינפלציית בנייה)",
+            `+${fmtNIS(b.escalationCost)}`,
+            `×${b.escalationMultiplier.toFixed(3)}`,
+          )}
+        {b.contingencyCost > 0 &&
+          row('בלת"מ', `+${fmtNIS(b.contingencyCost)}`, `${b.contingencyPct}%`)}
+        {row('סה״כ Hard', fmtNIS(b.totalHardCost), undefined, true)}
+      </div>
+    </div>
   );
 };
 

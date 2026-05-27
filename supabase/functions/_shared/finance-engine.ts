@@ -3,6 +3,7 @@
 
 export type ProjectType = "urban_renewal" | "new_construction" | "combination";
 export type RenewalSubtype = "tama38" | "pinui_binui";
+export type FinishLevel = "standard" | "premium" | "luxury";
 
 export interface ZoningConstraints {
   treesForConservation?: number | null;
@@ -22,23 +23,33 @@ export interface EngineInput {
   plotArea: number;
   existingBuiltAreaSqm: number;
   proposedBuiltAreaSqm: number;
+  proposedFloors?: number; // for height premium
   estimatedSellableArea: number;
   proposedUnits: number;
   zoning?: ZoningConstraints;
 
   // financial inputs
   avgSalePricePerSqm: number;
-  buildCostPerSqm: number;
-  softCostsPct: number;     // %
-  vatPct: number;           // %
+  buildCostPerSqm: number;        // base above-ground residential rate (₪/m²)
+  softCostsPct: number;
+  vatPct: number;
   equity: number;
-  loanInterestPct: number;  // annual %
+  loanInterestPct: number;
   constructionMonths: number;
   tenantRentPerMonth: number;
   tenantEvacuationCost: number;
-  targetDeveloperProfitPct: number; // %
+  targetDeveloperProfitPct: number;
   landValuePerSqm: number;
-  bettermentTaxPct: number; // % of uplift
+  bettermentTaxPct: number;
+
+  // ─── construction-cost refinements (all optional, sensible defaults) ───
+  finishLevel?: FinishLevel;              // default "standard"
+  basementCostMultiplier?: number;        // default 0.70 (basement vs above-ground)
+  basementAreaPerFloorRatio?: number;     // default 0.85 (of plot area)
+  demolitionCostPerSqm?: number;          // default 400 ₪/m² (urban renewal only)
+  siteDevelopmentCostPerSqmPlot?: number; // default 450 ₪/m² of plot
+  escalationPctPerYear?: number;          // default 3% — construction inflation
+  contingencyPct?: number;                // default 5% — בלת"מ on hard cost
 }
 
 export interface SensitivityCell {
@@ -56,12 +67,35 @@ export interface MonthlyCashflowRow {
   debtBalance: number;
 }
 
+export interface ConstructionBreakdown {
+  aboveGroundAreaSqm: number;
+  basementAreaSqm: number;
+  effectiveAboveGroundRate: number;       // ₪/m² after finish + height premium
+  effectiveBasementRate: number;          // ₪/m²
+  aboveGroundCost: number;
+  basementCost: number;
+  finishLevel: FinishLevel;
+  finishMultiplier: number;               // e.g. 1.0 / 1.15 / 1.30
+  heightPremiumMultiplier: number;        // e.g. 1.00, 1.08, 1.20
+  floorsAboveGround: number;
+  demolitionCost: number;
+  siteDevelopmentCost: number;
+  baseHardCost: number;                   // sum above, before escalation/contingency
+  escalationMultiplier: number;           // e.g. 1.0453
+  escalationCost: number;
+  contingencyPct: number;
+  contingencyCost: number;
+  totalHardCost: number;                  // == EngineReport.hardCosts
+  effectiveCostPerSqmBuilt: number;       // totalHardCost / proposedBuiltAreaSqm
+}
+
 export interface EngineReport {
   // revenue
   totalSalesRevenue: number;
   netSalesRevenue: number;
   // costs
   hardCosts: number;
+  constructionBreakdown: ConstructionBreakdown;
   softCosts: number;
   tenantCosts: number;
   bettermentTax: number;
@@ -117,11 +151,117 @@ export function computeRevenues(input: EngineInput) {
   return { totalSalesRevenue, netSalesRevenue };
 }
 
+// ───────── Construction cost (detailed) ─────────
+//
+// Methodology:
+//   1. Split proposed built area into above-ground vs basement parking
+//      (basementAreaPerFloor = basementAreaPerFloorRatio × plotArea).
+//   2. Above-ground rate = buildCostPerSqm × finishMultiplier × heightPremiumMultiplier
+//      Basement rate     = buildCostPerSqm × basementCostMultiplier   (no finishes; no height premium)
+//   3. Demolition (urban renewal only) = existingBuiltAreaSqm × demolitionCostPerSqm.
+//   4. Site development = plotArea × siteDevelopmentCostPerSqmPlot.
+//   5. Escalation: midpoint inflation (1+esc)^(months/24) applied to baseHardCost.
+//   6. Contingency (בלת"מ): contingencyPct on (base + escalation).
+//   7. Soft costs = softCostsPct × totalHardCost (after escalation+contingency).
+//   8. Permit fees ≈ 1% of totalHardCost.
+
+const FINISH_MULTIPLIER: Record<FinishLevel, number> = {
+  standard: 1.0,
+  premium: 1.15,
+  luxury: 1.30,
+};
+
+// Height premium: above 9 floors logistics/crane/scaffolding rise.
+// +1% per floor in 10..24, +2% per floor 25..40. Cap +35%.
+function heightPremiumMultiplier(floors: number): number {
+  if (!floors || floors <= 9) return 1.0;
+  let extra = 0;
+  const tier1 = Math.min(floors, 24) - 9;        // floors 10..24
+  extra += Math.max(0, tier1) * 0.01;
+  const tier2 = Math.max(0, Math.min(floors, 40) - 24); // 25..40
+  extra += tier2 * 0.02;
+  return 1 + Math.min(0.35, extra);
+}
+
+export function computeConstructionCost(input: EngineInput): ConstructionBreakdown {
+  const finishLevel = input.finishLevel ?? "standard";
+  const finishMul = FINISH_MULTIPLIER[finishLevel];
+
+  // Basement area: ratio × plot × required basement floors
+  const basementFloors = Math.max(0, input.zoning?.requiredBasementFloors ?? 1);
+  const basementRatio = clamp(input.basementAreaPerFloorRatio ?? 0.85, 0.5, 1.0);
+  const basementAreaSqm = Math.min(
+    input.proposedBuiltAreaSqm,
+    basementFloors * basementRatio * input.plotArea,
+  );
+  const aboveGroundAreaSqm = Math.max(0, input.proposedBuiltAreaSqm - basementAreaSqm);
+
+  // Floors above ground — fallback proxy if not provided
+  const floorsAG = input.proposedFloors ??
+    Math.max(1, Math.round(aboveGroundAreaSqm / Math.max(1, input.plotArea * 0.55)));
+  const heightMul = heightPremiumMultiplier(floorsAG);
+
+  const effectiveAboveGroundRate = input.buildCostPerSqm * finishMul * heightMul;
+  const basementMul = clamp(input.basementCostMultiplier ?? 0.70, 0.4, 1.2);
+  const effectiveBasementRate = input.buildCostPerSqm * basementMul;
+
+  const aboveGroundCost = aboveGroundAreaSqm * effectiveAboveGroundRate;
+  const basementCost = basementAreaSqm * effectiveBasementRate;
+
+  const demolitionCost = input.projectType === "urban_renewal"
+    ? input.existingBuiltAreaSqm * (input.demolitionCostPerSqm ?? 400)
+    : 0;
+
+  const siteDevelopmentCost =
+    input.plotArea * (input.siteDevelopmentCostPerSqmPlot ?? 450);
+
+  const baseHardCost =
+    aboveGroundCost + basementCost + demolitionCost + siteDevelopmentCost;
+
+  // Midpoint escalation
+  const escPct = clamp(input.escalationPctPerYear ?? 3, 0, 25) / 100;
+  const escalationMultiplier = Math.pow(1 + escPct, input.constructionMonths / 24);
+  const escalatedCost = baseHardCost * escalationMultiplier;
+  const escalationCost = escalatedCost - baseHardCost;
+
+  // Contingency
+  const contingencyPct = clamp(input.contingencyPct ?? 5, 0, 25);
+  const contingencyCost = escalatedCost * (contingencyPct / 100);
+
+  const totalHardCost = escalatedCost + contingencyCost;
+  const effectiveCostPerSqmBuilt = input.proposedBuiltAreaSqm > 0
+    ? totalHardCost / input.proposedBuiltAreaSqm
+    : 0;
+
+  return {
+    aboveGroundAreaSqm: Math.round(aboveGroundAreaSqm),
+    basementAreaSqm: Math.round(basementAreaSqm),
+    effectiveAboveGroundRate: Math.round(effectiveAboveGroundRate),
+    effectiveBasementRate: Math.round(effectiveBasementRate),
+    aboveGroundCost: Math.round(aboveGroundCost),
+    basementCost: Math.round(basementCost),
+    finishLevel,
+    finishMultiplier: finishMul,
+    heightPremiumMultiplier: Number(heightMul.toFixed(3)),
+    floorsAboveGround: floorsAG,
+    demolitionCost: Math.round(demolitionCost),
+    siteDevelopmentCost: Math.round(siteDevelopmentCost),
+    baseHardCost: Math.round(baseHardCost),
+    escalationMultiplier: Number(escalationMultiplier.toFixed(4)),
+    escalationCost: Math.round(escalationCost),
+    contingencyPct,
+    contingencyCost: Math.round(contingencyCost),
+    totalHardCost: Math.round(totalHardCost),
+    effectiveCostPerSqmBuilt: Math.round(effectiveCostPerSqmBuilt),
+  };
+}
+
 export function computeHardSoft(input: EngineInput) {
-  const hardCosts = input.proposedBuiltAreaSqm * input.buildCostPerSqm;
+  const breakdown = computeConstructionCost(input);
+  const hardCosts = breakdown.totalHardCost;
   const softCosts = hardCosts * (input.softCostsPct / 100);
   const permitFees = hardCosts * 0.01;
-  return { hardCosts, softCosts, permitFees };
+  return { hardCosts, softCosts, permitFees, breakdown };
 }
 
 export function computeLandCost(input: EngineInput): number {
@@ -172,10 +312,12 @@ export function computeBettermentTax(input: EngineInput): number {
 export function computePhysicalConstraints(input: EngineInput) {
   const z = input.zoning ?? {};
   const treePreservationCost = (z.treesForConservation ?? 0) * 25_000;
+  // NOTE: basement construction cost is already itemized inside computeConstructionCost
+  // (by area × basement rate). We no longer add a per-unit basement charge here to
+  // avoid double-counting. TOD relief is reflected separately if needed via a
+  // reduction of the basement area input by the caller.
+  const parkingBasementCost = 0;
   const requiredBasements = z.requiredBasementFloors ?? 1;
-  let parkingBasementCost =
-    Math.max(0, requiredBasements - 1) * input.proposedUnits * 100_000;
-  if (z.todReliefApplies) parkingBasementCost *= 0.85;
   const dewateringCost = z.dewateringRequired
     ? input.plotArea * requiredBasements * 350
     : 0;
@@ -353,7 +495,7 @@ interface CoreOpts {
 
 function coreAnalyze(input: EngineInput, opts: CoreOpts = {}) {
   const { totalSalesRevenue, netSalesRevenue } = computeRevenues(input);
-  const { hardCosts, softCosts, permitFees } = computeHardSoft(input);
+  const { hardCosts, softCosts, permitFees, breakdown } = computeHardSoft(input);
   const landCost = computeLandCost(input);
   const tenantCosts = computeTenantCosts(input, hardCosts);
   const bettermentTax = computeBettermentTax(input);
@@ -383,6 +525,7 @@ function coreAnalyze(input: EngineInput, opts: CoreOpts = {}) {
     totalSalesRevenue,
     netSalesRevenue,
     hardCosts,
+    constructionBreakdown: breakdown,
     softCosts,
     permitFees,
     landCost,
@@ -418,7 +561,28 @@ export function assembleReport(input: EngineInput): EngineReport {
 
   const notes: string[] = [];
   notes.push(
-    `מנוע חישוב דטרמיניסטי v1 — תזרים חודשי ל-${core.monthly.length - 1} חודשים, IRR ב-Newton-Raphson.`,
+    `מנוע חישוב דטרמיניסטי v2 — תזרים חודשי ל-${core.monthly.length - 1} חודשים, IRR ב-Newton-Raphson.`,
+  );
+  const cb = core.constructionBreakdown;
+  notes.push(
+    `עלות בנייה בפועל: ${cb.effectiveCostPerSqmBuilt.toLocaleString("he-IL")} ₪/מ"ר ` +
+      `(מעל-קרקע ${cb.aboveGroundAreaSqm.toLocaleString("he-IL")} מ"ר × ${cb.effectiveAboveGroundRate.toLocaleString("he-IL")} ₪, ` +
+      `מרתפים ${cb.basementAreaSqm.toLocaleString("he-IL")} מ"ר × ${cb.effectiveBasementRate.toLocaleString("he-IL")} ₪).`,
+  );
+  if (cb.heightPremiumMultiplier > 1) {
+    notes.push(
+      `פרמיית גובה: ${cb.floorsAboveGround} קומות → +${((cb.heightPremiumMultiplier - 1) * 100).toFixed(1)}% על עלות מעל-קרקע.`,
+    );
+  }
+  if (cb.finishMultiplier > 1) {
+    notes.push(`רמת גמר "${cb.finishLevel}" → +${((cb.finishMultiplier - 1) * 100).toFixed(0)}%.`);
+  }
+  if (cb.demolitionCost > 0) {
+    notes.push(`הריסה: ${cb.demolitionCost.toLocaleString("he-IL")} ₪.`);
+  }
+  notes.push(
+    `אסקלציה (×${cb.escalationMultiplier.toFixed(3)}): ${cb.escalationCost.toLocaleString("he-IL")} ₪. ` +
+      `בלת"מ ${cb.contingencyPct}%: ${cb.contingencyCost.toLocaleString("he-IL")} ₪.`,
   );
   if (input.projectType === "urban_renewal") {
     notes.push("✓ קרקע = 0 (התחדשות עירונית — בבעלות הדיירים).");
@@ -456,6 +620,7 @@ export function assembleReport(input: EngineInput): EngineReport {
     totalSalesRevenue: Math.round(core.totalSalesRevenue),
     netSalesRevenue: Math.round(core.netSalesRevenue),
     hardCosts: Math.round(core.hardCosts),
+    constructionBreakdown: core.constructionBreakdown,
     softCosts: Math.round(core.softCosts),
     tenantCosts: Math.round(core.tenantCosts),
     bettermentTax: Math.round(core.bettermentTax),

@@ -130,10 +130,33 @@ Deno.test("deterministic: same input → exact same output", () => {
 
 Deno.test("physical constraints add cost when active", () => {
   const baseR = assembleReport(baseInput);
+  // Keep basement floors equal — isolate trees + dewatering effect.
   const withTrees = assembleReport({
     ...baseInput,
-    zoning: { ...baseInput.zoning, treesForConservation: 5, requiredBasementFloors: 2, dewateringRequired: true },
+    zoning: { ...baseInput.zoning, treesForConservation: 5, dewateringRequired: true },
   });
   assert(withTrees.physicalConstraintsCost > baseR.physicalConstraintsCost);
   assert(withTrees.totalProjectCost > baseR.totalProjectCost);
+});
+
+Deno.test("construction breakdown: above-ground + basement areas sum to proposed built area", () => {
+  const r = assembleReport(baseInput);
+  const b = r.constructionBreakdown;
+  assertAlmostEquals(b.aboveGroundAreaSqm + b.basementAreaSqm, baseInput.proposedBuiltAreaSqm, 2);
+  assert(b.effectiveBasementRate < b.effectiveAboveGroundRate);
+  assert(b.totalHardCost === r.hardCosts);
+});
+
+Deno.test("construction: luxury finish raises hard cost vs standard", () => {
+  const std = assembleReport({ ...baseInput, finishLevel: "standard" });
+  const lux = assembleReport({ ...baseInput, finishLevel: "luxury" });
+  assert(lux.hardCosts > std.hardCosts);
+});
+
+Deno.test("construction: tall tower adds height premium", () => {
+  const lowRise = assembleReport({ ...baseInput, proposedFloors: 8 });
+  const tower = assembleReport({ ...baseInput, proposedFloors: 25 });
+  assert(tower.constructionBreakdown.heightPremiumMultiplier > 1);
+  assertEquals(lowRise.constructionBreakdown.heightPremiumMultiplier, 1);
+  assert(tower.hardCosts > lowRise.hardCosts);
 });
