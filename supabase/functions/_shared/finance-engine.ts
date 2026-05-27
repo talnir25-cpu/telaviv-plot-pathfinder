@@ -75,24 +75,29 @@ export interface MonthlyCashflowRow {
 }
 
 export interface ConstructionBreakdown {
-  aboveGroundAreaSqm: number;
+  constructionMode: ConstructionMode;
+  existingBuiltAreaSqm: number;
+  addedBuiltAreaSqm: number;              // proposed - existing (≥0)
+  aboveGroundAreaSqm: number;             // area priced at new-build rate
   basementAreaSqm: number;
   effectiveAboveGroundRate: number;       // ₪/m² after finish + height premium
   effectiveBasementRate: number;          // ₪/m²
   aboveGroundCost: number;
   basementCost: number;
+  strengtheningCost: number;              // existing × strengtheningCostPerSqm (addition_only)
+  strengtheningCostPerSqm: number;
   finishLevel: FinishLevel;
-  finishMultiplier: number;               // e.g. 1.0 / 1.15 / 1.30
-  heightPremiumMultiplier: number;        // e.g. 1.00, 1.08, 1.20
+  finishMultiplier: number;
+  heightPremiumMultiplier: number;
   floorsAboveGround: number;
   demolitionCost: number;
   siteDevelopmentCost: number;
-  baseHardCost: number;                   // sum above, before escalation/contingency
-  escalationMultiplier: number;           // e.g. 1.0453
+  baseHardCost: number;
+  escalationMultiplier: number;
   escalationCost: number;
   contingencyPct: number;
   contingencyCost: number;
-  totalHardCost: number;                  // == EngineReport.hardCosts
+  totalHardCost: number;
   effectiveCostPerSqmBuilt: number;       // totalHardCost / proposedBuiltAreaSqm
 }
 
