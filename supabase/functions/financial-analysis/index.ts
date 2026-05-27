@@ -80,6 +80,14 @@ const FinancialInputSchema = z.object({
   targetDeveloperProfitPct: z.number().min(0).max(100),
   landValuePerSqm: z.number().min(0).max(500_000),
   bettermentTaxPct: z.number().min(0).max(100),
+  // construction-cost refinements
+  finishLevel: z.enum(["standard", "premium", "luxury"]).optional(),
+  basementCostMultiplier: z.number().min(0.4).max(1.2).optional(),
+  basementAreaPerFloorRatio: z.number().min(0.5).max(1.0).optional(),
+  demolitionCostPerSqm: z.number().min(0).max(5_000).optional(),
+  siteDevelopmentCostPerSqmPlot: z.number().min(0).max(5_000).optional(),
+  escalationPctPerYear: z.number().min(0).max(25).optional(),
+  contingencyPct: z.number().min(0).max(25).optional(),
 });
 
 const AnalyzeBodySchema = z.object({
