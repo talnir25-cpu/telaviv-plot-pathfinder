@@ -907,6 +907,7 @@ Deno.serve(async (req) => {
         if (!isStale) {
           const cachedSources = (cached.sources_json ?? []) as SourceResult[];
           const cachedFloorsBest = Array.isArray(cachedSources) ? pickBestFloors(cachedSources) : null;
+          const cachedAreaBest = Array.isArray(cachedSources) ? pickBestBuiltArea(cachedSources) : null;
           return new Response(
             JSON.stringify({
               units: cached.existing_units,
@@ -917,6 +918,9 @@ Deno.serve(async (req) => {
               floorsConfidence: cachedFloorsBest?.confidence ?? null,
               buildingCount: cached.building_count,
               totalFloorArea: cached.total_floor_area,
+              builtArea: cached.built_area ?? cachedAreaBest?.totalFloorArea ?? null,
+              builtAreaSource: cached.built_area_source ?? cachedAreaBest?.source ?? null,
+              builtAreaConfidence: cached.built_area_confidence ?? cachedAreaBest?.confidence ?? null,
               notes: cached.notes,
               sources: cachedSources,
               lastRefreshedAt: cached.last_refreshed_at,
