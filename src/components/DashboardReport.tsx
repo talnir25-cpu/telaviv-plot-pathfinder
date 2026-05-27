@@ -231,16 +231,16 @@ export const DashboardReport = ({
                 <h3 className="text-base font-bold">קיים מול מוצע</h3>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full border-separate border-spacing-x-6 border-spacing-y-0">
                   <thead>
                     <tr className="border-b-2 border-border">
-                      <th className="pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="border-b-2 border-border pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         פרמטר
                       </th>
-                      <th className="w-28 pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="w-32 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         קיים
                       </th>
-                      <th className="w-28 pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
+                      <th className="w-32 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
                         מוצע
                       </th>
                     </tr>
