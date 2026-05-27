@@ -188,6 +188,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
   }
 
   const groups = ["מכירות", "מימון"];
+  const visibleFields = fieldsForType(input.projectType);
 
   return (
     <div className="space-y-6">
@@ -210,11 +211,34 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           </Badge>
         </div>
 
+        {/* Project type selector */}
+        <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+          <Label className="text-xs font-semibold">סוג הפרויקט</Label>
+          <Select
+            value={input.projectType}
+            onValueChange={(v) => setInput({ ...input, projectType: v as ProjectType })}
+          >
+            <SelectTrigger className="bg-card text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(PROJECT_TYPE_LABEL) as ProjectType[]).map((t) => (
+                <SelectItem key={t} value={t}>
+                  {PROJECT_TYPE_LABEL[t]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            {PROJECT_TYPE_HINT[input.projectType]}
+          </p>
+        </div>
+
         {groups.map((g) => (
           <div key={g} className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">{g}</h3>
             <div className="grid gap-4 md:grid-cols-3">
-              {FIELDS.filter((f) => f.group === g).map((f) => (
+              {visibleFields.filter((f) => f.group === g).map((f) => (
                 <div key={f.key} className="space-y-1.5">
                   <Label htmlFor={f.key} className="text-xs">
                     {f.label}
@@ -223,7 +247,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
                     <Input
                       id={f.key}
                       inputMode="decimal"
-                      value={input[f.key]}
+                      value={input[f.key] ?? 0}
                       onChange={(e) => updateField(f.key, e.target.value)}
                       className="pl-16 text-sm"
                     />
