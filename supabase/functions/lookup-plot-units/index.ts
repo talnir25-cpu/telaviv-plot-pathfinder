@@ -267,17 +267,28 @@ async function sourceNadlan(
     // numbers are typically sequential 1..N.
     const lowerBound = Math.max(maxSub, subParcels.size);
 
+    // סיכום שטח דירות ייחודיות (קצה תחתון של שטח בנוי דירות בלבד, ללא שטחי שירות)
+    const areaBySub = new Map<number, number>();
+    for (const d of allDeals) {
+      if (typeof d.subParcelNum === "number" && typeof d.assetArea === "number" && d.assetArea > 10) {
+        const prev = areaBySub.get(d.subParcelNum) ?? 0;
+        if (d.assetArea > prev) areaBySub.set(d.subParcelNum, d.assetArea);
+      }
+    }
+    const summedArea = Array.from(areaBySub.values()).reduce((s, v) => s + v, 0);
+
     return {
       ...base,
       status: "ok",
       units: lowerBound,
       floors: topFloor > 0 ? topFloor + 1 : null,
-      totalFloorArea: null,
-      detail: `${allDeals.length} עסקאות, ${subParcels.size} תת-חלקות שונות`,
+      totalFloorArea: summedArea > 0 ? Math.round(summedArea) : null,
+      detail: `${allDeals.length} עסקאות, ${subParcels.size} תת-חלקות שונות${summedArea > 0 ? ` · ${Math.round(summedArea).toLocaleString()} מ"ר נמכר` : ""}`,
       raw: {
         dealsCount: allDeals.length,
         subParcels: Array.from(subParcels).sort((a, b) => a - b),
         maxSubParcel: maxSub,
+        summedSoldArea: Math.round(summedArea),
         sample: allDeals.slice(0, 3).map((d) => ({
           subParcel: d.subParcelNum,
           floor: d.floorNo,
