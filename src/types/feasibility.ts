@@ -74,10 +74,13 @@ export interface AnalysisInput {
 // ============ Financial analysis ============
 
 export type ProjectType = "urban_renewal" | "new_construction" | "combination";
+export type RenewalSubtype = "tama38" | "pinui_binui";
 
 export interface FinancialInput {
   // סוג פרויקט — קובע את לוגיקת הקרקע, הדיירים והמיסוי
   projectType: ProjectType;
+  // תת-סוג להתחדשות עירונית — משפיע על פטור היטל השבחה
+  renewalSubtype?: RenewalSubtype;
   // רק ל-combination: חלק היזם בקרקע (%) — היתר משולם לבעלים
   developerLandSharePct?: number;
   // הזנה / ברירת מחדל מ-AI
@@ -94,6 +97,7 @@ export interface FinancialInput {
   landValuePerSqm: number;              // שווי קרקע למ"ר (₪) — רלוונטי לבנייה חדשה/קומבינציה
   bettermentTaxPct: number;             // היטל השבחה (%) משווי השבחה
 }
+
 
 export interface SensitivityCell {
   priceDelta: number;     // -5, 0, +5 (%)
