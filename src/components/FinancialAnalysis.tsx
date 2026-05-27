@@ -446,6 +446,82 @@ const BreakdownPanel = ({
   </div>
 );
 
+const ProfitGauge = ({
+  roc,
+  target,
+  verdict,
+}: {
+  roc: number;
+  target: number;
+  verdict: FinancialReport["verdict"];
+}) => {
+  const safeTarget = target > 0 ? target : 15;
+  const gap = roc - safeTarget;
+  // Scale bar to max(target*1.5, roc*1.1) so both fit
+  const scaleMax = Math.max(safeTarget * 1.5, roc * 1.1, 1);
+  const rocPos = Math.max(0, Math.min(100, (roc / scaleMax) * 100));
+  const targetPos = Math.max(0, Math.min(100, (safeTarget / scaleMax) * 100));
+
+  const tone =
+    verdict === "profitable"
+      ? { bar: "bg-success", text: "text-success", ring: "border-success/30 bg-success/5", label: "מעל הרף" }
+      : verdict === "marginal"
+      ? { bar: "bg-warning", text: "text-warning", ring: "border-warning/30 bg-warning/5", label: "סמוך לרף" }
+      : { bar: "bg-destructive", text: "text-destructive", ring: "border-destructive/30 bg-destructive/5", label: "מתחת לרף" };
+
+  const Icon = gap >= 0 ? TrendingUp : TrendingDown;
+
+  return (
+    <div className={`rounded-2xl border p-5 ${tone.ring}`}>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-card ${tone.text}`}>
+            <Icon className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              רווח יזמי (ROC) מול רף המטרה
+            </div>
+            <div className="mt-0.5 flex items-baseline gap-2">
+              <span className={`text-3xl font-bold tabular-nums ${tone.text}`}>{fmtPct(roc)}</span>
+              <span className="text-sm text-muted-foreground">מתוך יעד {fmtPct(safeTarget)}</span>
+            </div>
+          </div>
+        </div>
+        <div className="text-left">
+          <div className={`text-sm font-semibold tabular-nums ${tone.text}`}>
+            {gap >= 0 ? "+" : ""}{gap.toFixed(1)}%
+          </div>
+          <div className="text-[11px] text-muted-foreground">{tone.label}</div>
+        </div>
+      </div>
+
+      {/* Bar */}
+      <div className="relative h-3 w-full overflow-visible rounded-full bg-muted">
+        <div
+          className={`absolute inset-y-0 right-0 rounded-full transition-all ${tone.bar}`}
+          style={{ width: `${rocPos}%` }}
+        />
+        {/* Target marker */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2"
+          style={{ right: `calc(${targetPos}% - 1px)` }}
+        >
+          <div className="h-5 w-0.5 bg-foreground/80" />
+        </div>
+      </div>
+
+      {/* Scale legend */}
+      <div className="mt-2 flex justify-between text-[10px] text-muted-foreground tabular-nums">
+        <span>{scaleMax.toFixed(0)}%</span>
+        <span className="font-semibold text-foreground/70">↑ רף {safeTarget.toFixed(0)}%</span>
+        <span>0%</span>
+      </div>
+    </div>
+  );
+};
+
+
 const SensitivityTable = ({ report }: { report: FinancialReport }) => {
   const priceDeltas = [-5, 0, 5];
   const costDeltas = [-5, 0, 5];
