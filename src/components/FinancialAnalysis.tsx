@@ -281,7 +281,44 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
               </p>
             </div>
           )}
+
+          {/* Construction mode: full rebuild vs strengthening + addition */}
+          {(input.projectType === "urban_renewal" || input.projectType === "combination") && (
+            <div className="mt-2 space-y-1.5">
+              <Label className="text-xs font-semibold">מצב בנייה</Label>
+              <div className="flex gap-2">
+                {([
+                  { id: "full_rebuild", label: "הריסה + בנייה מחדש", hint: 'תמ"א 38/2, פינוי-בינוי' },
+                  { id: "addition_only", label: "חיזוק + תוספת", hint: 'תמ"א 38/1' },
+                ] as { id: ConstructionMode; label: string; hint: string }[]).map((m) => {
+                  const effective: ConstructionMode = input.constructionMode ??
+                    (input.projectType === "urban_renewal" && (input.renewalSubtype ?? "tama38") === "tama38"
+                      ? "addition_only"
+                      : "full_rebuild");
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setInput({ ...input, constructionMode: m.id })}
+                      className={`flex-1 rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                        effective === m.id
+                          ? "border-primary bg-primary/10 text-primary font-semibold"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      <div>{m.label}</div>
+                      <div className="text-[9px] opacity-70">{m.hint}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                במצב "חיזוק + תוספת": עלות הבנייה החדשה תחול רק על השטח המתווסף (proposed − existing), ועל השטח הקיים תחושב עלות חיזוק בלבד. אין הריסה.
+              </p>
+            </div>
+          )}
         </div>
+
 
         {/* Finish level selector */}
         <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
