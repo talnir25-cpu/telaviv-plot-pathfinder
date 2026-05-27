@@ -236,7 +236,33 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             {PROJECT_TYPE_HINT[input.projectType]}
           </p>
+
+          {input.projectType === "urban_renewal" && (
+            <div className="mt-2 space-y-1.5">
+              <Label className="text-xs font-semibold">תת-סוג התחדשות עירונית</Label>
+              <div className="flex gap-2">
+                {(["tama38", "pinui_binui"] as RenewalSubtype[]).map((sub) => (
+                  <button
+                    key={sub}
+                    type="button"
+                    onClick={() => setInput({ ...input, renewalSubtype: sub })}
+                    className={`flex-1 rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                      (input.renewalSubtype ?? "tama38") === sub
+                        ? "border-primary bg-primary/10 text-primary font-semibold"
+                        : "border-border bg-card text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {sub === "tama38" ? 'תמ"א 38 / 38-2' : "פינוי-בינוי"}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                שני המסלולים פטורים מהיטל השבחה — תמ"א 38 לפי סעיף 19, פינוי-בינוי לפי חוק פינוי-בינוי.
+              </p>
+            </div>
+          )}
         </div>
+
 
         {groups.map((g) => (
           <div key={g} className="space-y-3">
