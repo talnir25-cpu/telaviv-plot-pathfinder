@@ -73,6 +73,7 @@ export interface EngineReport {
   netSalesRevenue: number;
   // costs
   hardCosts: number;
+  constructionBreakdown: ConstructionBreakdown;
   softCosts: number;
   tenantCosts: number;
   bettermentTax: number;
