@@ -252,6 +252,55 @@ verdict: profitable אם ROC ≥ ${financial.targetDeveloperProfitPct}, marginal
         result.notes = Array.isArray(result.notes) ? result.notes : [];
         const target = body.financial.targetDeveloperProfitPct ?? 18;
         const price = body.financial.avgSalePricePerSqm ?? 0;
+        const projectType = body.financial.projectType ?? "urban_renewal";
+        const developerShare = body.financial.developerLandSharePct ?? 100;
+        const plotArea = body.plot?.area ?? 0;
+        const landValuePerSqm = body.financial.landValuePerSqm ?? 0;
+
+        // Enforce land-cost logic by project type (deterministic, overrides AI)
+        const recomputeTotals = () => {
+          const components = [
+            result.hardCosts, result.softCosts, result.tenantCosts,
+            result.bettermentTax, result.permitFees, result.landCost,
+            result.financingCosts, result.physicalConstraintsCost ?? 0,
+          ].map((n) => (typeof n === "number" ? n : 0));
+          const newTotal = components.reduce((a, b) => a + b, 0);
+          result.totalProjectCost = newTotal;
+          if (typeof result.netSalesRevenue === "number") {
+            result.developerProfit = result.netSalesRevenue - newTotal;
+            if (newTotal > 0) result.rocPct = (result.developerProfit / newTotal) * 100;
+            if (result.netSalesRevenue > 0) result.rosPct = (result.developerProfit / result.netSalesRevenue) * 100;
+          }
+        };
+
+        if (projectType === "urban_renewal") {
+          if ((result.landCost ?? 0) > 0) {
+            result.landCost = 0;
+            result.notes.push("✓ שווי קרקע אופס: בהתחדשות עירונית הקרקע בבעלות הדיירים — לא נכלל בעלויות היזם.");
+            recomputeTotals();
+          }
+        } else if (projectType === "new_construction") {
+          const expectedLand = landValuePerSqm * plotArea;
+          if (Math.abs((result.landCost ?? 0) - expectedLand) > expectedLand * 0.05 && expectedLand > 0) {
+            result.landCost = expectedLand;
+            result.notes.push(`✓ שווי קרקע הוגדר ל-${Math.round(expectedLand).toLocaleString("he-IL")} ₪ (${landValuePerSqm.toLocaleString("he-IL")} × ${plotArea}).`);
+            recomputeTotals();
+          }
+          if ((result.tenantCosts ?? 0) > 0) {
+            result.tenantCosts = 0;
+            result.notes.push("✓ עלויות דיירים אופסו: פרויקט בנייה חדשה על קרקע פנויה.");
+            recomputeTotals();
+          }
+        } else if (projectType === "combination") {
+          const expectedLand = landValuePerSqm * plotArea * (developerShare / 100);
+          if (Math.abs((result.landCost ?? 0) - expectedLand) > expectedLand * 0.05 && expectedLand > 0) {
+            result.landCost = expectedLand;
+            result.notes.push(`✓ שווי קרקע משוקלל לפי חלק היזם (${developerShare}%): ${Math.round(expectedLand).toLocaleString("he-IL")} ₪.`);
+            recomputeTotals();
+          }
+        }
+
+
 
         // Force verdict consistency with profit & ROC
         if (typeof result.developerProfit === "number" && result.developerProfit < 0) {
