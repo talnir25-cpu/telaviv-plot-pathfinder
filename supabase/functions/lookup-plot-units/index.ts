@@ -451,7 +451,31 @@ interface TlvPermitFeature {
     ms_tik_binyan?: number | null;
     addresses?: string | null;
     sug_bakasha?: string | null;
+    // שטחי בנייה — שמות שדה אפשריים בשכבה 772
+    shetach_kolel?: number | null;
+    shetach_eikari?: number | null;
+    shetach_sherut?: number | null;
+    sach_hakol_shetach?: number | null;
+    shetach_binyan?: number | null;
+    total_area?: number | null;
+    [key: string]: unknown;
   };
+}
+
+// בוחר את שדה השטח הזמין מתוך מספר שמות אפשריים
+function tlvPermitArea(a: TlvPermitFeature["attributes"]): number | null {
+  const sum = (a.shetach_eikari ?? 0) + (a.shetach_sherut ?? 0);
+  const candidates: Array<number | null | undefined> = [
+    a.shetach_kolel,
+    a.sach_hakol_shetach,
+    a.total_area,
+    a.shetach_binyan,
+    sum > 0 ? sum : null,
+  ];
+  for (const v of candidates) {
+    if (typeof v === "number" && v > 20) return v;
+  }
+  return null;
 }
 
 function tlvStageRank(stage?: string | null, occupation?: string | null, finished?: string | null): number {
