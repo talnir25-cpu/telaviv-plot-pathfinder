@@ -194,6 +194,8 @@ Deno.serve(async (req) => {
         siteDevelopmentCostPerSqmPlot: financial.siteDevelopmentCostPerSqmPlot,
         escalationPctPerYear: financial.escalationPctPerYear,
         contingencyPct: financial.contingencyPct,
+        constructionMode: financial.constructionMode,
+        strengtheningCostPerSqm: financial.strengtheningCostPerSqm,
       };
 
       const report = assembleReport(engineInput);
