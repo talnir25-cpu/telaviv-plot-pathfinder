@@ -740,6 +740,16 @@ export function assembleReport(input: EngineInput): EngineReport {
       `✓ פטור מהיטל השבחה לפי ${input.renewalSubtype === "pinui_binui" ? "חוק פינוי-בינוי" : "סעיף 19 לתוספת השלישית (תמ\"א 38)"}.`,
     );
     notes.push("✓ נוספה עלות ערבויות חוק מכר + ליווי משפטי דיירים (2.5% מ-Hard).");
+    if (core.ownersReturnAreaSqm > 0) {
+      notes.push(
+        `✓ נוכו ${core.ownersReturnUnits.toLocaleString("he-IL")} דירות לבעלי דירות קיימים ` +
+          `(~${Math.round(core.avgOwnerUnitSizeSqm).toLocaleString("he-IL")} מ"ר/דירה, סה"כ ${Math.round(core.ownersReturnAreaSqm).toLocaleString("he-IL")} מ"ר) — ` +
+          `שטח למכירה נטו: ${Math.round(core.netSellableAreaForSaleSqm).toLocaleString("he-IL")} מ"ר מתוך ${Math.round(core.grossSellableAreaSqm).toLocaleString("he-IL")} מ"ר.`,
+      );
+      if (core.netSellableAreaForSaleSqm <= 0) {
+        notes.push("⚠ אזהרה: תוספת הזכויות אינה מספקת כיסוי לדירות התמורה — אין שטח למכירה.");
+      }
+    }
   } else if (input.projectType === "new_construction") {
     notes.push(`✓ שווי קרקע מלא: ${Math.round(core.landCost).toLocaleString("he-IL")} ₪.`);
     notes.push("✓ אין עלויות דיירים (קרקע פנויה).");
