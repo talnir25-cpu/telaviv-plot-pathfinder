@@ -216,6 +216,16 @@ export interface EngineReport {
   sensitivity: SensitivityCell[];
   monthlyCashflow: MonthlyCashflowRow[];
   notes: string[];
+  tenantUpliftFromCoverage?: {
+    trackLabel: string;
+    additionalGFA: number;
+    additionalValue: number;
+    tenantSharePct: number;
+    tenantUpliftValue: number;
+    perUnitUpliftValue: number;
+    perUnitUpliftSqm: number;
+    existingUnits: number;
+  };
 }
 
 // ───────── helpers ─────────
