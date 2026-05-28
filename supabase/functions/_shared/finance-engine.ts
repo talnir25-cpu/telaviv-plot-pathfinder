@@ -14,6 +14,12 @@ export interface ZoningConstraints {
   requiredBasementFloors?: number | null;
   todReliefApplies?: boolean | null;
   dewateringRequired?: boolean | null;
+  renewalPotential?: {
+    track: "tama38_2" | "pinui_binui" | "rova_plan";
+    trackLabel: string;
+    effectiveUpliftSqmTotal: number;
+    tenantShareOfUpliftPct: number;
+  } | null;
 }
 
 export interface EngineInput {
@@ -210,6 +216,16 @@ export interface EngineReport {
   sensitivity: SensitivityCell[];
   monthlyCashflow: MonthlyCashflowRow[];
   notes: string[];
+  tenantUpliftFromCoverage?: {
+    trackLabel: string;
+    additionalGFA: number;
+    additionalValue: number;
+    tenantSharePct: number;
+    tenantUpliftValue: number;
+    perUnitUpliftValue: number;
+    perUnitUpliftSqm: number;
+    existingUnits: number;
+  };
 }
 
 // ───────── helpers ─────────
@@ -1001,5 +1017,28 @@ export function assembleReport(input: EngineInput): EngineReport {
     monthlyCashflow: core.monthly,
     notes,
     revenueBreakdown: core.revenueBreakdown,
+    tenantUpliftFromCoverage: (() => {
+      const rp = input.zoning?.renewalPotential;
+      if (!rp || !rp.effectiveUpliftSqmTotal || rp.effectiveUpliftSqmTotal <= 0) return undefined;
+      if (input.projectType !== "urban_renewal" && input.projectType !== "combination") return undefined;
+      const existingUnits = Math.max(1, Math.round(input.existingUnits ?? 0));
+      const additionalGFA = rp.effectiveUpliftSqmTotal;
+      const additionalValue = additionalGFA * input.avgSalePricePerSqm;
+      const sharePct = clamp(rp.tenantShareOfUpliftPct, 0, 100);
+      const tenantUpliftValue = additionalValue * (sharePct / 100);
+      const perUnitUpliftValue = tenantUpliftValue / existingUnits;
+      const perUnitUpliftSqm = input.avgSalePricePerSqm > 0
+        ? perUnitUpliftValue / input.avgSalePricePerSqm : 0;
+      return {
+        trackLabel: rp.trackLabel,
+        additionalGFA: Math.round(additionalGFA),
+        additionalValue: Math.round(additionalValue),
+        tenantSharePct: sharePct,
+        tenantUpliftValue: Math.round(tenantUpliftValue),
+        perUnitUpliftValue: Math.round(perUnitUpliftValue),
+        perUnitUpliftSqm: Math.round(perUnitUpliftSqm),
+        existingUnits,
+      };
+    })(),
   };
 }

@@ -555,6 +555,54 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
         </div>
       )}
 
+      {/* תמורה לדיירים מהגדלת תכסית בהתחדשות */}
+      {report.tenantUpliftFromCoverage && report.tenantUpliftFromCoverage.additionalGFA > 0 && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h4 className="text-sm font-semibold text-primary">תמורה לדיירים מהגדלת תכסית</h4>
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+              {report.tenantUpliftFromCoverage.trackLabel}
+            </Badge>
+          </div>
+          <div className="grid gap-3 text-xs sm:grid-cols-4">
+            <div>
+              <p className="text-muted-foreground">תוספת GFA פוטנציאלית</p>
+              <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                {report.tenantUpliftFromCoverage.additionalGFA.toLocaleString("he-IL")} מ״ר
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">שווי תוספת</p>
+              <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                {fmtNIS(report.tenantUpliftFromCoverage.additionalValue)}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">
+                חלק הדיירים ({report.tenantUpliftFromCoverage.tenantSharePct}%)
+              </p>
+              <p className="mt-0.5 text-sm font-semibold tabular-nums text-primary">
+                {fmtNIS(report.tenantUpliftFromCoverage.tenantUpliftValue)}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">
+                לדירה ({report.tenantUpliftFromCoverage.existingUnits} קיימות)
+              </p>
+              <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                {fmtNIS(report.tenantUpliftFromCoverage.perUnitUpliftValue)}
+                <span className="mr-1 text-[10px] font-normal text-muted-foreground">
+                  ≈ {report.tenantUpliftFromCoverage.perUnitUpliftSqm} מ״ר
+                </span>
+              </p>
+            </div>
+          </div>
+          <p className="mt-2 border-t border-primary/20 pt-2 text-[11px] text-muted-foreground">
+            ℹ השווי כלול בהכנסות הפרויקט — תצוגה אינפורמטיבית לחלוקה בין יזם לדיירים.
+          </p>
+        </div>
+      )}
+
       {/* Breakeven */}
       <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm">
         <span className="text-muted-foreground">נקודת איזון: </span>

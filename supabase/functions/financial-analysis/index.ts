@@ -143,6 +143,12 @@ const AnalyzeBodySchema = z.object({
       requiredBasementFloors: z.number().nullable().optional(),
       todReliefApplies: z.boolean().nullable().optional(),
       dewateringRequired: z.boolean().nullable().optional(),
+      renewalPotential: z.object({
+        track: z.enum(["tama38_2", "pinui_binui", "rova_plan"]),
+        trackLabel: z.string(),
+        effectiveUpliftSqmTotal: z.number(),
+        tenantShareOfUpliftPct: z.number(),
+      }).passthrough().nullable().optional(),
     }).passthrough().optional(),
   }).passthrough(),
   financial: FinancialInputSchema,
@@ -198,6 +204,12 @@ Deno.serve(async (req) => {
               requiredBasementFloors: planning.zoning.requiredBasementFloors ?? 1,
               todReliefApplies: planning.zoning.todReliefApplies ?? false,
               dewateringRequired: planning.zoning.dewateringRequired ?? false,
+              renewalPotential: (planning.zoning as { renewalPotential?: {
+                track: "tama38_2" | "pinui_binui" | "rova_plan";
+                trackLabel: string;
+                effectiveUpliftSqmTotal: number;
+                tenantShareOfUpliftPct: number;
+              } }).renewalPotential ?? null,
             }
           : undefined,
         avgSalePricePerSqm: financial.avgSalePricePerSqm,

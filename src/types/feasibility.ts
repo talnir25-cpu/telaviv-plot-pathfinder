@@ -57,7 +57,24 @@ export interface FeasibilityReport {
     coveragePct?: number;                   // אחוז תכסית אפקטיבי
     floorsNeededForFAR?: number;            // קומות נדרשות לתמיכה ב-proposed.builtAreaSqm
     setbackSource?: "regulation" | "manual" | "manual_override";
+    // פוטנציאל הגדלת תכסית בהליך התחדשות עירונית (אופציונלי)
+    renewalPotential?: {
+      track: "tama38_2" | "pinui_binui" | "rova_plan";
+      trackLabel: string;
+      frontSetbackM: number;
+      sideSetbackM: number;
+      rearSetbackM: number;
+      typicalFloorAreaSqm: number;       // שטח קומה אחרי הליך התחדשות
+      coveragePct: number;
+      upliftSqmPerFloor: number;         // דלתא מול baseline
+      upliftPct: number;                 // % מהתכסית הבסיסית
+      realizationFactor: number;         // 0.7–1.0
+      effectiveUpliftSqmTotal: number;   // upliftSqmPerFloor × floors × realizationFactor
+      tenantShareOfUpliftPct: number;
+      source: string;
+    };
   };
+
 
   redFlags: RedFlag[];
   committeeSummary: string;
@@ -266,5 +283,16 @@ export interface FinancialReport {
   }>;
   // פירוט הכנסות (אופציונלי — מוחזר רק אם input.revenue סופק)
   revenueBreakdown?: RevenueBreakdown;
+  // תמורה לדיירים מהגדלת תכסית בהליך התחדשות (אינפורמטיבי — לא משפיע על profit)
+  tenantUpliftFromCoverage?: {
+    trackLabel: string;
+    additionalGFA: number;
+    additionalValue: number;
+    tenantSharePct: number;
+    tenantUpliftValue: number;
+    perUnitUpliftValue: number;
+    perUnitUpliftSqm: number;
+    existingUnits: number;
+  };
 }
 

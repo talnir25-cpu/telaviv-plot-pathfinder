@@ -39,6 +39,36 @@ function estimateTypicalFloorArea(
   return Math.round(width * depth);
 }
 
+type RenewalTrack = "tama38_2" | "pinui_binui" | "rova_plan";
+interface RenewalSetbackStandard {
+  front: number; side: number; rear: number;
+  tenantShareOfUpliftPct: number; source: string;
+}
+const RENEWAL_SETBACKS: Record<3 | 4, Record<RenewalTrack, RenewalSetbackStandard>> = {
+  3: {
+    tama38_2: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 25, source: 'תמ"א 38/2 — הקלות ועדה מקומית (רובע 3)' },
+    pinui_binui: { front: 3, side: 2, rear: 3, tenantShareOfUpliftPct: 40, source: "תכנית פינוי-בינוי נקודתית (רובע 3)" },
+    rova_plan: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 30, source: "תקנון רובע 3 — מסלול התחדשות" },
+  },
+  4: {
+    tama38_2: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 25, source: 'תמ"א 38/2 — הקלות ועדה מקומית (רובע 4)' },
+    pinui_binui: { front: 3, side: 2.5, rear: 4, tenantShareOfUpliftPct: 40, source: "תכנית פינוי-בינוי נקודתית (רובע 4)" },
+    rova_plan: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 30, source: "תקנון רובע 4 — מסלול התחדשות" },
+  },
+};
+const RENEWAL_TRACK_LABEL: Record<RenewalTrack, string> = {
+  tama38_2: 'תמ"א 38/2 (הריסה ובנייה)',
+  pinui_binui: "פינוי-בינוי",
+  rova_plan: "תכנית רובעית",
+};
+
+function inferRenewalTrack(existingFloors: number, existingUnits: number, conservation: boolean): RenewalTrack {
+  if (conservation) return "rova_plan";
+  if (existingFloors >= 5 || existingUnits >= 12) return "pinui_binui";
+  return "tama38_2";
+}
+
+
 const ANALYSIS_TOOL = {
   type: "function",
   function: {
@@ -250,6 +280,23 @@ Deno.serve(async (req) => {
       ? Math.round((typicalFloorArea / plotAreaForCalc) * 100)
       : 0;
 
+    // ── חישוב פוטנציאל הגדלת תכסית בהליך התחדשות (דטרמיניסטי) ──
+    const renewalTrack = inferRenewalTrack(body.existingFloors ?? 0, body.existingUnits ?? 0, body.conservation);
+    const renewalCfg = plotAreaForCalc > 0 ? RENEWAL_SETBACKS[body.quarter]?.[renewalTrack] : null;
+    const renewalFloorArea = renewalCfg
+      ? estimateTypicalFloorArea(plotAreaForCalc, renewalCfg)
+      : 0;
+    const renewalCoveragePct = renewalFloorArea && plotAreaForCalc
+      ? Math.round((renewalFloorArea / plotAreaForCalc) * 100)
+      : 0;
+    const baselineFloorAreaForUplift = typicalFloorArea > 0
+      ? typicalFloorArea
+      : (plotAreaForCalc > 0 ? estimateTypicalFloorArea(plotAreaForCalc, { front: 5, side: 3, rear: 5 }) : 0);
+    const upliftSqmPerFloor = Math.max(0, renewalFloorArea - baselineFloorAreaForUplift);
+    const upliftPct = baselineFloorAreaForUplift > 0
+      ? Math.round((upliftSqmPerFloor / baselineFloorAreaForUplift) * 100)
+      : 0;
+
     const setbacksLine = hasSetbacks
       ? `\nקווי בניין (מקור: ${body.setbackSource === "regulation" ? "תקנון רובע" : "הזנת משתמש"}):
   קדמי ${body.frontSetbackM} מ׳ / צדדי ${body.sideSetbackM} מ׳ / אחורי ${body.rearSetbackM} מ׳
@@ -259,6 +306,15 @@ Deno.serve(async (req) => {
 אם FAR שאיפתי דורש שטח גדול יותר — הגדל את floors (עד maxFloors) ולא את השטח לקומה.
 החזר ב-zoning.frontSetbackM/sideSetbackM/rearSetbackM את הערכים שקיבלת.`
       : "";
+
+    const renewalLine = renewalFloorArea > 0
+      ? `\nפוטנציאל הגדלת תכסית בהליך התחדשות (${RENEWAL_TRACK_LABEL[renewalTrack]}):
+  קווי בניין מוקלים: קדמי ${renewalCfg!.front} / צדדי ${renewalCfg!.side} / אחורי ${renewalCfg!.rear} מ׳
+  שטח קומה פוטנציאלי: ~${renewalFloorArea} מ"ר (תכסית ~${renewalCoveragePct}%, דלתא +${upliftSqmPerFloor} מ"ר/קומה ≈ +${upliftPct}%)
+  התייחס בסיכום לוועדה ובדגלים אם הפער משמעותי.`
+      : "";
+
+
 
     const userPrompt = `נתח את ההיתכנות להתחדשות עירונית של החלקה הבאה:
 
@@ -271,7 +327,8 @@ Deno.serve(async (req) => {
 מספר קומות קיים: ${body.existingFloors}
 ${builtAreaLine}
 סטטוס שימור (לפי המשתמש): ${body.conservation ? "כן" : "לא ידוע / לא"}
-${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}
+${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${renewalLine}
+
 
 החזר דוח היתכנות מלא ומובנה דרך הכלי render_feasibility_report.
 חשב את המכפיל, יח"ד חדשות, שטח מכירה משוער, וזהה דגלים אדומים רלוונטיים.`;
@@ -434,9 +491,53 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}
           });
         }
       }
+
+      // ── אכלוס פוטנציאל הגדלת תכסית בהליך התחדשות ──
+      if (renewalFloorArea > 0 && renewalCfg && upliftSqmPerFloor > 0) {
+        const proposedFloorsForUplift = report.proposed?.floors ?? 0;
+        // מקדם מימוש מציאותי: מתחיל ב-1.0, מנוכים אילוצים
+        let realization = 1.0;
+        if ((report.zoning?.treesForConservation ?? 0) > 0) realization -= 0.15;
+        if (body.conservation) realization -= 0.10;
+        if ((report.zoning?.requiredBasementFloors ?? 0) > 1) realization -= 0.10;
+        realization = Math.max(0.5, Math.min(1.0, realization));
+
+        const effectiveUpliftSqmTotal = Math.round(
+          upliftSqmPerFloor * proposedFloorsForUplift * realization,
+        );
+
+        if (!report.zoning) report.zoning = {};
+        report.zoning.renewalPotential = {
+          track: renewalTrack,
+          trackLabel: RENEWAL_TRACK_LABEL[renewalTrack],
+          frontSetbackM: renewalCfg.front,
+          sideSetbackM: renewalCfg.side,
+          rearSetbackM: renewalCfg.rear,
+          typicalFloorAreaSqm: renewalFloorArea,
+          coveragePct: renewalCoveragePct,
+          upliftSqmPerFloor,
+          upliftPct,
+          realizationFactor: Number(realization.toFixed(2)),
+          effectiveUpliftSqmTotal,
+          tenantShareOfUpliftPct: renewalCfg.tenantShareOfUpliftPct,
+          source: renewalCfg.source,
+        };
+
+        // RedFlag חיובי אם הפער משמעותי
+        const existingBuiltForFlag = report.existing?.builtAreaSqm ?? 0;
+        if (existingBuiltForFlag > 0 && effectiveUpliftSqmTotal > existingBuiltForFlag * 0.3) {
+          report.redFlags.push({
+            level: "info",
+            title: "פוטנציאל הגדלת תכסית בהליך התחדשות",
+            description: `מסלול ${RENEWAL_TRACK_LABEL[renewalTrack]}: תכסית פוטנציאלית ~${renewalCoveragePct}% (לעומת בסיס ~${coveragePctVal || "?"}%), תוספת אפקטיבית של ${effectiveUpliftSqmTotal.toLocaleString("he-IL")} מ"ר כולל — מקור משמעותי לתמורה לדיירים.`,
+            source: renewalCfg.source,
+          });
+        }
+      }
     } catch (e) {
       console.error("post-validation error (non-fatal)", e);
     }
+
 
 
 

@@ -401,6 +401,58 @@ export const DashboardReport = ({
               );
             })()}
 
+            {/* פוטנציאל הגדלת תכסית בהליך התחדשות */}
+            {report.zoning.renewalPotential && (() => {
+              const rp = report.zoning.renewalPotential;
+              return (
+                <div className="mt-5 border-t pt-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      פוטנציאל הגדלת תכסית בהליך התחדשות
+                    </p>
+                    <span className="text-[10px] text-muted-foreground">{rp.source}</span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">מסלול</p>
+                      <p className="mt-1 text-sm font-semibold">{rp.trackLabel}</p>
+                    </div>
+                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">תכסית בהתחדשות</p>
+                      <p className="mt-1 text-base font-semibold text-primary">
+                        {fmt(rp.typicalFloorAreaSqm)} מ״ר
+                        <span className="mr-2 text-xs font-normal text-muted-foreground">
+                          ({fmt(rp.coveragePct)}%)
+                        </span>
+                      </p>
+                    </div>
+                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">תוספת לקומה</p>
+                      <p className="mt-1 text-base font-semibold text-emerald-600 dark:text-emerald-500">
+                        +{fmt(rp.upliftSqmPerFloor)} מ״ר
+                        <span className="mr-2 text-xs font-normal text-muted-foreground">
+                          (+{fmt(rp.upliftPct)}%)
+                        </span>
+                      </p>
+                    </div>
+                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">תוספת אפקטיבית סה״כ</p>
+                      <p className="mt-1 text-base font-semibold">
+                        {fmt(rp.effectiveUpliftSqmTotal)} מ״ר
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        מקדם מימוש {fmt(rp.realizationFactor * 100)}%
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    קווי בניין מוקלים: קדמי {rp.frontSetbackM} / צדדי {rp.sideSetbackM} / אחורי {rp.rearSetbackM} מ׳ •
+                    חלק הדיירים בתמורה: {rp.tenantShareOfUpliftPct}%
+                  </p>
+                </div>
+              );
+            })()}
+
             {/* אילוצים פיזיים-רגולטוריים */}
             <div className="mt-5 border-t pt-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">

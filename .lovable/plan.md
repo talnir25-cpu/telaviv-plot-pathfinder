@@ -1,96 +1,150 @@
 
-# שילוב תכסית בניתוח ובדוח
+# פוטנציאל הגדלת תכסית בהתחדשות עירונית — תצוגה + תמורה לדיירים
 
-מטרה: להפוך את התכסית מנתון תצוגתי בטופס לאילוץ פעיל שמשפיע על המלצות ה-AI, מאומת אחרי החזרת הדוח, ומציג תובנת ניצול ליזם.
+## מטרה
 
-## 1. העברת התכסית ל-edge function (`analyze-plot/index.ts`)
+להציג בדוח את **הפער** בין התכסית הבסיסית (תב"ע קיימת) לתכסית הפוטנציאלית בהליך התחדשות, ולתרגם את הפער הזה ל**תמורה כספית/שטחית** לדיירים הקיימים.
 
-הרחבת `PlotInput` ב-4 שדות אופציונליים:
+---
+
+## 1. הרחבת `setback-standards.ts`
+
+טבלה חדשה `RENEWAL_SETBACKS` לפי `{quarter, track}`:
+
 ```text
-frontSetbackM, sideSetbackM, rearSetbackM, setbackSource
+track ∈ "tama38_2" | "pinui_binui" | "rova_plan"
+
+RENEWAL_SETBACKS[quarter][track] = {
+  front, side, rear,
+  tenantShareOfUpliftPct,  // 25 לתמ"א, 40 לפינוי-בינוי, 30 לרובעית
+  source: "תמ\"א 38/2 – הקלות ועדה מקומית" / וכו'
+}
 ```
 
-### חישוב שטח קומה מירבי ב-edge
+הטבלה היא **ברירת מחדל** — ה-AI יכול להחזיר override במסגרת ה-tool schema.
 
-לפני שליחת ה-prompt — חישוב דטרמיניסטי (העתק מ-`src/lib/setback-standards.ts`, פונקציה זהה):
+## 2. שינויי schema (`src/types/feasibility.ts`)
+
+ב-`zoning` נוסיף בלוק חדש (אופציונלי, תאימות אחורה):
+
 ```text
-typicalFloorArea = (√plotArea − 2·side) × (√plotArea − front − rear)
+zoning.renewalPotential?: {
+  track: "tama38_2" | "pinui_binui" | "rova_plan";
+  frontSetbackM, sideSetbackM, rearSetbackM: number;
+  typicalFloorAreaSqm: number;       // אחרי הליך התחדשות
+  coveragePct: number;
+  upliftSqmPerFloor: number;         // delta vs baseline
+  upliftPct: number;
+  realizationFactor: number;         // 0.7–1.0
+  effectiveUpliftSqm: number;        // upliftSqmPerFloor × proposed.floors × realizationFactor
+  source: string;
+}
 ```
 
-### הזרקה ל-prompt כאילוץ מחייב
+השדות הקיימים (`typicalFloorAreaSqm`, `coveragePct`, `floorsNeededForFAR`) נשארים — הם מייצגים את ה-**baseline**.
 
-תוספת ל-`userPrompt`:
+ב-`FinancialReport` נוסיף:
+
 ```text
-קווי בניין (מקור: {regulation | משתמש}):
-  קדמי X / צדדי Y / אחורי Z מ׳
-שטח קומה טיפוסי מירבי: ~N מ״ר (תכסית ~K%)
-
-אילוץ קשיח: proposed.builtAreaSqm ≤ N × proposed.floors
-אם FAR שאיפתי דורש יותר — הגדל את floors (עד maxFloors) ולא את השטח לקומה.
+tenantUpliftFromCoverage?: {
+  additionalGFA: number;             // effectiveUpliftSqm
+  additionalValue: number;           // × avgSalePricePerSqm
+  tenantSharePct: number;            // לפי המסלול
+  tenantUpliftValue: number;         // additionalValue × share
+  perUnitUpliftValue: number;        // / existingUnits
+  perUnitUpliftSqm: number;          // tenantUpliftValue / pricePerSqm
+}
 ```
 
-ה-AI מקבל את הנתון, אבל **לא סומכים** עליו — הוולידציה למטה.
+## 3. שינויים ב-edge function `analyze-plot/index.ts`
 
-## 2. Post-validation דטרמיניסטית (אחרי תשובת ה-AI)
-
-בבלוק `post-validation` הקיים, חישוב חדש:
+### א. הזרקה ל-prompt
+תוספת לסקציית הקווי בניין:
 ```text
-floorsNeeded = ceil(proposed.builtAreaSqm / typicalFloorArea)
+מסלול התחדשות מסתמן: {track inferred from projectType + conservation}
+תכסית פוטנציאלית בהליך התחדשות: כ-N מ"ר/קומה (X%)
+דלתא מול תב"ע: +D מ"ר/קומה
 ```
 
-### חוקי החלטה
+### ב. tool schema — שדה אופציונלי
+מאפשרים ל-AI להחזיר `zoning.renewalPotential` עם override של setbacks ו-`track` אם הוא מזהה תכנית רובעית/נקודתית ספציפית. אם לא — משתמשים בברירת המחדל מהטבלה.
 
-| מצב | פעולה |
-|---|---|
-| `floorsNeeded ≤ proposed.floors` | OK — שום שינוי |
-| `floorsNeeded > proposed.floors` אבל `≤ maxFloors` | RedFlag **warning**: "התכנון לא ריאלי גיאומטרית — נדרשות N קומות לתמיכה בשטח המוצע" |
-| `floorsNeeded > maxFloors` | RedFlag **critical** + `status = "blocked"`: "התכסית לא מאפשרת את ה-FAR בהינתן מגבלת הקומות (נדרשות N, מקסימום M)" |
-| `proposed.floors > floorsNeeded × 1.5` | אזהרה **info**: ניצול חסר של תכסית — אפשר להקטין קומות |
-
-כל בדיקה מוסיפה `source: "בדיקת תכסית — קווי בניין {plan}, {section}"`.
-
-## 3. הרחבת ה-schema של הדוח (`FinancialReport.zoning` → לא, `FeasibilityReport.zoning`)
-
-הוספת 3 שדות אופציונליים ל-`zoning` ב-`src/types/feasibility.ts`:
+### ג. חישוב דטרמיניסטי post-AI
 ```text
-typicalFloorAreaSqm?: number      // שטח קומה מחושב מקווי הבניין
-coveragePct?: number              // אחוז התכסית האפקטיבי
-floorsNeededForFAR?: number       // קומות נדרשות לתמיכה ב-proposed.builtAreaSqm
+1. בחירת track (AI override → projectType → ברירת מחדל "tama38_2")
+2. חישוב renewal typicalFloorArea מ-RENEWAL_SETBACKS
+3. uplift = renewal - baseline
+4. realizationFactor: 1.0 minus penalties (עצים, שימור, מרתפים)
+5. אכלוס zoning.renewalPotential
 ```
 
-ה-edge function ממלא אותם **אחרי** ה-AI (לא ב-tool schema — דטרמיניסטי בלבד).
+### ד. RedFlag חדש — info חיובי
+אם `effectiveUpliftSqm × proposed.floors > existingBuiltAreaSqm × 0.3`:
+*"פוטנציאל משמעותי להגדלת תכסית במסלול {track} — תוספת של ~X מ"ר/דירה לדיירים."*
 
-## 4. תצוגה בדוח — `DashboardReport.tsx`, כרטיס "תכנון ובינוי"
+## 4. שינויים ב-`finance-engine.ts`
 
-הוספת בלוק קטן מתחת לשורת קווי הבניין (לפני העצים/חניה):
+חישוב חדש (רץ רק אם `zoning.renewalPotential` קיים ו-`projectType ∈ {urban_renewal, combination}`):
 
 ```text
-┌─ תכסית וניצול ──────────────────────────────┐
-│ שטח קומה טיפוסי:    340 מ״ר (49% תכסית)    │
-│ קומות נדרשות ל-FAR: 12 / מוצע: 14   ✓      │
+additionalGFA   = renewalPotential.effectiveUpliftSqm × proposed.floors
+additionalValue = additionalGFA × avgSalePricePerSqm
+tenantUplift    = additionalValue × tenantShareOfUpliftPct
+perUnit         = tenantUplift / existingUnits
+perUnitSqm      = (perUnit / avgSalePricePerSqm)
+```
+
+מאוכלס ב-`FinancialReport.tenantUpliftFromCoverage`. **לא** משפיע על `developerProfit` או `totalSalesRevenue` בשלב זה — רק תצוגה אינפורמטיבית (כדי לא לכפול ספירה: ההכנסות כבר משקפות את ה-built area המוצע).
+
+## 5. תצוגה — `DashboardReport.tsx`
+
+בכרטיס "תכנון ובינוי", **מתחת** לבלוק "תכסית וניצול" הקיים, בלוק חדש:
+
+```text
+┌─ פוטנציאל הגדלת תכסית בהתחדשות ──────────────┐
+│ מסלול:                    פינוי-בינוי         │
+│ תכסית בסיסית (תב"ע):     320 מ״ר (40%)      │
+│ תכסית בהתחדשות:          440 מ״ר (55%)  ↑   │
+│ תוספת לקומה:             +120 מ״ר (+37%)    │
+│ מקדם מימוש מציאותי:      85%                │
+│ תוספת אפקטיבית סה"כ:     1,224 מ"ר (12 ק')  │
 └──────────────────────────────────────────────┘
 ```
 
-אייקון סטטוס בקצה השורה:
-- ✓ ירוק — תכנון ריאלי
-- ⚠ צהוב — חוסר התאמה (warning RedFlag כבר נוסף)
-- ✕ אדום — בלתי אפשרי (status=blocked)
+הבלוק מוצג רק אם `zoning.renewalPotential` קיים.
 
-הבלוק מוצג רק אם `zoning.typicalFloorAreaSqm` קיים (תאימות אחורה לדוחות ישנים).
+## 6. תצוגה — `FinancialAnalysis.tsx`
 
-## 5. מה לא בתוכנית הזו
+בקטע "סיכום פרויקט" / "תזרים" — שורה ייעודית:
 
-- שינוי לוגיקת תחשיב פיננסי (תוספת עלות לפי height premium אם נדרשות יותר קומות) — שלב נפרד.
-- שילוב גיאומטריה אמיתית של מגרש (Polygon מ-GIS במקום הנחת מלבן).
-- המלצות אקטיביות מסוג "הוסף קומה כדי להגיע ליעד" (Layer 3 מהדיון).
+```text
+┌─ תמורה לדיירים מהגדלת תכסית ────────────────┐
+│ תוספת GFA פוטנציאלית:    1,224 מ"ר          │
+│ שווי תוספת:              ₪39.2M             │
+│ חלק הדיירים (40%):       ₪15.7M             │
+│ לדירה (24 קיימות):       ₪653K ≈ ~20 מ"ר    │
+│                                              │
+│ ℹ הערה: השווי כלול בהכנסות הפרויקט,         │
+│   זוהי תצוגה אינפורמטיבית בלבד.             │
+└──────────────────────────────────────────────┘
+```
 
-## פרטים טכניים
+## 7. מה לא בתוכנית
 
-- **קבצים שיתעדכנו**:
-  - `supabase/functions/analyze-plot/index.ts` — קבלת setbacks, חישוב typicalFloorArea, הזרקה ל-prompt, post-validation, אכלוס שדות חדשים ב-zoning.
-  - `src/types/feasibility.ts` — הוספת 3 שדות אופציונליים ל-`zoning`.
-  - `src/components/DashboardReport.tsx` — בלוק תצוגה חדש בכרטיס Zoning.
-- **קבצים חדשים**: אין. הפונקציה `estimateTypicalFloorArea` תועתק ל-edge function (Deno לא יכול לייבא מ-`src/`).
-- **DB**: אין שינויים.
-- **תאימות אחורה**: כל השדות אופציונליים; דוחות ישנים ב-cache ימשיכו לעבוד.
-- **ולידציה**: אם setbacks לא הועברו (קריאה ישנה) — מדלגים על כל הבלוק, אין שינוי התנהגות.
+- **לא** משנים את חישוב `developerProfit` או `totalSalesRevenue` — ההכנסות כבר משקפות את ה-built area המוצע (שכבר כולל את הדלתא).
+- **לא** מוסיפים שדות קלט חדשים בטופס המקדים. החישוב אוטומטי.
+- **לא** נוגעים בלוגיקת `physicalConstraintsCost` הקיימת.
+- **אין** שינויי DB.
+
+## פרטים טכניים — קבצים שיתעדכנו
+
+- `src/lib/setback-standards.ts` — `RENEWAL_SETBACKS` + `getRenewalSetbacks(quarter, track)` + `inferRenewalTrack(projectType, ...)`.
+- `src/types/feasibility.ts` — `zoning.renewalPotential` + `FinancialReport.tenantUpliftFromCoverage`.
+- `supabase/functions/analyze-plot/index.ts` — שדה ב-tool schema, הזרקה ל-prompt, חישוב post-AI, RedFlag.
+- `supabase/functions/_shared/finance-engine.ts` — חישוב `tenantUpliftFromCoverage`.
+- `supabase/functions/financial-analysis/index.ts` — העברת `zoning.renewalPotential` ל-engine.
+- `src/components/DashboardReport.tsx` — בלוק תצוגה חדש.
+- `src/components/FinancialAnalysis.tsx` — שורת תמורה לדיירים.
+
+**תאימות אחורה**: כל השדות אופציונליים; דוחות ישנים ב-cache יציגו בדיוק כמו היום.
+
