@@ -206,6 +206,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           escalationPctPerYear: 3,
           contingencyPct: 5,
           strengtheningCostPerSqm: 3000,
+          revenue: defaultRevenue,
         });
 
       } finally {
