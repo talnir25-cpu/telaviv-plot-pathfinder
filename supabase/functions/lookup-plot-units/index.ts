@@ -783,16 +783,13 @@ function pickBestFloors(sources: SourceResult[]): SourceResult | null {
   return null;
 }
 
-// Built-area picker: prioritize permits (sanctioned) > GovMap (real floors)
-// > nadlan (apartments-only lower bound) > GovMap estimate > heuristic.
+// Built-area picker: manual > GovMap (real floors) > GovMap estimate > heuristic.
+// Note: tlv_permits & nadlan are intentionally excluded from built-area
+// selection (they still contribute to units/floors and appear in sources_json
+// for diagnostics).
 function pickBestBuiltArea(sources: SourceResult[]): SourceResult | null {
   const manual = sources.find((s) => s.source === "manual" && s.status === "ok" && s.totalFloorArea !== null && s.totalFloorArea > 0);
   if (manual) return manual;
-
-  const tlv = sources.find(
-    (s) => s.source === "tlv_permits" && s.status === "ok" && typeof s.totalFloorArea === "number" && s.totalFloorArea > 0,
-  );
-  if (tlv) return tlv;
 
   const bldgReal = sources.find((s) => {
     if (s.source !== "govmap_bldg" || s.status !== "ok" || !s.totalFloorArea) return false;
@@ -800,11 +797,6 @@ function pickBestBuiltArea(sources: SourceResult[]): SourceResult | null {
     return raw?.hasRealFloors === true;
   });
   if (bldgReal) return bldgReal;
-
-  const nadlanArea = sources.find(
-    (s) => s.source === "nadlan" && s.status === "ok" && typeof s.totalFloorArea === "number" && s.totalFloorArea > 0,
-  );
-  if (nadlanArea) return nadlanArea;
 
   const bldgAny = sources.find((s) => s.source === "govmap_bldg" && s.status === "ok" && s.totalFloorArea);
   if (bldgAny) return bldgAny;
