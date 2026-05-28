@@ -27,9 +27,17 @@ export interface EngineInput {
   existingBuiltAreaSqm: number;
   proposedBuiltAreaSqm: number;
   proposedFloors?: number; // for height premium
-  estimatedSellableArea: number;
+  estimatedSellableArea: number;     // gross sellable above-ground residential area (BEFORE deducting owners' return)
   proposedUnits: number;
+  existingUnits?: number;            // # apartments before redevelopment (urban renewal)
   zoning?: ZoningConstraints;
+
+  // ─── urban-renewal owners' return ───
+  // Apartments given back to existing owners do NOT generate sales revenue.
+  // Provide either an explicit area, OR let the engine derive it from existingUnits + bonus.
+  ownersReturnAreaSqm?: number;          // explicit override (m²); takes precedence
+  ownersReturnBonusPerUnitSqm?: number;  // bonus per returned apt; default 25 (תמ"א 38/2) / 12 (פינוי-בינוי)
+  minOwnerUnitSizeSqm?: number;          // floor on per-owner unit size (default 80)
 
   // financial inputs
   avgSalePricePerSqm: number;
@@ -105,6 +113,11 @@ export interface EngineReport {
   // revenue
   totalSalesRevenue: number;
   netSalesRevenue: number;
+  grossSellableAreaSqm: number;
+  ownersReturnAreaSqm: number;
+  netSellableAreaForSaleSqm: number;
+  ownersReturnUnits: number;
+  avgOwnerUnitSizeSqm: number;
   // costs
   hardCosts: number;
   constructionBreakdown: ConstructionBreakdown;
@@ -158,9 +171,78 @@ function sCurveCumulative(m: number, T: number): number {
 // ───────── component calculators ─────────
 
 export function computeRevenues(input: EngineInput) {
-  const totalSalesRevenue = input.estimatedSellableArea * input.avgSalePricePerSqm;
-  const netSalesRevenue = totalSalesRevenue / (1 + input.vatPct / 100);
-  return { totalSalesRevenue, netSalesRevenue };
+  // ─── Hardening: clamp inputs so a single bad value can't flip the model ───
+  const grossSellableAreaSqm = Math.max(0, Number(input.estimatedSellableArea) || 0);
+  const pricePerSqm = Math.max(0, Number(input.avgSalePricePerSqm) || 0);
+  const vatPct = clamp(Number(input.vatPct) || 0, 0, 100);
+
+  // ─── Owners' return (only in urban renewal) ───
+  // Apartments returned to existing owners (תמ"א 38/2 / פינוי-בינוי) are NOT sold.
+  // Their floor area must be deducted from the gross sellable area before revenue.
+  let ownersReturnAreaSqm = 0;
+  let ownersReturnUnits = 0;
+  let avgOwnerUnitSizeSqm = 0;
+
+  if (input.projectType === "urban_renewal") {
+    const existingUnits = Math.max(
+      0,
+      Math.round(
+        input.existingUnits ??
+          // fallback proxy: assume ~85 m² per existing apt if caller didn't pass units
+          (input.existingBuiltAreaSqm > 0 ? input.existingBuiltAreaSqm / 85 : 0),
+      ),
+    );
+    ownersReturnUnits = existingUnits;
+
+    if (
+      input.ownersReturnAreaSqm != null &&
+      Number.isFinite(input.ownersReturnAreaSqm) &&
+      input.ownersReturnAreaSqm >= 0
+    ) {
+      // explicit override
+      ownersReturnAreaSqm = input.ownersReturnAreaSqm;
+      avgOwnerUnitSizeSqm = existingUnits > 0 ? ownersReturnAreaSqm / existingUnits : 0;
+    } else if (existingUnits > 0) {
+      // Derived: existing apartment size + statutory bonus per unit, floored.
+      // Default bonus: 25 m² for תמ"א 38/2, 12 m² for פינוי-בינוי (typical industry assumptions).
+      const defaultBonus = input.renewalSubtype === "pinui_binui" ? 12 : 25;
+      const bonusPerUnit = clamp(
+        Number(input.ownersReturnBonusPerUnitSqm ?? defaultBonus),
+        0,
+        80,
+      );
+      const minOwnerUnitSize = clamp(
+        Number(input.minOwnerUnitSizeSqm ?? 80),
+        40,
+        200,
+      );
+      const existingAvg = input.existingBuiltAreaSqm > 0
+        ? input.existingBuiltAreaSqm / existingUnits
+        : minOwnerUnitSize;
+      avgOwnerUnitSizeSqm = Math.max(minOwnerUnitSize, existingAvg) + bonusPerUnit;
+      ownersReturnAreaSqm = existingUnits * avgOwnerUnitSizeSqm;
+    }
+
+    // Safety cap: owners' return can't exceed the gross sellable area
+    // (if it does, planning is infeasible — clamp to gross so revenue = 0, never negative).
+    if (ownersReturnAreaSqm > grossSellableAreaSqm) {
+      ownersReturnAreaSqm = grossSellableAreaSqm;
+    }
+  }
+
+  const netSellableAreaForSaleSqm = Math.max(0, grossSellableAreaSqm - ownersReturnAreaSqm);
+  const totalSalesRevenue = netSellableAreaForSaleSqm * pricePerSqm;
+  const netSalesRevenue = totalSalesRevenue / (1 + vatPct / 100);
+
+  return {
+    totalSalesRevenue,
+    netSalesRevenue,
+    grossSellableAreaSqm,
+    ownersReturnAreaSqm,
+    netSellableAreaForSaleSqm,
+    ownersReturnUnits,
+    avgOwnerUnitSizeSqm,
+  };
 }
 
 // ───────── Construction cost (detailed) ─────────
@@ -327,7 +409,9 @@ export function computeTenantCosts(input: EngineInput, hardCosts: number): numbe
   if (input.projectType !== "urban_renewal") return 0;
   const existingUnits = Math.max(
     1,
-    Math.round(input.existingBuiltAreaSqm / 85), // rough proxy if not provided
+    Math.round(
+      input.existingUnits ?? (input.existingBuiltAreaSqm / 85), // prefer real count; fallback proxy
+    ),
   );
   // Better: rely on planning.existing.units passed in -- but engine works from areas
   // The caller should pre-compute and pass effective existing units via a richer input if needed.
@@ -544,7 +628,8 @@ interface CoreOpts {
 }
 
 function coreAnalyze(input: EngineInput, opts: CoreOpts = {}) {
-  const { totalSalesRevenue, netSalesRevenue } = computeRevenues(input);
+  const rev = computeRevenues(input);
+  const { totalSalesRevenue, netSalesRevenue } = rev;
   const { hardCosts, softCosts, permitFees, breakdown } = computeHardSoft(input);
   const landCost = computeLandCost(input);
   const tenantCosts = computeTenantCosts(input, hardCosts);
@@ -574,6 +659,11 @@ function coreAnalyze(input: EngineInput, opts: CoreOpts = {}) {
   return {
     totalSalesRevenue,
     netSalesRevenue,
+    grossSellableAreaSqm: rev.grossSellableAreaSqm,
+    ownersReturnAreaSqm: rev.ownersReturnAreaSqm,
+    netSellableAreaForSaleSqm: rev.netSellableAreaForSaleSqm,
+    ownersReturnUnits: rev.ownersReturnUnits,
+    avgOwnerUnitSizeSqm: rev.avgOwnerUnitSizeSqm,
     hardCosts,
     constructionBreakdown: breakdown,
     softCosts,
@@ -650,6 +740,16 @@ export function assembleReport(input: EngineInput): EngineReport {
       `✓ פטור מהיטל השבחה לפי ${input.renewalSubtype === "pinui_binui" ? "חוק פינוי-בינוי" : "סעיף 19 לתוספת השלישית (תמ\"א 38)"}.`,
     );
     notes.push("✓ נוספה עלות ערבויות חוק מכר + ליווי משפטי דיירים (2.5% מ-Hard).");
+    if (core.ownersReturnAreaSqm > 0) {
+      notes.push(
+        `✓ נוכו ${core.ownersReturnUnits.toLocaleString("he-IL")} דירות לבעלי דירות קיימים ` +
+          `(~${Math.round(core.avgOwnerUnitSizeSqm).toLocaleString("he-IL")} מ"ר/דירה, סה"כ ${Math.round(core.ownersReturnAreaSqm).toLocaleString("he-IL")} מ"ר) — ` +
+          `שטח למכירה נטו: ${Math.round(core.netSellableAreaForSaleSqm).toLocaleString("he-IL")} מ"ר מתוך ${Math.round(core.grossSellableAreaSqm).toLocaleString("he-IL")} מ"ר.`,
+      );
+      if (core.netSellableAreaForSaleSqm <= 0) {
+        notes.push("⚠ אזהרה: תוספת הזכויות אינה מספקת כיסוי לדירות התמורה — אין שטח למכירה.");
+      }
+    }
   } else if (input.projectType === "new_construction") {
     notes.push(`✓ שווי קרקע מלא: ${Math.round(core.landCost).toLocaleString("he-IL")} ₪.`);
     notes.push("✓ אין עלויות דיירים (קרקע פנויה).");
@@ -679,6 +779,11 @@ export function assembleReport(input: EngineInput): EngineReport {
   return {
     totalSalesRevenue: Math.round(core.totalSalesRevenue),
     netSalesRevenue: Math.round(core.netSalesRevenue),
+    grossSellableAreaSqm: Math.round(core.grossSellableAreaSqm),
+    ownersReturnAreaSqm: Math.round(core.ownersReturnAreaSqm),
+    netSellableAreaForSaleSqm: Math.round(core.netSellableAreaForSaleSqm),
+    ownersReturnUnits: core.ownersReturnUnits,
+    avgOwnerUnitSizeSqm: Math.round(core.avgOwnerUnitSizeSqm),
     hardCosts: Math.round(core.hardCosts),
     constructionBreakdown: core.constructionBreakdown,
     softCosts: Math.round(core.softCosts),
