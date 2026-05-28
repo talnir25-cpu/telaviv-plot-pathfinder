@@ -479,10 +479,28 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
       <div className="grid gap-4 md:grid-cols-2">
         <BreakdownPanel
           title="הכנסות"
-          rows={[
-            ["פדיון ממכירות (כולל מע״מ)", fmtNIS(report.totalSalesRevenue)],
-            ["נטו (ללא מע״מ)", fmtNIS(report.netSalesRevenue)],
-          ]}
+          rows={(() => {
+            const rb = report.revenueBreakdown;
+            if (!rb) {
+              return [
+                ["פדיון ממכירות (כולל מע״מ)", fmtNIS(report.totalSalesRevenue)],
+                ["נטו (ללא מע״מ)", fmtNIS(report.netSalesRevenue)],
+              ] as Array<[string, string] | [string, string, boolean]>;
+            }
+            return [
+              ["פדיון Unit Mix", fmtNIS(rb.unitMixTotal)],
+              ...(rb.ancillaryTotal > 0
+                ? [["+ הכנסות נלוות (מחסנים/חניות/מסחר)", fmtNIS(rb.ancillaryTotal)] as [string, string]]
+                : []),
+              ...(rb.escalationUplift !== 0
+                ? [[`+ אינדקסציה (×${rb.escalationMultiplier.toFixed(3)})`, fmtNIS(rb.escalationUplift)] as [string, string]]
+                : []),
+              [`− הנחות שיווק (${rb.marketingDiscountPct}%)`, `−${fmtNIS(rb.marketingDiscount)}`],
+              [`− עמלות תיווך (${rb.brokerageFeePct}%)`, `−${fmtNIS(rb.brokerageFee)}`],
+              ["פדיון נטו ליזם (כולל מע״מ)", fmtNIS(report.totalSalesRevenue), true],
+              ["נטו (ללא מע״מ)", fmtNIS(report.netSalesRevenue)],
+            ] as Array<[string, string] | [string, string, boolean]>;
+          })()}
         />
         <BreakdownPanel
           title="עלויות"
