@@ -271,6 +271,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     e.preventDefault();
     if (!selectedPlot) return;
     const ba = Number(existingBuiltArea);
+    const fs = Number(frontSetback);
+    const ss = Number(sideSetback);
+    const rs = Number(rearSetback);
+    const std = DEFAULT_SETBACKS[quarter];
+    const isManual = fs !== std.front || ss !== std.side || rs !== std.rear;
+    const outOfRange = [fs, ss, rs].some((v) => v < 0 || v > 15);
     onAnalyze({
       quarter,
       gush: selectedPlot.gush,
@@ -284,6 +290,10 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       existingBuiltAreaConfidence: ba > 0 ? builtAreaConfidence ?? undefined : undefined,
       conservation,
       notes: notes.trim() || undefined,
+      frontSetbackM: fs >= 0 ? fs : undefined,
+      sideSetbackM: ss >= 0 ? ss : undefined,
+      rearSetbackM: rs >= 0 ? rs : undefined,
+      setbackSource: !isManual ? "regulation" : outOfRange ? "manual_override" : "manual",
     });
   };
 
@@ -366,9 +376,16 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           <Select
             value={String(quarter)}
             onValueChange={(v) => {
-              setQuarter(Number(v) as 3 | 4);
+              const q = Number(v) as 3 | 4;
+              setQuarter(q);
               setGushQuery("");
               setHelka("");
+              // טען קווי בניין מהתקנון של הרובע החדש (רק אם המשתמש לא דרס ידנית)
+              if (!setbackTouched) {
+                setFrontSetback(String(DEFAULT_SETBACKS[q].front));
+                setSideSetback(String(DEFAULT_SETBACKS[q].side));
+                setRearSetback(String(DEFAULT_SETBACKS[q].rear));
+              }
             }}
           >
             <SelectTrigger>
