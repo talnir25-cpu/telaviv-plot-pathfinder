@@ -283,5 +283,16 @@ export interface FinancialReport {
   }>;
   // פירוט הכנסות (אופציונלי — מוחזר רק אם input.revenue סופק)
   revenueBreakdown?: RevenueBreakdown;
+  // תמורה לדיירים מהגדלת תכסית בהליך התחדשות (אינפורמטיבי — לא משפיע על profit)
+  tenantUpliftFromCoverage?: {
+    trackLabel: string;
+    additionalGFA: number;
+    additionalValue: number;
+    tenantSharePct: number;
+    tenantUpliftValue: number;
+    perUnitUpliftValue: number;
+    perUnitUpliftSqm: number;
+    existingUnits: number;
+  };
 }
 
