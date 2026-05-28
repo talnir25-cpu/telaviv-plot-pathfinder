@@ -21,6 +21,22 @@ interface PlotInput {
   existingBuiltAreaConfidence?: string;
   conservation: boolean;
   notes?: string;
+  frontSetbackM?: number;
+  sideSetbackM?: number;
+  rearSetbackM?: number;
+  setbackSource?: "regulation" | "manual" | "manual_override";
+}
+
+// העתק דטרמיניסטי של src/lib/setback-standards.ts (Deno לא מייבא מ-src/)
+function estimateTypicalFloorArea(
+  plotAreaSqm: number,
+  setbacks: { front: number; side: number; rear: number },
+): number {
+  if (!plotAreaSqm || plotAreaSqm <= 0) return 0;
+  const side = Math.sqrt(plotAreaSqm);
+  const width = Math.max(0, side - 2 * setbacks.side);
+  const depth = Math.max(0, side - setbacks.front - setbacks.rear);
+  return Math.round(width * depth);
 }
 
 const ANALYSIS_TOOL = {
