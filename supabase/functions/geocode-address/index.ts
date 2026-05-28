@@ -147,7 +147,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { address } = await req.json();
+    const body = await req.json();
+    const { address, debug } = body;
     if (!address || typeof address !== "string" || address.trim().length < 3) {
       return new Response(
         JSON.stringify({ error: "כתובת לא תקינה" }),
