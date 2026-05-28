@@ -32,7 +32,34 @@ import type {
   FinishLevel,
   ProjectType,
   RenewalSubtype,
+  RevenueParams,
+  UnitMixRow,
+  UnitType,
 } from "@/types/feasibility";
+
+// Build a sensible default unit-mix for the # of sale units.
+const buildDefaultUnitMix = (saleUnits: number, pricePerSqm: number): UnitMixRow[] => {
+  const n = Math.max(0, Math.round(saleUnits));
+  if (n === 0) return [];
+  const penthouse = Math.min(4, Math.max(n >= 20 ? 1 : 0, Math.round(n * 0.05)));
+  const garden = Math.min(2, Math.round(n * 0.04));
+  let remaining = Math.max(0, n - penthouse - garden);
+  const three = Math.round(remaining * 0.35);
+  const four = Math.round(remaining * 0.50);
+  const five = Math.max(0, remaining - three - four);
+  const rows: UnitMixRow[] = [];
+  if (three > 0) rows.push({ type: "3room", count: three, avgSizeSqm: 85, pricePerSqm });
+  if (four > 0) rows.push({ type: "4room", count: four, avgSizeSqm: 110, pricePerSqm });
+  if (five > 0) rows.push({ type: "5room", count: five, avgSizeSqm: 135, pricePerSqm });
+  if (garden > 0) rows.push({ type: "garden", count: garden, avgSizeSqm: 120, pricePerSqm: Math.round(pricePerSqm * 1.05) });
+  if (penthouse > 0) rows.push({ type: "penthouse", count: penthouse, avgSizeSqm: 160, pricePerSqm });
+  return rows;
+};
+
+const UNIT_TYPE_LABEL_HE: Record<UnitType, string> = {
+  studio: "סטודיו", "2room": "2 חד׳", "3room": "3 חד׳", "4room": "4 חד׳",
+  "5room": "5 חד׳", penthouse: "פנטהאוז", garden: "דירת גן",
+};
 
 
 interface Props {
