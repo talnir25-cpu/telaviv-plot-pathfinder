@@ -1000,5 +1000,6 @@ export function assembleReport(input: EngineInput): EngineReport {
     sensitivity,
     monthlyCashflow: core.monthly,
     notes,
+    revenueBreakdown: core.revenueBreakdown,
   };
 }
