@@ -180,6 +180,7 @@ export interface EngineReport {
   netSellableAreaForSaleSqm: number;
   ownersReturnUnits: number;
   avgOwnerUnitSizeSqm: number;
+  revenueBreakdown?: RevenueBreakdown;
   // costs
   hardCosts: number;
   constructionBreakdown: ConstructionBreakdown;
