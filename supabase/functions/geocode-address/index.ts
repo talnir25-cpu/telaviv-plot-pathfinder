@@ -177,42 +177,91 @@ Deno.serve(async (req) => {
     } catch {
       throw new Error(`FreeSearch לא תקין: ${searchText.slice(0, 120)}`);
     }
-    const first = searchJson?.data?.Result?.[0];
-    if (!first) {
+
+    const allResults = (searchJson?.data?.Result ?? []) as Array<Record<string, unknown>>;
+    if (allResults.length === 0) {
       return new Response(
         JSON.stringify({ error: "לא נמצאה כתובת תואמת. נסה/י כתובת מלאה כולל מספר בית." }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    // ─── CRITICAL: pick the right result type ───
+    // GovMap FreeSearch returns mixed results (address, street midpoint, parcel,
+    // POI, city) — and they all carry ResultType:1, so we cannot rely on that.
+    // The real differentiator is DescLayerID:
+    //   ADDR_V1          = actual building/address point (what we want)
+    //   STREET_MID_POINT = street centerline midpoint (random parcel along the street!)
+    //   POI_MID_POINT    = point of interest (museum, school, …)
+    //   SETL_MID_POINT   = settlement / city
+    //   PARCEL_ALL_V1    = a parcel match (gush/helka in text)
+    // Bug fixed: previously we took Result[0] blindly, which picked a STREET_MID_POINT
+    // when the user omitted the house number — yielding a wrong helka along the street.
+    const descLayerOf = (r: Record<string, unknown>) =>
+      String(r.DescLayerID ?? "").toUpperCase();
+    const addressHit = allResults.find((r) => descLayerOf(r) === "ADDR_V1");
+    const parcelHit = allResults.find((r) => descLayerOf(r).startsWith("PARCEL"));
+    const first = addressHit ?? parcelHit;
+    const fallback = allResults[0];
+
+    if (!first) {
+      const layer = descLayerOf(fallback);
+      const isStreet = layer === "STREET_MID_POINT";
+      const isCity = layer === "SETL_MID_POINT";
+      const msg = isStreet
+        ? "נמצא רק שם הרחוב — הוסף/י מספר בית כדי לאתר את החלקה המדויקת."
+        : isCity
+        ? "נמצאה רק עיר — נסה/י כתובת מלאה (רחוב + מספר בית)."
+        : "לא נמצאה כתובת מדויקת. נסה/י כתובת מלאה כולל מספר בית.";
+      return new Response(
+        JSON.stringify({ error: msg, partial: String(fallback?.ResultLable ?? "") }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const x = Number(first.X);
     const y = Number(first.Y);
     const resolvedAddress = String(first.ResultLable ?? query);
     if (!x || !y) throw new Error("התקבלה כתובת ללא קואורדינטות");
 
-    // Step 2: IdentifyByXY → Gush/Helka.
-    // Use a generous tolerance so that addresses whose pin falls on the road
-    // or on a parcel boundary still surface the real parcel; we then choose
-    // the closest one to the search point.
-    const idRes = await fetch("https://ags.govmap.gov.il/Identify/IdentifyByXY", {
-      method: "POST",
-      headers: GOVMAP_HEADERS,
-      body: JSON.stringify({
-        x, y, mapTolerance: 25, IsPersonalSite: false,
-        layers: [{ LayerType: 0, LayerName: "PARCEL_ALL" }],
-      }),
-    });
-    const idText = await idRes.text();
-    if (!idRes.ok) {
-      throw new Error(`GovMap Identify ${idRes.status}: ${idText.slice(0, 120)}`);
-    }
-    let idJson: unknown;
-    try {
-      idJson = JSON.parse(idText);
-    } catch {
-      throw new Error(`Identify לא תקין: ${idText.slice(0, 120)}`);
+    // ─── Shortcut: parcel-type result already carries gush/helka ───
+    if (descLayerOf(first).startsWith("PARCEL")) {
+      const gushStr = String(first.Gush ?? "").trim();
+      const parcelStr = String(first.Parcel ?? "").trim();
+      const g = Number(gushStr);
+      const h = Number(parcelStr);
+      if (g && h) {
+        const { lat, lon } = itmToWgs84(x, y);
+        return new Response(
+          JSON.stringify({ gush: g, helka: h, address: resolvedAddress, x, y, lat, lon }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     }
 
-    const parcels = extractParcels(idJson);
+    // Step 2: IdentifyByXY → Gush/Helka.
+    // Tight tolerance first (address points sit inside the parcel polygon);
+    // widen only if no match, to avoid sweeping in adjacent parcels.
+    const identifyAt = async (tol: number) => {
+      const r = await fetch("https://ags.govmap.gov.il/Identify/IdentifyByXY", {
+        method: "POST",
+        headers: GOVMAP_HEADERS,
+        body: JSON.stringify({
+          x, y, mapTolerance: tol, IsPersonalSite: false,
+          layers: [{ LayerType: 0, LayerName: "PARCEL_ALL" }],
+        }),
+      });
+      const t = await r.text();
+      if (!r.ok) throw new Error(`GovMap Identify ${r.status}: ${t.slice(0, 120)}`);
+      try { return JSON.parse(t); } catch { throw new Error(`Identify לא תקין: ${t.slice(0, 120)}`); }
+    };
+
+    let idJson = await identifyAt(2);
+    let parcels = extractParcels(idJson);
+    if (parcels.length === 0) {
+      idJson = await identifyAt(15);
+      parcels = extractParcels(idJson);
+    }
     const best = pickBestParcel(parcels, x, y);
     const { lat, lon } = itmToWgs84(x, y);
 
