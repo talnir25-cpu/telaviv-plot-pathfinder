@@ -674,6 +674,63 @@ const ConstraintCell = ({ label, value }: { label: string; value: number }) => (
   </div>
 );
 
+const RevenueBreakdownPanel = ({ report }: { report: FinancialReport }) => {
+  const rb = report.revenueBreakdown;
+  if (!rb) return null;
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold">פירוט הכנסות — Unit Mix</h4>
+        <Badge variant="outline" className="text-[10px]">
+          קצב מכירה: {(rb.salesDurationMonths > 0 ? (rb.unitMixRows.reduce((a, x) => a + x.count, 0) / rb.salesDurationMonths) : 0).toFixed(1)} יח״ד/חודש
+          • משך מכירה {rb.salesDurationMonths} ח׳
+        </Badge>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-muted/40 text-muted-foreground">
+            <tr>
+              <th className="p-2 text-right">סוג</th>
+              <th className="p-2 text-center">כמות</th>
+              <th className="p-2 text-center">שטח ממ׳ (מ״ר)</th>
+              <th className="p-2 text-center">₪/מ״ר</th>
+              <th className="p-2 text-center">פרמיה</th>
+              <th className="p-2 text-left">סה״כ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rb.unitMixRows.map((r) => (
+              <tr key={r.type} className="border-t">
+                <td className="p-2 font-medium">{UNIT_TYPE_LABEL_HE[r.type]}</td>
+                <td className="p-2 text-center tabular-nums">{r.count}</td>
+                <td className="p-2 text-center tabular-nums">{r.avgSizeSqm}</td>
+                <td className="p-2 text-center tabular-nums">{r.pricePerSqm.toLocaleString("he-IL")}</td>
+                <td className="p-2 text-center tabular-nums">{r.premiumPct > 0 ? `+${(r.premiumPct * 100).toFixed(1)}%` : "—"}</td>
+                <td className="p-2 text-left tabular-nums">{fmtNIS(r.totalRevenue)}</td>
+              </tr>
+            ))}
+            <tr className="border-t bg-muted/20 font-semibold">
+              <td className="p-2" colSpan={5}>סה״כ Unit Mix</td>
+              <td className="p-2 text-left tabular-nums">{fmtNIS(rb.unitMixTotal)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {rb.ancillaryRows.length > 0 && (
+        <div className="mt-3 space-y-1.5 border-t pt-3 text-sm">
+          <div className="text-xs font-semibold text-muted-foreground">הכנסות נלוות</div>
+          {rb.ancillaryRows.map((a, i) => (
+            <div key={i} className="flex justify-between gap-2">
+              <span className="text-muted-foreground">{a.label} <span className="text-[10px] opacity-70">({a.detail})</span></span>
+              <span className="tabular-nums">{fmtNIS(a.total)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const KPI = ({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) => (
   <div
     className={`rounded-xl border p-4 ${
