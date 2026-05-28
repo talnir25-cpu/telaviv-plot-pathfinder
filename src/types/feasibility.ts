@@ -254,5 +254,7 @@ export interface FinancialReport {
     net: number;
     debtBalance: number;
   }>;
+  // פירוט הכנסות (אופציונלי — מוחזר רק אם input.revenue סופק)
+  revenueBreakdown?: RevenueBreakdown;
 }
 
