@@ -1,112 +1,87 @@
 
-# הרחבת ודיוק פירוט ההכנסות בתחשיב הפיננסי
+# הוספת תכסית לטופס המקדים (לפני הפקת הדוח)
 
-מטרה: להחליף את חישוב ההכנסות הנוכחי (מחיר ממוצע × שטח כולל) במודל מפורט שמשקף Unit Mix, פרמיות קומה, שטחים נלווים, מקדמי שיווק ואינדקסציה לאורך תקופת המכירה. כל הפרמטרים יקבלו ברירות מחדל מ-AI עם אפשרות עריכה ידנית.
+מטרה: לאפשר ליזם לראות ולכוון את **שטח הקומה הטיפוסית** לפני שליחת הניתוח, מבוסס על קווי בניין מהתקנון — לא על ניחוש AI.
 
-## 1. הרחבת המודל (`src/types/feasibility.ts`)
+## עיקרון מרכזי
 
-הוספת בלוק `revenue` ל-`FinancialInput`:
+לפי תקנון רובע 3 (תא/3616/א, סע' 4.1.3ג): **"תכסית הנובעת מקווי בניין תהווה גודל הקומה המקסימלי המותר"**. כלומר אין אחוז תכסית קבוע — היא תוצר של קווי הבניין על המגרש. לכן השדות במקור הם **קווי הבניין**, והתכסית מוצגת כתוצאה מחושבת.
+
+## 1. ערכי ברירת מחדל (קוד דטרמיניסטי)
+
+קובץ חדש `src/lib/setback-standards.ts`:
 
 ```text
-revenue: {
-  unitMix: UnitMixRow[]              // פילוח דירות למכירה
-  ownerReturnUnits: number           // דירות בעלים — לא בהכנסות
-  ownerReturnAvgSizeSqm: number      // שטח ממוצע מוחזר + 25 מ״ר ממ״ד
-  floorPremiumPctPerFloor: number    // 0.8% ברירת מחדל
-  penthousePremiumPct: number        // 25% ברירת מחדל
-  gardenApartmentPremiumPerSqm: number // ₪/מ״ר חצר
-  storageUnitsCount: number          // מחסנים
-  storagePricePerUnit: number        // 25,000 ₪
-  extraParkingCount: number          // חניות עודפות
-  extraParkingPricePerUnit: number   // 120,000 ₪
-  balconyPricePerSqm: number         // 60% ממחיר דירה
-  commercialAreaSqm: number          // שטחי מסחר
-  commercialPricePerSqm: number      // ₪/מ״ר מסחרי
-  marketingDiscountPct: number       // 2%
-  brokerageFeePct: number            // 2%
-  presalesPct: number                // 30% למימון
-  absorptionRatePerMonth: number     // יח״ד/חודש
-  priceEscalationPctPerYear: number  // 3% צמיחת מחירי דיור
-}
-
-UnitMixRow = {
-  type: "studio" | "2room" | "3room" | "4room" | "5room" | "penthouse" | "garden"
-  count: number
-  avgSizeSqm: number
-  pricePerSqm: number   // ניתן לדריסה ידנית
+DEFAULT_SETBACKS = {
+  3: { front: 5, side: 3, rear: 5, plan: "תא/3616/א", section: "4.1.3" },
+  4: { front: 5, side: 4, rear: 6, plan: "תא/3729/א", section: "טבלה 4" },
 }
 ```
 
-הוספת בלוק `revenueBreakdown` ל-`FinancialReport` שמחזיר את הפילוח השורה-שורה להצגה.
+הערכים יוכנסו כ-placeholders עם הערה `// TODO: לאמת מול PDF התקנון` — אאמת אחרי שהמבנה יעבוד. הקבועים מבודדים, כך שהחלפת מספר אחת תעדכן את כל האפליקציה.
 
-## 2. מנוע החישוב (`supabase/functions/_shared/finance-engine.ts`)
+## 2. UI חדש ב-`PlotPicker.tsx` — בלוק "קווי בניין ותכסית"
 
-החלפת `totalSalesRevenue = avgSalePricePerSqm * estimatedSellableArea` בפונקציה `computeRevenue(input)`:
-
-```text
-לכל שורה ב-unitMix:
-  basePrice = avgSize × pricePerSqm
-  floorAdj  = ממוצע משוקלל לפי מספר קומות
-  typeAdj   = פנטהאוז/גן premium
-  rowRevenue = count × basePrice × (1 + floorAdj) × (1 + typeAdj)
-
-ancillary = מחסנים + חניות עודפות + מרפסות + מסחר
-gross    = Σ rows + ancillary
-indexed  = gross × (1 + escalation)^(salesDurationYears/2)   // ממוצע מכירה באמצע
-afterDiscounts = indexed × (1 - marketingDiscount)
-netToDeveloper = afterDiscounts × (1 - brokerage)
-
-salesDurationMonths = totalUnits / absorptionRate
-```
-
-דירות בעלים נכללות רק בעלויות בנייה (שטח נבנה) ולא בהכנסות — וידוא שהקיים נשמר.
-
-## 3. ברירות מחדל מ-AI (`supabase/functions/financial-analysis/index.ts`)
-
-הרחבת ה-prompt וה-JSON Schema של `Output.object` כך שהמודל יחזיר גם:
-- Unit Mix מומלץ לפי סך היח״ד החדשות (פיזור 3/4/5 חדרים + 1-2 פנטהאוזים)
-- מחיר ₪/מ״ר לפי סוג יחידה (בסיס מהאזור)
-- פרמיות קומה/פנטהאוז ריאליסטיות לאזור
-- מספר מחסנים = מספר דירות; חניות עודפות = 0-15% מהיח״ד
-- absorption rate סביר לפי גודל פרויקט
-- escalation בהתאם לתחזית שוק
-
-הפרמטרים מוחזרים כ-defaults; המשתמש יכול לדרוס כל שדה.
-
-## 4. UI — `src/components/FinancialAnalysis.tsx`
-
-**טאב/אקורדיון חדש "הכנסות מפורטות"** מעל כרטיס ההכנסות הקיים:
+מתחת לשדה "שטח החלקה", grid של 2 עמודות:
 
 ```text
-┌─ Unit Mix (טבלה עריכה) ─────────────────────┐
-│ סוג │ כמות │ שטח ממ׳ │ ₪/מ״ר │ סה״כ ₪      │
-│ 3ח׳ │  12  │   85    │ 52,000│ 53.0 מ׳     │
-│ 4ח׳ │   8  │  110    │ 50,000│ 44.0 מ׳     │
-│ פנט.│   2  │  140    │ 65,000│ 18.2 מ׳     │
-└──────────────────────────────────────────────┘
-
-┌─ פרמיות ─────────────┐  ┌─ שטחים נלווים ──┐
-│ פר׳ קומה: 0.8%/קומה  │  │ מחסנים: 22×25K  │
-│ פנטהאוז:  +25%       │  │ חניות+: 3×120K  │
-│ דירת גן: 1,200 ₪/מ״ר │  │ מסחר: 0 מ״ר     │
-└──────────────────────┘  └─────────────────┘
-
-┌─ שיווק ומימוש ───────────────────────────┐
-│ הנחות: 2% │ עמלות: 2% │ Pre-sales: 30%  │
-│ קצב מכירה: 4 יח״ד/חודש │ אינד׳: 3%/שנה  │
-└──────────────────────────────────────────┘
+┌─ קווי בניין (מ׳) ─────────┐  ┌─ תכסית מחושבת ─────────┐
+│ קדמי:   [ 5 ]              │  │ שטח מגרש:    700 מ״ר   │
+│ צדדי:   [ 3 ]              │  │ שטח קומה:   ~340 מ״ר   │
+│ אחורי:  [ 5 ]              │  │ תכסית:       49%       │
+│                            │  │                         │
+│ 📖 מקור: תא/3616/א סע׳4.1.3│  │ ⚠ קירוב למגרש מלבני    │
+│ [↻ ערכי תקנון]             │  │                         │
+└────────────────────────────┘  └─────────────────────────┘
 ```
 
-כרטיס "הכנסות" הקיים יציג עכשיו 4 שורות:
-- פדיון ברוטו (Unit Mix + פרמיות)
-- + הכנסות נלוות (מחסנים/חניות/מסחר)
-- − הנחות שיווק ועמלות
-- = **פדיון נטו ליזם** (זה שזורם ל-P&L)
+- ערכי ברירת מחדל נטענים אוטומטית לפי הרובע (כמו שטח החלקה כיום).
+- כל שינוי בשדה → התכסית מתעדכנת חי.
+- כפתור `↻ ערכי תקנון` מאפס לערכי הברירת מחדל.
+- ה-Badge של המקור מתעדכן: "תקנון" / "ידני" / "ידני (חריגה)" (אם מחוץ לטווח סביר).
+- שורת ⚠ קטנה: "החישוב מניח מגרש מלבני — צורת המגרש בפועל עשויה לתת שטח שונה ב-±15%".
 
-ליד כל שורה: tooltip עם נוסחת החישוב.
+### חישוב חי (client-side)
 
-## פרטים טכניים
+```text
+side = √שטח_מגרש   (הנחת מגרש מלבני)
+שטח_קומה = max(0, side − 2×צד) × max(0, side − קדמי − אחורי)
+תכסית% = שטח_קומה / שטח_מגרש × 100
+```
 
-- **כל פרמטר אופציונלי** ב-TypeScript — תאימות אחורה לתחשיבים קיימים.
-- מנוע החישוב נשען על ברירות מחדל פנימיות אם בלוק `revenue` חסר (מתנהג כמו היום: מחיר ממוצע × שטח).
-- AI defaults מוחזרים יחד עם שאר ה-defaults הקיימים — בקשה אחת, לא שתי
+### ולידציה רכה (לא חוסמת)
+
+- כל שדה: מספר 0–15. ערך < 0 או > 15 מציג אזהרה צהובה.
+- אם התכסית המחושבת > 70% או < 15% → tooltip: "התוצאה חורגת מתחום סביר; ודא קווי בניין".
+
+## 3. הרחבת `AnalysisInput` (`src/types/feasibility.ts`)
+
+```text
+frontSetbackM?: number
+sideSetbackM?: number
+rearSetbackM?: number
+setbackSource?: "regulation" | "manual" | "manual_override"
+```
+
+כולם אופציונליים → תאימות אחורה לקריאות קיימות.
+
+## 4. שליחה ל-edge function (`submit`)
+
+הוספת השדות ל-payload של `onAnalyze`. ה-edge function `analyze-plot` רק תקבל אותם ותעביר ל-prompt — שינוי הלוגיקה של חישוב הקומות בדוח עצמו הוא **שלב הבא** ולא חלק מהתוכנית הזו.
+
+## 5. מה לא בתוכנית הזו (שלב הבא)
+
+- שינוי `zoning.frontSetbackM` הקיים בדוח (כיום מגיע מ-AI).
+- חישוב `requiredFloorsForFAR` והוספת RedFlag לפי תכסית.
+- שילוב גיאומטריה אמיתית של החלקה (Polygon מ-GIS) במקום הנחת מלבן.
+- השפעה על תחשיב פיננסי (height premium וכו').
+
+אלה ידונו וייכתבו כתוכניות נפרדות אחרי שהמשתמש יוודא שהבלוק הזה עובד כראוי.
+
+## פרטים טכניים (לקריאה ע״י מפתחים)
+
+- קבצים שייווצרו: `src/lib/setback-standards.ts`.
+- קבצים שיתעדכנו: `src/types/feasibility.ts` (הוספת 4 שדות אופציונליים), `src/components/PlotPicker.tsx` (state חדש + בלוק UI + עדכון submit).
+- אין שינויים ב-DB, ב-edge functions, או בלוגיקת הדוח.
+- אין קריאות AI חדשות; הכל סטטי / client-side.
+- ה-state של קווי הבניין נטען מחדש בכל החלפת רובע (כמו `gushQuery` היום).
