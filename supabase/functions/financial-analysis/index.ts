@@ -201,6 +201,9 @@ Deno.serve(async (req) => {
         contingencyPct: financial.contingencyPct,
         constructionMode: financial.constructionMode,
         strengtheningCostPerSqm: financial.strengtheningCostPerSqm,
+        ownersReturnAreaSqm: financial.ownersReturnAreaSqm,
+        ownersReturnBonusPerUnitSqm: financial.ownersReturnBonusPerUnitSqm,
+        minOwnerUnitSizeSqm: financial.minOwnerUnitSizeSqm,
       };
 
       const report = assembleReport(engineInput);
