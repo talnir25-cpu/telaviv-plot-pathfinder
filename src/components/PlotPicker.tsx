@@ -24,6 +24,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DEFAULT_SETBACKS,
+  estimateTypicalFloorArea,
+  coveragePct,
+} from "@/lib/setback-standards";
+import { BookOpen, RotateCcw } from "lucide-react";
 
 type UnitsSource = "manual" | "tlv_permits" | "govmap_bldg" | "nadlan" | "heuristic" | "estimate" | null;
 
@@ -94,6 +100,11 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+  // קווי בניין — ברירת מחדל מהתקנון, ניתן לדריסה ידנית
+  const [frontSetback, setFrontSetback] = useState<string>(String(DEFAULT_SETBACKS[3].front));
+  const [sideSetback, setSideSetback] = useState<string>(String(DEFAULT_SETBACKS[3].side));
+  const [rearSetback, setRearSetback] = useState<string>(String(DEFAULT_SETBACKS[3].rear));
+  const [setbackTouched, setSetbackTouched] = useState(false);
   const lookupReqRef = useRef(0);
 
   const lookupAddress = async () => {
