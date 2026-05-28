@@ -234,8 +234,13 @@ Deno.serve(async (req) => {
         address: resolvedAddress,
         x, y, lat, lon,
         candidates: parcels.length > 1
-          ? parcels.map((p) => ({ gush: p.gush, helka: p.helka }))
+          ? parcels.map((p) => ({
+              gush: p.gush,
+              helka: p.helka,
+              dist: Math.round(Math.hypot(p.centroidX - x, p.centroidY - y)),
+            }))
           : undefined,
+        ...(debug ? { _debugSearch: searchJson, _debugIdentify: idJson, _debugFirst: first } : {}),
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
