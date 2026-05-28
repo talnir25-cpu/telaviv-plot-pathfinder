@@ -65,6 +65,68 @@ export interface EngineInput {
   // ─── construction mode (delta-area vs full rebuild) ───
   constructionMode?: ConstructionMode;    // default depends on projectType+subtype
   strengtheningCostPerSqm?: number;       // default 3,000 ₪/m² (for addition_only only)
+
+  // ─── revenue detail (optional; if provided, replaces avgPrice × area) ───
+  revenue?: RevenueParams;
+}
+
+export type UnitType = "studio" | "2room" | "3room" | "4room" | "5room" | "penthouse" | "garden";
+
+export interface UnitMixRow {
+  type: UnitType;
+  count: number;
+  avgSizeSqm: number;
+  pricePerSqm: number;
+}
+
+export interface RevenueParams {
+  unitMix: UnitMixRow[];
+  floorPremiumPctPerFloor?: number;
+  penthousePremiumPct?: number;
+  storageUnitsCount?: number;
+  storagePricePerUnit?: number;
+  extraParkingCount?: number;
+  extraParkingPricePerUnit?: number;
+  commercialAreaSqm?: number;
+  commercialPricePerSqm?: number;
+  marketingDiscountPct?: number;
+  brokerageFeePct?: number;
+  absorptionRatePerMonth?: number;
+  priceEscalationPctPerYear?: number;
+}
+
+export interface UnitMixBreakdownRow {
+  type: UnitType;
+  label: string;
+  count: number;
+  avgSizeSqm: number;
+  pricePerSqm: number;
+  basePrice: number;
+  premiumPct: number;
+  totalRevenue: number;
+}
+
+export interface AncillaryRevenueRow {
+  label: string;
+  detail: string;
+  total: number;
+}
+
+export interface RevenueBreakdown {
+  unitMixRows: UnitMixBreakdownRow[];
+  unitMixTotal: number;
+  ancillaryRows: AncillaryRevenueRow[];
+  ancillaryTotal: number;
+  grossRevenue: number;
+  salesDurationMonths: number;
+  escalationMultiplier: number;
+  escalationUplift: number;
+  escalatedRevenue: number;
+  marketingDiscountPct: number;
+  marketingDiscount: number;
+  brokerageFeePct: number;
+  brokerageFee: number;
+  netRevenueToDeveloper: number;
 }
 
 export interface SensitivityCell {
