@@ -143,6 +143,12 @@ const AnalyzeBodySchema = z.object({
       requiredBasementFloors: z.number().nullable().optional(),
       todReliefApplies: z.boolean().nullable().optional(),
       dewateringRequired: z.boolean().nullable().optional(),
+      renewalPotential: z.object({
+        track: z.enum(["tama38_2", "pinui_binui", "rova_plan"]),
+        trackLabel: z.string(),
+        effectiveUpliftSqmTotal: z.number(),
+        tenantShareOfUpliftPct: z.number(),
+      }).passthrough().nullable().optional(),
     }).passthrough().optional(),
   }).passthrough(),
   financial: FinancialInputSchema,
