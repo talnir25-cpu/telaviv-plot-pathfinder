@@ -460,6 +460,135 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           </div>
         </div>
 
+        {/* קווי בניין ותכסית — נגזרת מהתקנון, ניתנת לעריכה */}
+        {(() => {
+          const std = DEFAULT_SETBACKS[quarter];
+          const fs = Number(frontSetback);
+          const ss = Number(sideSetback);
+          const rs = Number(rearSetback);
+          const plotArea = selectedPlot?.area ?? selectedPlot?.shapeArea ?? 0;
+          const floorArea = estimateTypicalFloorArea(plotArea, { front: fs, side: ss, rear: rs });
+          const cov = coveragePct(floorArea, plotArea);
+          const isManual = fs !== std.front || ss !== std.side || rs !== std.rear;
+          const outOfRange = [fs, ss, rs].some((v) => Number.isNaN(v) || v < 0 || v > 15);
+          const covWarn = plotArea > 0 && (cov > 70 || cov < 15);
+          const resetToDefaults = () => {
+            setFrontSetback(String(std.front));
+            setSideSetback(String(std.side));
+            setRearSetback(String(std.rear));
+            setSetbackTouched(false);
+          };
+          const onSetbackChange = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+            setter(e.target.value.replace(/[^\d.]/g, ""));
+            setSetbackTouched(true);
+          };
+          return (
+            <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
+              {/* קווי בניין */}
+              <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-sm font-medium">קווי בניין (מ׳)</Label>
+                  <Badge
+                    variant="outline"
+                    className={`gap-1 text-[10px] ${
+                      outOfRange
+                        ? "text-amber-600 dark:text-amber-400"
+                        : isManual
+                          ? "text-muted-foreground"
+                          : "text-primary"
+                    }`}
+                  >
+                    <BookOpen className="h-3 w-3" />
+                    {outOfRange ? "ידני (חריגה)" : isManual ? "ידני" : "תקנון"}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="set-front" className="text-xs text-muted-foreground">קדמי</Label>
+                    <Input
+                      id="set-front"
+                      inputMode="decimal"
+                      value={frontSetback}
+                      onChange={onSetbackChange(setFrontSetback)}
+                      className="h-9 text-center tabular-nums"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="set-side" className="text-xs text-muted-foreground">צדדי</Label>
+                    <Input
+                      id="set-side"
+                      inputMode="decimal"
+                      value={sideSetback}
+                      onChange={onSetbackChange(setSideSetback)}
+                      className="h-9 text-center tabular-nums"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="set-rear" className="text-xs text-muted-foreground">אחורי</Label>
+                    <Input
+                      id="set-rear"
+                      inputMode="decimal"
+                      value={rearSetback}
+                      onChange={onSetbackChange(setRearSetback)}
+                      className="h-9 text-center tabular-nums"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>מקור: {std.plan} · {std.section}</span>
+                  {isManual && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 gap-1 px-2 text-[11px]"
+                      onClick={resetToDefaults}
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      ערכי תקנון
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* תכסית מחושבת */}
+              <div className="space-y-2 rounded-lg border bg-muted/20 p-4">
+                <Label className="text-sm font-medium">תכסית מחושבת</Label>
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">שטח מגרש</span>
+                    <span className="tabular-nums">
+                      {plotArea > 0 ? `${plotArea.toLocaleString("he-IL")} מ״ר` : "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">שטח קומה טיפוסית</span>
+                    <span className="tabular-nums font-medium">
+                      {floorArea > 0 ? `~${floorArea.toLocaleString("he-IL")} מ״ר` : "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-t pt-1.5">
+                    <span className="text-muted-foreground">תכסית אפקטיבית</span>
+                    <span
+                      className={`tabular-nums font-semibold ${
+                        covWarn ? "text-amber-600 dark:text-amber-400" : "text-primary"
+                      }`}
+                    >
+                      {floorArea > 0 ? `${cov}%` : "—"}
+                    </span>
+                  </div>
+                </div>
+                <p className="pt-1 text-[11px] text-muted-foreground">
+                  {covWarn
+                    ? "⚠ התוצאה חורגת מתחום סביר (15%–70%) — ודא קווי בניין"
+                    : "⚠ קירוב למגרש מלבני — צורת המגרש בפועל עשויה לתת ±15%"}
+                </p>
+              </div>
+            </div>
+          );
+        })()}
+
+
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <Label htmlFor="units">יח"ד קיימות</Label>
