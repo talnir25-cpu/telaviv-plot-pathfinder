@@ -359,7 +359,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
                     <Input
                       id={f.key}
                       inputMode="decimal"
-                      value={input[f.key] ?? 0}
+                      value={(input[f.key] as number | undefined) ?? 0}
                       onChange={(e) => updateField(f.key, e.target.value)}
                       className="pl-16 text-sm"
                     />
