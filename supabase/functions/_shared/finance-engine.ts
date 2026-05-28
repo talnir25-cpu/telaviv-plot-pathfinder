@@ -868,6 +868,7 @@ function coreAnalyze(input: EngineInput, opts: CoreOpts = {}) {
     rocPct,
     rosPct,
     monthly,
+    revenueBreakdown: rev.revenueBreakdown,
   };
 }
 
