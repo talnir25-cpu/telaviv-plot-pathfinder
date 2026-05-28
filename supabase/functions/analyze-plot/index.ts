@@ -491,9 +491,53 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
           });
         }
       }
+
+      // ── אכלוס פוטנציאל הגדלת תכסית בהליך התחדשות ──
+      if (renewalFloorArea > 0 && renewalCfg && upliftSqmPerFloor > 0) {
+        const proposedFloorsForUplift = report.proposed?.floors ?? 0;
+        // מקדם מימוש מציאותי: מתחיל ב-1.0, מנוכים אילוצים
+        let realization = 1.0;
+        if ((report.zoning?.treesForConservation ?? 0) > 0) realization -= 0.15;
+        if (body.conservation) realization -= 0.10;
+        if ((report.zoning?.requiredBasementFloors ?? 0) > 1) realization -= 0.10;
+        realization = Math.max(0.5, Math.min(1.0, realization));
+
+        const effectiveUpliftSqmTotal = Math.round(
+          upliftSqmPerFloor * proposedFloorsForUplift * realization,
+        );
+
+        if (!report.zoning) report.zoning = {};
+        report.zoning.renewalPotential = {
+          track: renewalTrack,
+          trackLabel: RENEWAL_TRACK_LABEL[renewalTrack],
+          frontSetbackM: renewalCfg.front,
+          sideSetbackM: renewalCfg.side,
+          rearSetbackM: renewalCfg.rear,
+          typicalFloorAreaSqm: renewalFloorArea,
+          coveragePct: renewalCoveragePct,
+          upliftSqmPerFloor,
+          upliftPct,
+          realizationFactor: Number(realization.toFixed(2)),
+          effectiveUpliftSqmTotal,
+          tenantShareOfUpliftPct: renewalCfg.tenantShareOfUpliftPct,
+          source: renewalCfg.source,
+        };
+
+        // RedFlag חיובי אם הפער משמעותי
+        const existingBuiltForFlag = report.existing?.builtAreaSqm ?? 0;
+        if (existingBuiltForFlag > 0 && effectiveUpliftSqmTotal > existingBuiltForFlag * 0.3) {
+          report.redFlags.push({
+            level: "info",
+            title: "פוטנציאל הגדלת תכסית בהליך התחדשות",
+            description: `מסלול ${RENEWAL_TRACK_LABEL[renewalTrack]}: תכסית פוטנציאלית ~${renewalCoveragePct}% (לעומת בסיס ~${coveragePctVal || "?"}%), תוספת אפקטיבית של ${effectiveUpliftSqmTotal.toLocaleString("he-IL")} מ"ר כולל — מקור משמעותי לתמורה לדיירים.`,
+            source: renewalCfg.source,
+          });
+        }
+      }
     } catch (e) {
       console.error("post-validation error (non-fatal)", e);
     }
+
 
 
 
