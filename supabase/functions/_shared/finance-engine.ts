@@ -628,7 +628,8 @@ interface CoreOpts {
 }
 
 function coreAnalyze(input: EngineInput, opts: CoreOpts = {}) {
-  const { totalSalesRevenue, netSalesRevenue } = computeRevenues(input);
+  const rev = computeRevenues(input);
+  const { totalSalesRevenue, netSalesRevenue } = rev;
   const { hardCosts, softCosts, permitFees, breakdown } = computeHardSoft(input);
   const landCost = computeLandCost(input);
   const tenantCosts = computeTenantCosts(input, hardCosts);
@@ -658,6 +659,11 @@ function coreAnalyze(input: EngineInput, opts: CoreOpts = {}) {
   return {
     totalSalesRevenue,
     netSalesRevenue,
+    grossSellableAreaSqm: rev.grossSellableAreaSqm,
+    ownersReturnAreaSqm: rev.ownersReturnAreaSqm,
+    netSellableAreaForSaleSqm: rev.netSellableAreaForSaleSqm,
+    ownersReturnUnits: rev.ownersReturnUnits,
+    avgOwnerUnitSizeSqm: rev.avgOwnerUnitSizeSqm,
     hardCosts,
     constructionBreakdown: breakdown,
     softCosts,
