@@ -39,6 +39,36 @@ function estimateTypicalFloorArea(
   return Math.round(width * depth);
 }
 
+type RenewalTrack = "tama38_2" | "pinui_binui" | "rova_plan";
+interface RenewalSetbackStandard {
+  front: number; side: number; rear: number;
+  tenantShareOfUpliftPct: number; source: string;
+}
+const RENEWAL_SETBACKS: Record<3 | 4, Record<RenewalTrack, RenewalSetbackStandard>> = {
+  3: {
+    tama38_2: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 25, source: 'תמ"א 38/2 — הקלות ועדה מקומית (רובע 3)' },
+    pinui_binui: { front: 3, side: 2, rear: 3, tenantShareOfUpliftPct: 40, source: "תכנית פינוי-בינוי נקודתית (רובע 3)" },
+    rova_plan: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 30, source: "תקנון רובע 3 — מסלול התחדשות" },
+  },
+  4: {
+    tama38_2: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 25, source: 'תמ"א 38/2 — הקלות ועדה מקומית (רובע 4)' },
+    pinui_binui: { front: 3, side: 2.5, rear: 4, tenantShareOfUpliftPct: 40, source: "תכנית פינוי-בינוי נקודתית (רובע 4)" },
+    rova_plan: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 30, source: "תקנון רובע 4 — מסלול התחדשות" },
+  },
+};
+const RENEWAL_TRACK_LABEL: Record<RenewalTrack, string> = {
+  tama38_2: 'תמ"א 38/2 (הריסה ובנייה)',
+  pinui_binui: "פינוי-בינוי",
+  rova_plan: "תכנית רובעית",
+};
+
+function inferRenewalTrack(existingFloors: number, existingUnits: number, conservation: boolean): RenewalTrack {
+  if (conservation) return "rova_plan";
+  if (existingFloors >= 5 || existingUnits >= 12) return "pinui_binui";
+  return "tama38_2";
+}
+
+
 const ANALYSIS_TOOL = {
   type: "function",
   function: {
