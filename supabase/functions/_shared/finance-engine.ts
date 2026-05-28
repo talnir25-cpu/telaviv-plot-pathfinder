@@ -113,6 +113,11 @@ export interface EngineReport {
   // revenue
   totalSalesRevenue: number;
   netSalesRevenue: number;
+  grossSellableAreaSqm: number;
+  ownersReturnAreaSqm: number;
+  netSellableAreaForSaleSqm: number;
+  ownersReturnUnits: number;
+  avgOwnerUnitSizeSqm: number;
   // costs
   hardCosts: number;
   constructionBreakdown: ConstructionBreakdown;
