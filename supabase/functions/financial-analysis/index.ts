@@ -170,6 +170,7 @@ Deno.serve(async (req) => {
         proposedFloors: (planning.proposed as { floors?: number }).floors,
         estimatedSellableArea: planning.metrics.estimatedSellableArea,
         proposedUnits: planning.proposed.units,
+        existingUnits: planning.existing.units,
         zoning: planning.zoning
           ? {
               treesForConservation: planning.zoning.treesForConservation ?? 0,
