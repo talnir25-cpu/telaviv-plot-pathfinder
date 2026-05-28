@@ -327,7 +327,8 @@ Deno.serve(async (req) => {
 מספר קומות קיים: ${body.existingFloors}
 ${builtAreaLine}
 סטטוס שימור (לפי המשתמש): ${body.conservation ? "כן" : "לא ידוע / לא"}
-${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}
+${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${renewalLine}
+
 
 החזר דוח היתכנות מלא ומובנה דרך הכלי render_feasibility_report.
 חשב את המכפיל, יח"ד חדשות, שטח מכירה משוער, וזהה דגלים אדומים רלוונטיים.`;
