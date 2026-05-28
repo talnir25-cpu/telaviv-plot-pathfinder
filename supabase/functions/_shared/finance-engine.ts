@@ -27,9 +27,17 @@ export interface EngineInput {
   existingBuiltAreaSqm: number;
   proposedBuiltAreaSqm: number;
   proposedFloors?: number; // for height premium
-  estimatedSellableArea: number;
+  estimatedSellableArea: number;     // gross sellable above-ground residential area (BEFORE deducting owners' return)
   proposedUnits: number;
+  existingUnits?: number;            // # apartments before redevelopment (urban renewal)
   zoning?: ZoningConstraints;
+
+  // ─── urban-renewal owners' return ───
+  // Apartments given back to existing owners do NOT generate sales revenue.
+  // Provide either an explicit area, OR let the engine derive it from existingUnits + bonus.
+  ownersReturnAreaSqm?: number;          // explicit override (m²); takes precedence
+  ownersReturnBonusPerUnitSqm?: number;  // bonus per returned apt; default 25 (תמ"א 38/2) / 12 (פינוי-בינוי)
+  minOwnerUnitSizeSqm?: number;          // floor on per-owner unit size (default 80)
 
   // financial inputs
   avgSalePricePerSqm: number;
