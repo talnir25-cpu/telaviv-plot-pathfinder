@@ -65,6 +65,68 @@ export interface EngineInput {
   // ─── construction mode (delta-area vs full rebuild) ───
   constructionMode?: ConstructionMode;    // default depends on projectType+subtype
   strengtheningCostPerSqm?: number;       // default 3,000 ₪/m² (for addition_only only)
+
+  // ─── revenue detail (optional; if provided, replaces avgPrice × area) ───
+  revenue?: RevenueParams;
+}
+
+export type UnitType = "studio" | "2room" | "3room" | "4room" | "5room" | "penthouse" | "garden";
+
+export interface UnitMixRow {
+  type: UnitType;
+  count: number;
+  avgSizeSqm: number;
+  pricePerSqm: number;
+}
+
+export interface RevenueParams {
+  unitMix: UnitMixRow[];
+  floorPremiumPctPerFloor?: number;
+  penthousePremiumPct?: number;
+  storageUnitsCount?: number;
+  storagePricePerUnit?: number;
+  extraParkingCount?: number;
+  extraParkingPricePerUnit?: number;
+  commercialAreaSqm?: number;
+  commercialPricePerSqm?: number;
+  marketingDiscountPct?: number;
+  brokerageFeePct?: number;
+  absorptionRatePerMonth?: number;
+  priceEscalationPctPerYear?: number;
+}
+
+export interface UnitMixBreakdownRow {
+  type: UnitType;
+  label: string;
+  count: number;
+  avgSizeSqm: number;
+  pricePerSqm: number;
+  basePrice: number;
+  premiumPct: number;
+  totalRevenue: number;
+}
+
+export interface AncillaryRevenueRow {
+  label: string;
+  detail: string;
+  total: number;
+}
+
+export interface RevenueBreakdown {
+  unitMixRows: UnitMixBreakdownRow[];
+  unitMixTotal: number;
+  ancillaryRows: AncillaryRevenueRow[];
+  ancillaryTotal: number;
+  grossRevenue: number;
+  salesDurationMonths: number;
+  escalationMultiplier: number;
+  escalationUplift: number;
+  escalatedRevenue: number;
+  marketingDiscountPct: number;
+  marketingDiscount: number;
+  brokerageFeePct: number;
+  brokerageFee: number;
+  netRevenueToDeveloper: number;
 }
 
 export interface SensitivityCell {
@@ -118,6 +180,7 @@ export interface EngineReport {
   netSellableAreaForSaleSqm: number;
   ownersReturnUnits: number;
   avgOwnerUnitSizeSqm: number;
+  revenueBreakdown?: RevenueBreakdown;
   // costs
   hardCosts: number;
   constructionBreakdown: ConstructionBreakdown;
@@ -231,6 +294,23 @@ export function computeRevenues(input: EngineInput) {
   }
 
   const netSellableAreaForSaleSqm = Math.max(0, grossSellableAreaSqm - ownersReturnAreaSqm);
+
+  // ─── Detailed revenue path (if revenue params provided) ───
+  if (input.revenue?.unitMix && input.revenue.unitMix.length > 0) {
+    const detailed = computeDetailedRevenue(input, pricePerSqm);
+    return {
+      totalSalesRevenue: detailed.netRevenueToDeveloper,
+      netSalesRevenue: detailed.netRevenueToDeveloper / (1 + vatPct / 100),
+      grossSellableAreaSqm,
+      ownersReturnAreaSqm,
+      netSellableAreaForSaleSqm,
+      ownersReturnUnits,
+      avgOwnerUnitSizeSqm,
+      revenueBreakdown: detailed,
+    };
+  }
+
+  // ─── Simple path (fallback): avgPrice × area ───
   const totalSalesRevenue = netSellableAreaForSaleSqm * pricePerSqm;
   const netSalesRevenue = totalSalesRevenue / (1 + vatPct / 100);
 
@@ -242,8 +322,118 @@ export function computeRevenues(input: EngineInput) {
     netSellableAreaForSaleSqm,
     ownersReturnUnits,
     avgOwnerUnitSizeSqm,
+    revenueBreakdown: undefined as RevenueBreakdown | undefined,
   };
 }
+
+const UNIT_TYPE_LABEL: Record<UnitType, string> = {
+  studio: "סטודיו",
+  "2room": "2 חדרים",
+  "3room": "3 חדרים",
+  "4room": "4 חדרים",
+  "5room": "5 חדרים",
+  penthouse: "פנטהאוז",
+  garden: "דירת גן",
+};
+
+function computeDetailedRevenue(input: EngineInput, fallbackPricePerSqm: number): RevenueBreakdown {
+  const r = input.revenue!;
+  const floorPremiumPerFloor = clamp(Number(r.floorPremiumPctPerFloor ?? 0.8), 0, 5) / 100;
+  const penthousePremium = clamp(Number(r.penthousePremiumPct ?? 25), 0, 100) / 100;
+  const floors = Math.max(1, Number(input.proposedFloors ?? 1));
+  // Average floor premium across the building (floor 1..N → avg ≈ (N-1)/2 floors above ground floor)
+  const avgFloorPremium = floorPremiumPerFloor * ((floors - 1) / 2);
+
+  const unitMixRows: UnitMixBreakdownRow[] = r.unitMix.map((row) => {
+    const count = Math.max(0, Math.round(Number(row.count) || 0));
+    const size = Math.max(0, Number(row.avgSizeSqm) || 0);
+    const price = Math.max(0, Number(row.pricePerSqm) || fallbackPricePerSqm);
+    const basePrice = count * size * price;
+    const typePremium = row.type === "penthouse" ? penthousePremium : 0;
+    const premiumPct = typePremium + avgFloorPremium;
+    const totalRevenue = basePrice * (1 + premiumPct);
+    return {
+      type: row.type,
+      label: UNIT_TYPE_LABEL[row.type],
+      count,
+      avgSizeSqm: size,
+      pricePerSqm: Math.round(price),
+      basePrice: Math.round(basePrice),
+      premiumPct: Number(premiumPct.toFixed(4)),
+      totalRevenue: Math.round(totalRevenue),
+    };
+  });
+  const unitMixTotal = unitMixRows.reduce((a, x) => a + x.totalRevenue, 0);
+
+  // Ancillary
+  const ancillaryRows: AncillaryRevenueRow[] = [];
+  const storageCount = Math.max(0, Math.round(Number(r.storageUnitsCount ?? 0)));
+  const storagePrice = Math.max(0, Number(r.storagePricePerUnit ?? 25_000));
+  if (storageCount > 0 && storagePrice > 0) {
+    ancillaryRows.push({
+      label: "מחסנים",
+      detail: `${storageCount} × ${storagePrice.toLocaleString("he-IL")} ₪`,
+      total: storageCount * storagePrice,
+    });
+  }
+  const parkingCount = Math.max(0, Math.round(Number(r.extraParkingCount ?? 0)));
+  const parkingPrice = Math.max(0, Number(r.extraParkingPricePerUnit ?? 120_000));
+  if (parkingCount > 0 && parkingPrice > 0) {
+    ancillaryRows.push({
+      label: "חניות עודפות",
+      detail: `${parkingCount} × ${parkingPrice.toLocaleString("he-IL")} ₪`,
+      total: parkingCount * parkingPrice,
+    });
+  }
+  const commercialArea = Math.max(0, Number(r.commercialAreaSqm ?? 0));
+  const commercialPrice = Math.max(0, Number(r.commercialPricePerSqm ?? 0));
+  if (commercialArea > 0 && commercialPrice > 0) {
+    ancillaryRows.push({
+      label: "שטחי מסחר",
+      detail: `${commercialArea.toLocaleString("he-IL")} מ״ר × ${commercialPrice.toLocaleString("he-IL")} ₪`,
+      total: commercialArea * commercialPrice,
+    });
+  }
+  const ancillaryTotal = ancillaryRows.reduce((a, x) => a + x.total, 0);
+
+  const grossRevenue = unitMixTotal + ancillaryTotal;
+
+  // Sales duration & escalation
+  const totalSaleUnits = unitMixRows.reduce((a, x) => a + x.count, 0);
+  const absorption = Math.max(0.5, Number(r.absorptionRatePerMonth ?? 4));
+  const salesDurationMonths = totalSaleUnits > 0 ? totalSaleUnits / absorption : 0;
+  const escPct = clamp(Number(r.priceEscalationPctPerYear ?? 3), 0, 25) / 100;
+  // Midpoint inflation: average sale occurs at salesDurationMonths/2
+  const escalationMultiplier = Math.pow(1 + escPct, salesDurationMonths / 24);
+  const escalatedRevenue = grossRevenue * escalationMultiplier;
+  const escalationUplift = escalatedRevenue - grossRevenue;
+
+  // Marketing & brokerage (revenue reducers)
+  const marketingPct = clamp(Number(r.marketingDiscountPct ?? 2), 0, 30) / 100;
+  const marketingDiscount = escalatedRevenue * marketingPct;
+  const afterDiscount = escalatedRevenue - marketingDiscount;
+  const brokeragePct = clamp(Number(r.brokerageFeePct ?? 2), 0, 10) / 100;
+  const brokerageFee = afterDiscount * brokeragePct;
+  const netRevenueToDeveloper = afterDiscount - brokerageFee;
+
+  return {
+    unitMixRows,
+    unitMixTotal: Math.round(unitMixTotal),
+    ancillaryRows: ancillaryRows.map((x) => ({ ...x, total: Math.round(x.total) })),
+    ancillaryTotal: Math.round(ancillaryTotal),
+    grossRevenue: Math.round(grossRevenue),
+    salesDurationMonths: Number(salesDurationMonths.toFixed(1)),
+    escalationMultiplier: Number(escalationMultiplier.toFixed(4)),
+    escalationUplift: Math.round(escalationUplift),
+    escalatedRevenue: Math.round(escalatedRevenue),
+    marketingDiscountPct: Number((marketingPct * 100).toFixed(2)),
+    marketingDiscount: Math.round(marketingDiscount),
+    brokerageFeePct: Number((brokeragePct * 100).toFixed(2)),
+    brokerageFee: Math.round(brokerageFee),
+    netRevenueToDeveloper: Math.round(netRevenueToDeveloper),
+  };
+}
+
 
 // ───────── Construction cost (detailed) ─────────
 //
@@ -678,6 +868,7 @@ function coreAnalyze(input: EngineInput, opts: CoreOpts = {}) {
     rocPct,
     rosPct,
     monthly,
+    revenueBreakdown: rev.revenueBreakdown,
   };
 }
 
@@ -809,5 +1000,6 @@ export function assembleReport(input: EngineInput): EngineReport {
     sensitivity,
     monthlyCashflow: core.monthly,
     notes,
+    revenueBreakdown: core.revenueBreakdown,
   };
 }

@@ -94,6 +94,27 @@ const FinancialInputSchema = z.object({
   ownersReturnAreaSqm: z.number().min(0).max(1_000_000).optional(),
   ownersReturnBonusPerUnitSqm: z.number().min(0).max(80).optional(),
   minOwnerUnitSizeSqm: z.number().min(40).max(200).optional(),
+  // detailed revenue (optional, passed through to engine)
+  revenue: z.object({
+    unitMix: z.array(z.object({
+      type: z.enum(["studio","2room","3room","4room","5room","penthouse","garden"]),
+      count: z.number().min(0),
+      avgSizeSqm: z.number().min(0),
+      pricePerSqm: z.number().min(0),
+    })),
+    floorPremiumPctPerFloor: z.number().min(0).max(5).optional(),
+    penthousePremiumPct: z.number().min(0).max(100).optional(),
+    storageUnitsCount: z.number().min(0).optional(),
+    storagePricePerUnit: z.number().min(0).optional(),
+    extraParkingCount: z.number().min(0).optional(),
+    extraParkingPricePerUnit: z.number().min(0).optional(),
+    commercialAreaSqm: z.number().min(0).optional(),
+    commercialPricePerSqm: z.number().min(0).optional(),
+    marketingDiscountPct: z.number().min(0).max(30).optional(),
+    brokerageFeePct: z.number().min(0).max(10).optional(),
+    absorptionRatePerMonth: z.number().min(0.5).optional(),
+    priceEscalationPctPerYear: z.number().min(0).max(25).optional(),
+  }).optional(),
 });
 
 const AnalyzeBodySchema = z.object({
@@ -204,6 +225,7 @@ Deno.serve(async (req) => {
         ownersReturnAreaSqm: financial.ownersReturnAreaSqm,
         ownersReturnBonusPerUnitSqm: financial.ownersReturnBonusPerUnitSqm,
         minOwnerUnitSizeSqm: financial.minOwnerUnitSizeSqm,
+        revenue: financial.revenue,
       };
 
       const report = assembleReport(engineInput);

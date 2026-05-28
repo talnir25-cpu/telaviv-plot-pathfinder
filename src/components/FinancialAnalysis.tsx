@@ -32,7 +32,34 @@ import type {
   FinishLevel,
   ProjectType,
   RenewalSubtype,
+  RevenueParams,
+  UnitMixRow,
+  UnitType,
 } from "@/types/feasibility";
+
+// Build a sensible default unit-mix for the # of sale units.
+const buildDefaultUnitMix = (saleUnits: number, pricePerSqm: number): UnitMixRow[] => {
+  const n = Math.max(0, Math.round(saleUnits));
+  if (n === 0) return [];
+  const penthouse = Math.min(4, Math.max(n >= 20 ? 1 : 0, Math.round(n * 0.05)));
+  const garden = Math.min(2, Math.round(n * 0.04));
+  let remaining = Math.max(0, n - penthouse - garden);
+  const three = Math.round(remaining * 0.35);
+  const four = Math.round(remaining * 0.50);
+  const five = Math.max(0, remaining - three - four);
+  const rows: UnitMixRow[] = [];
+  if (three > 0) rows.push({ type: "3room", count: three, avgSizeSqm: 85, pricePerSqm });
+  if (four > 0) rows.push({ type: "4room", count: four, avgSizeSqm: 110, pricePerSqm });
+  if (five > 0) rows.push({ type: "5room", count: five, avgSizeSqm: 135, pricePerSqm });
+  if (garden > 0) rows.push({ type: "garden", count: garden, avgSizeSqm: 120, pricePerSqm: Math.round(pricePerSqm * 1.05) });
+  if (penthouse > 0) rows.push({ type: "penthouse", count: penthouse, avgSizeSqm: 160, pricePerSqm });
+  return rows;
+};
+
+const UNIT_TYPE_LABEL_HE: Record<UnitType, string> = {
+  studio: "סטודיו", "2room": "2 חד׳", "3room": "3 חד׳", "4room": "4 חד׳",
+  "5room": "5 חד׳", penthouse: "פנטהאוז", garden: "דירת גן",
+};
 
 
 interface Props {
@@ -142,6 +169,23 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           return;
         }
         const d = data.defaults;
+        // Build default revenue: procedural unit mix from proposed units minus owner-return
+        const saleUnits = Math.max(0, planning.proposed.units - (planning.existing?.units ?? 0));
+        const defaultRevenue: RevenueParams = {
+          unitMix: buildDefaultUnitMix(saleUnits, d.avgSalePricePerSqm),
+          floorPremiumPctPerFloor: 0.8,
+          penthousePremiumPct: 25,
+          storageUnitsCount: saleUnits,
+          storagePricePerUnit: 25_000,
+          extraParkingCount: Math.round(saleUnits * 0.10),
+          extraParkingPricePerUnit: 120_000,
+          commercialAreaSqm: 0,
+          commercialPricePerSqm: 0,
+          marketingDiscountPct: 2,
+          brokerageFeePct: 2,
+          absorptionRatePerMonth: 4,
+          priceEscalationPctPerYear: 3,
+        };
         setInput({
           projectType: "urban_renewal",
           renewalSubtype: "tama38",
@@ -162,6 +206,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           escalationPctPerYear: 3,
           contingencyPct: 5,
           strengtheningCostPerSqm: 3000,
+          revenue: defaultRevenue,
         });
 
       } finally {
@@ -359,7 +404,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
                     <Input
                       id={f.key}
                       inputMode="decimal"
-                      value={input[f.key] ?? 0}
+                      value={(input[f.key] as number | undefined) ?? 0}
                       onChange={(e) => updateField(f.key, e.target.value)}
                       className="pl-16 text-sm"
                     />
@@ -434,10 +479,28 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
       <div className="grid gap-4 md:grid-cols-2">
         <BreakdownPanel
           title="הכנסות"
-          rows={[
-            ["פדיון ממכירות (כולל מע״מ)", fmtNIS(report.totalSalesRevenue)],
-            ["נטו (ללא מע״מ)", fmtNIS(report.netSalesRevenue)],
-          ]}
+          rows={(() => {
+            const rb = report.revenueBreakdown;
+            if (!rb) {
+              return [
+                ["פדיון ממכירות (כולל מע״מ)", fmtNIS(report.totalSalesRevenue)],
+                ["נטו (ללא מע״מ)", fmtNIS(report.netSalesRevenue)],
+              ] as Array<[string, string] | [string, string, boolean]>;
+            }
+            return [
+              ["פדיון Unit Mix", fmtNIS(rb.unitMixTotal)],
+              ...(rb.ancillaryTotal > 0
+                ? [["+ הכנסות נלוות (מחסנים/חניות/מסחר)", fmtNIS(rb.ancillaryTotal)] as [string, string]]
+                : []),
+              ...(rb.escalationUplift !== 0
+                ? [[`+ אינדקסציה (×${rb.escalationMultiplier.toFixed(3)})`, fmtNIS(rb.escalationUplift)] as [string, string]]
+                : []),
+              [`− הנחות שיווק (${rb.marketingDiscountPct}%)`, `−${fmtNIS(rb.marketingDiscount)}`],
+              [`− עמלות תיווך (${rb.brokerageFeePct}%)`, `−${fmtNIS(rb.brokerageFee)}`],
+              ["פדיון נטו ליזם (כולל מע״מ)", fmtNIS(report.totalSalesRevenue), true],
+              ["נטו (ללא מע״מ)", fmtNIS(report.netSalesRevenue)],
+            ] as Array<[string, string] | [string, string, boolean]>;
+          })()}
         />
         <BreakdownPanel
           title="עלויות"
@@ -462,6 +525,9 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
           ]}
         />
       </div>
+
+      {/* Detailed revenue breakdown (unit mix table) */}
+      {report.revenueBreakdown && <RevenueBreakdownPanel report={report} />}
 
       {/* Construction-cost breakdown */}
       <ConstructionBreakdownPanel report={report} />
@@ -607,6 +673,63 @@ const ConstraintCell = ({ label, value }: { label: string; value: number }) => (
     <div className="mt-0.5 text-sm font-semibold tabular-nums">{value > 0 ? fmtNIS(value) : "—"}</div>
   </div>
 );
+
+const RevenueBreakdownPanel = ({ report }: { report: FinancialReport }) => {
+  const rb = report.revenueBreakdown;
+  if (!rb) return null;
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold">פירוט הכנסות — Unit Mix</h4>
+        <Badge variant="outline" className="text-[10px]">
+          קצב מכירה: {(rb.salesDurationMonths > 0 ? (rb.unitMixRows.reduce((a, x) => a + x.count, 0) / rb.salesDurationMonths) : 0).toFixed(1)} יח״ד/חודש
+          • משך מכירה {rb.salesDurationMonths} ח׳
+        </Badge>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-muted/40 text-muted-foreground">
+            <tr>
+              <th className="p-2 text-right">סוג</th>
+              <th className="p-2 text-center">כמות</th>
+              <th className="p-2 text-center">שטח ממ׳ (מ״ר)</th>
+              <th className="p-2 text-center">₪/מ״ר</th>
+              <th className="p-2 text-center">פרמיה</th>
+              <th className="p-2 text-left">סה״כ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rb.unitMixRows.map((r) => (
+              <tr key={r.type} className="border-t">
+                <td className="p-2 font-medium">{UNIT_TYPE_LABEL_HE[r.type]}</td>
+                <td className="p-2 text-center tabular-nums">{r.count}</td>
+                <td className="p-2 text-center tabular-nums">{r.avgSizeSqm}</td>
+                <td className="p-2 text-center tabular-nums">{r.pricePerSqm.toLocaleString("he-IL")}</td>
+                <td className="p-2 text-center tabular-nums">{r.premiumPct > 0 ? `+${(r.premiumPct * 100).toFixed(1)}%` : "—"}</td>
+                <td className="p-2 text-left tabular-nums">{fmtNIS(r.totalRevenue)}</td>
+              </tr>
+            ))}
+            <tr className="border-t bg-muted/20 font-semibold">
+              <td className="p-2" colSpan={5}>סה״כ Unit Mix</td>
+              <td className="p-2 text-left tabular-nums">{fmtNIS(rb.unitMixTotal)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {rb.ancillaryRows.length > 0 && (
+        <div className="mt-3 space-y-1.5 border-t pt-3 text-sm">
+          <div className="text-xs font-semibold text-muted-foreground">הכנסות נלוות</div>
+          {rb.ancillaryRows.map((a, i) => (
+            <div key={i} className="flex justify-between gap-2">
+              <span className="text-muted-foreground">{a.label} <span className="text-[10px] opacity-70">({a.detail})</span></span>
+              <span className="tabular-nums">{fmtNIS(a.total)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const KPI = ({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) => (
   <div
