@@ -169,6 +169,23 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           return;
         }
         const d = data.defaults;
+        // Build default revenue: procedural unit mix from proposed units minus owner-return
+        const saleUnits = Math.max(0, planning.proposed.units - (planning.existing?.units ?? 0));
+        const defaultRevenue: RevenueParams = {
+          unitMix: buildDefaultUnitMix(saleUnits, d.avgSalePricePerSqm),
+          floorPremiumPctPerFloor: 0.8,
+          penthousePremiumPct: 25,
+          storageUnitsCount: saleUnits,
+          storagePricePerUnit: 25_000,
+          extraParkingCount: Math.round(saleUnits * 0.10),
+          extraParkingPricePerUnit: 120_000,
+          commercialAreaSqm: 0,
+          commercialPricePerSqm: 0,
+          marketingDiscountPct: 2,
+          brokerageFeePct: 2,
+          absorptionRatePerMonth: 4,
+          priceEscalationPctPerYear: 3,
+        };
         setInput({
           projectType: "urban_renewal",
           renewalSubtype: "tama38",
