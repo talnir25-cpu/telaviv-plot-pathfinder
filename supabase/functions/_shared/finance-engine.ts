@@ -779,6 +779,11 @@ export function assembleReport(input: EngineInput): EngineReport {
   return {
     totalSalesRevenue: Math.round(core.totalSalesRevenue),
     netSalesRevenue: Math.round(core.netSalesRevenue),
+    grossSellableAreaSqm: Math.round(core.grossSellableAreaSqm),
+    ownersReturnAreaSqm: Math.round(core.ownersReturnAreaSqm),
+    netSellableAreaForSaleSqm: Math.round(core.netSellableAreaForSaleSqm),
+    ownersReturnUnits: core.ownersReturnUnits,
+    avgOwnerUnitSizeSqm: Math.round(core.avgOwnerUnitSizeSqm),
     hardCosts: Math.round(core.hardCosts),
     constructionBreakdown: core.constructionBreakdown,
     softCosts: Math.round(core.softCosts),
