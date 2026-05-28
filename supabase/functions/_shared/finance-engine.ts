@@ -14,6 +14,12 @@ export interface ZoningConstraints {
   requiredBasementFloors?: number | null;
   todReliefApplies?: boolean | null;
   dewateringRequired?: boolean | null;
+  renewalPotential?: {
+    track: "tama38_2" | "pinui_binui" | "rova_plan";
+    trackLabel: string;
+    effectiveUpliftSqmTotal: number;
+    tenantShareOfUpliftPct: number;
+  } | null;
 }
 
 export interface EngineInput {
