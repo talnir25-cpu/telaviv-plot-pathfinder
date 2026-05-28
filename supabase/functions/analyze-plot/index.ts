@@ -280,6 +280,23 @@ Deno.serve(async (req) => {
       ? Math.round((typicalFloorArea / plotAreaForCalc) * 100)
       : 0;
 
+    // ── חישוב פוטנציאל הגדלת תכסית בהליך התחדשות (דטרמיניסטי) ──
+    const renewalTrack = inferRenewalTrack(body.existingFloors ?? 0, body.existingUnits ?? 0, body.conservation);
+    const renewalCfg = plotAreaForCalc > 0 ? RENEWAL_SETBACKS[body.quarter]?.[renewalTrack] : null;
+    const renewalFloorArea = renewalCfg
+      ? estimateTypicalFloorArea(plotAreaForCalc, renewalCfg)
+      : 0;
+    const renewalCoveragePct = renewalFloorArea && plotAreaForCalc
+      ? Math.round((renewalFloorArea / plotAreaForCalc) * 100)
+      : 0;
+    const baselineFloorAreaForUplift = typicalFloorArea > 0
+      ? typicalFloorArea
+      : (plotAreaForCalc > 0 ? estimateTypicalFloorArea(plotAreaForCalc, { front: 5, side: 3, rear: 5 }) : 0);
+    const upliftSqmPerFloor = Math.max(0, renewalFloorArea - baselineFloorAreaForUplift);
+    const upliftPct = baselineFloorAreaForUplift > 0
+      ? Math.round((upliftSqmPerFloor / baselineFloorAreaForUplift) * 100)
+      : 0;
+
     const setbacksLine = hasSetbacks
       ? `\nקווי בניין (מקור: ${body.setbackSource === "regulation" ? "תקנון רובע" : "הזנת משתמש"}):
   קדמי ${body.frontSetbackM} מ׳ / צדדי ${body.sideSetbackM} מ׳ / אחורי ${body.rearSetbackM} מ׳
@@ -289,6 +306,15 @@ Deno.serve(async (req) => {
 אם FAR שאיפתי דורש שטח גדול יותר — הגדל את floors (עד maxFloors) ולא את השטח לקומה.
 החזר ב-zoning.frontSetbackM/sideSetbackM/rearSetbackM את הערכים שקיבלת.`
       : "";
+
+    const renewalLine = renewalFloorArea > 0
+      ? `\nפוטנציאל הגדלת תכסית בהליך התחדשות (${RENEWAL_TRACK_LABEL[renewalTrack]}):
+  קווי בניין מוקלים: קדמי ${renewalCfg!.front} / צדדי ${renewalCfg!.side} / אחורי ${renewalCfg!.rear} מ׳
+  שטח קומה פוטנציאלי: ~${renewalFloorArea} מ"ר (תכסית ~${renewalCoveragePct}%, דלתא +${upliftSqmPerFloor} מ"ר/קומה ≈ +${upliftPct}%)
+  התייחס בסיכום לוועדה ובדגלים אם הפער משמעותי.`
+      : "";
+
+
 
     const userPrompt = `נתח את ההיתכנות להתחדשות עירונית של החלקה הבאה:
 
