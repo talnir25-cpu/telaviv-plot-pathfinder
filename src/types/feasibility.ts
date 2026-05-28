@@ -72,6 +72,11 @@ export interface AnalysisInput {
   existingBuiltAreaConfidence?: string;
   conservation: boolean;
   notes?: string;
+  // קווי בניין שהוזנו / נטענו מהתקנון בטופס המקדים
+  frontSetbackM?: number;
+  sideSetbackM?: number;
+  rearSetbackM?: number;
+  setbackSource?: "regulation" | "manual" | "manual_override";
 }
 
 // ============ Financial analysis ============
