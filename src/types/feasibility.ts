@@ -52,6 +52,11 @@ export interface FeasibilityReport {
     todReliefApplies?: boolean | null;      // הקלות TOD (קרבה לתח״צ מסילתית)
     groundwaterDepthM?: number | null;      // עומק מי תהום משוער (מ׳)
     dewateringRequired?: boolean | null;    // נדרשת השפלת מי תהום
+    // תכסית מחושבת דטרמיניסטית מקווי הבניין (אופציונלי — מאוכלס ב-edge)
+    typicalFloorAreaSqm?: number;           // שטח קומה טיפוסי מירבי (מ"ר)
+    coveragePct?: number;                   // אחוז תכסית אפקטיבי
+    floorsNeededForFAR?: number;            // קומות נדרשות לתמיכה ב-proposed.builtAreaSqm
+    setbackSource?: "regulation" | "manual" | "manual_override";
   };
 
   redFlags: RedFlag[];

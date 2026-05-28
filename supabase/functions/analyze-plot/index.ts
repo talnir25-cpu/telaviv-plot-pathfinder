@@ -21,6 +21,22 @@ interface PlotInput {
   existingBuiltAreaConfidence?: string;
   conservation: boolean;
   notes?: string;
+  frontSetbackM?: number;
+  sideSetbackM?: number;
+  rearSetbackM?: number;
+  setbackSource?: "regulation" | "manual" | "manual_override";
+}
+
+// העתק דטרמיניסטי של src/lib/setback-standards.ts (Deno לא מייבא מ-src/)
+function estimateTypicalFloorArea(
+  plotAreaSqm: number,
+  setbacks: { front: number; side: number; rear: number },
+): number {
+  if (!plotAreaSqm || plotAreaSqm <= 0) return 0;
+  const side = Math.sqrt(plotAreaSqm);
+  const width = Math.max(0, side - 2 * setbacks.side);
+  const depth = Math.max(0, side - setbacks.front - setbacks.rear);
+  return Math.round(width * depth);
 }
 
 const ANALYSIS_TOOL = {
@@ -220,6 +236,30 @@ Deno.serve(async (req) => {
       ? `שטח בנוי קיים (מדוד ממקור: ${body.existingBuiltAreaSource ?? "לא ידוע"}, אמינות: ${body.existingBuiltAreaConfidence ?? "לא ידוע"}): ${body.existingBuiltAreaSqm} מ"ר — השתמש בערך הזה ישירות כ-existing.builtAreaSqm; אל תאמוד מחדש.`
       : `שטח בנוי קיים: לא ידוע — חשב לפי existingUnits × ~85 מ"ר`;
 
+    const plotAreaForCalc = body.area ?? body.shapeArea ?? 0;
+    const hasSetbacks =
+      body.frontSetbackM != null && body.sideSetbackM != null && body.rearSetbackM != null;
+    const typicalFloorArea = hasSetbacks && plotAreaForCalc > 0
+      ? estimateTypicalFloorArea(plotAreaForCalc, {
+          front: body.frontSetbackM!,
+          side: body.sideSetbackM!,
+          rear: body.rearSetbackM!,
+        })
+      : 0;
+    const coveragePctVal = typicalFloorArea && plotAreaForCalc
+      ? Math.round((typicalFloorArea / plotAreaForCalc) * 100)
+      : 0;
+
+    const setbacksLine = hasSetbacks
+      ? `\nקווי בניין (מקור: ${body.setbackSource === "regulation" ? "תקנון רובע" : "הזנת משתמש"}):
+  קדמי ${body.frontSetbackM} מ׳ / צדדי ${body.sideSetbackM} מ׳ / אחורי ${body.rearSetbackM} מ׳
+שטח קומה טיפוסי מירבי (קירוב מלבני): ~${typicalFloorArea} מ"ר (תכסית ~${coveragePctVal}%)
+
+אילוץ קשיח: proposed.builtAreaSqm ≤ ${typicalFloorArea} × proposed.floors
+אם FAR שאיפתי דורש שטח גדול יותר — הגדל את floors (עד maxFloors) ולא את השטח לקומה.
+החזר ב-zoning.frontSetbackM/sideSetbackM/rearSetbackM את הערכים שקיבלת.`
+      : "";
+
     const userPrompt = `נתח את ההיתכנות להתחדשות עירונית של החלקה הבאה:
 
 רובע: ${body.quarter}
@@ -231,7 +271,7 @@ Deno.serve(async (req) => {
 מספר קומות קיים: ${body.existingFloors}
 ${builtAreaLine}
 סטטוס שימור (לפי המשתמש): ${body.conservation ? "כן" : "לא ידוע / לא"}
-${body.notes ? `הערות נוספות: ${body.notes}` : ""}
+${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}
 
 החזר דוח היתכנות מלא ומובנה דרך הכלי render_feasibility_report.
 חשב את המכפיל, יח"ד חדשות, שטח מכירה משוער, וזהה דגלים אדומים רלוונטיים.`;
@@ -347,6 +387,52 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}
 
       if (body.existingFloors >= 5 && plotArea > 0 && plotArea < 800 && report.status === "high_potential") {
         report.status = "medium_potential";
+      }
+
+      // ── ולידציית תכסית: האם ה-FAR המוצע ריאלי גיאומטרית? ──
+      if (hasSetbacks && typicalFloorArea > 0) {
+        if (!report.zoning) report.zoning = {};
+        report.zoning.frontSetbackM = body.frontSetbackM;
+        report.zoning.sideSetbackM = body.sideSetbackM;
+        report.zoning.rearSetbackM = body.rearSetbackM;
+        report.zoning.typicalFloorAreaSqm = typicalFloorArea;
+        report.zoning.coveragePct = coveragePctVal;
+        report.zoning.setbackSource = body.setbackSource ?? "regulation";
+
+        const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
+        const proposedFloorsVal = report.proposed?.floors ?? 0;
+        const maxFloorsVal = report.zoning?.maxFloors ?? 0;
+        const floorsNeeded = Math.ceil(proposedBuilt / typicalFloorArea);
+        report.zoning.floorsNeededForFAR = floorsNeeded;
+
+        const srcLabel = body.setbackSource === "regulation"
+          ? "תקנון רובע"
+          : "הזנת משתמש";
+        const srcTag = `בדיקת תכסית — קווי בניין (${srcLabel})`;
+
+        if (floorsNeeded > proposedFloorsVal && floorsNeeded <= maxFloorsVal) {
+          report.redFlags.push({
+            level: "warning",
+            title: "תכנון לא ריאלי גיאומטרית",
+            description: `שטח הבנייה המוצע (${proposedBuilt} מ"ר) דורש ${floorsNeeded} קומות בהינתן שטח קומה טיפוסי של ${typicalFloorArea} מ"ר, אך הוצעו רק ${proposedFloorsVal}. שקול להגדיל את מספר הקומות.`,
+            source: srcTag,
+          });
+        } else if (floorsNeeded > maxFloorsVal && maxFloorsVal > 0) {
+          report.redFlags.push({
+            level: "critical",
+            title: "התכסית חוסמת את ה-FAR",
+            description: `נדרשות ${floorsNeeded} קומות לתמיכה בשטח המוצע (${proposedBuilt} מ"ר), אך מקסימום הקומות לפי תקנון הוא ${maxFloorsVal}. ה-FAR השאיפתי אינו ניתן למימוש בקווי הבניין הנוכחיים.`,
+            source: srcTag,
+          });
+          report.status = "blocked";
+        } else if (proposedFloorsVal > floorsNeeded * 1.5 && floorsNeeded > 0) {
+          report.redFlags.push({
+            level: "info",
+            title: "ניצול חסר של תכסית",
+            description: `${proposedFloorsVal} קומות מוצעות עבור שטח שניתן להכיל ב-${floorsNeeded} קומות בלבד — ייתכן שכדאי לבחון תכנון נמוך וקומפקטי יותר.`,
+            source: srcTag,
+          });
+        }
       }
     } catch (e) {
       console.error("post-validation error (non-fatal)", e);

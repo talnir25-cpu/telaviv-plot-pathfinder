@@ -347,6 +347,60 @@ export const DashboardReport = ({
               ))}
             </div>
 
+            {/* תכסית וניצול — מוצג רק אם נשלחו קווי בניין */}
+            {report.zoning.typicalFloorAreaSqm != null && report.zoning.typicalFloorAreaSqm > 0 && (() => {
+              const floorsNeeded = report.zoning.floorsNeededForFAR ?? 0;
+              const proposedFloors = report.proposed.floors;
+              const maxFloorsVal = report.zoning.maxFloors;
+              const isBlocked = floorsNeeded > maxFloorsVal;
+              const isMismatch = !isBlocked && floorsNeeded > proposedFloors;
+              const isOk = !isBlocked && !isMismatch;
+              const statusIcon = isBlocked ? "✕" : isMismatch ? "⚠" : "✓";
+              const statusColor = isBlocked
+                ? "text-destructive"
+                : isMismatch
+                ? "text-amber-600 dark:text-amber-500"
+                : "text-emerald-600 dark:text-emerald-500";
+              const srcLabel = report.zoning.setbackSource === "manual" || report.zoning.setbackSource === "manual_override"
+                ? "הזנת משתמש"
+                : "תקנון רובע";
+              return (
+                <div className="mt-5 border-t pt-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      תכסית וניצול
+                    </p>
+                    <span className="text-[10px] text-muted-foreground">מקור קווי בניין: {srcLabel}</span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">שטח קומה טיפוסי</p>
+                      <p className="mt-1 text-base font-semibold">
+                        {fmt(report.zoning.typicalFloorAreaSqm)} מ״ר
+                        <span className="mr-2 text-xs font-normal text-muted-foreground">
+                          (תכסית {fmt(report.zoning.coveragePct ?? 0)}%)
+                        </span>
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">קירוב מלבני מקווי הבניין</p>
+                    </div>
+                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">קומות נדרשות / מוצע</p>
+                      <p className={`mt-1 text-base font-semibold ${statusColor}`}>
+                        {fmt(floorsNeeded)} / {fmt(proposedFloors)} <span className="mr-1">{statusIcon}</span>
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {isOk
+                          ? "תכנון ריאלי בהינתן התכסית"
+                          : isMismatch
+                          ? "נדרשות יותר קומות לתמיכה בשטח המוצע"
+                          : `חריגה ממקסימום ${fmt(maxFloorsVal)} קומות`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* אילוצים פיזיים-רגולטוריים */}
             <div className="mt-5 border-t pt-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
