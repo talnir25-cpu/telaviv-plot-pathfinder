@@ -409,7 +409,9 @@ export function computeTenantCosts(input: EngineInput, hardCosts: number): numbe
   if (input.projectType !== "urban_renewal") return 0;
   const existingUnits = Math.max(
     1,
-    Math.round(input.existingBuiltAreaSqm / 85), // rough proxy if not provided
+    Math.round(
+      input.existingUnits ?? (input.existingBuiltAreaSqm / 85), // prefer real count; fallback proxy
+    ),
   );
   // Better: rely on planning.existing.units passed in -- but engine works from areas
   // The caller should pre-compute and pass effective existing units via a richer input if needed.
