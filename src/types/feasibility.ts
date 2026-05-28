@@ -112,6 +112,69 @@ export interface FinancialInput {
   // ─── מצב בנייה (דלתא מול קיים) ───
   constructionMode?: ConstructionMode;  // full_rebuild (הריסה+בנייה) או addition_only (חיזוק+תוספת)
   strengtheningCostPerSqm?: number;     // ₪/מ"ר חיזוק קיים (3,000) — רק ב-addition_only
+  // ─── פירוט הכנסות (אופציונלי) ───
+  revenue?: RevenueParams;              // אם מסופק, מחליף את חישוב ההכנסות הפשוט (avgPrice × area)
+}
+
+// ============ Revenue detail ============
+
+export type UnitType = "studio" | "2room" | "3room" | "4room" | "5room" | "penthouse" | "garden";
+
+export interface UnitMixRow {
+  type: UnitType;
+  count: number;
+  avgSizeSqm: number;
+  pricePerSqm: number;            // ניתן לדריסה ידנית; ברירת מחדל = avgSalePricePerSqm
+}
+
+export interface RevenueParams {
+  unitMix: UnitMixRow[];                 // פילוח דירות למכירה (לא כולל דירות בעלים)
+  floorPremiumPctPerFloor?: number;      // 0.8% — תוספת מחיר לכל קומה מעל הראשונה
+  penthousePremiumPct?: number;          // 25% — פרמיית פנטהאוז
+  storageUnitsCount?: number;            // מחסנים
+  storagePricePerUnit?: number;          // 25,000 ₪
+  extraParkingCount?: number;            // חניות עודפות
+  extraParkingPricePerUnit?: number;     // 120,000 ₪
+  commercialAreaSqm?: number;            // שטחי מסחר
+  commercialPricePerSqm?: number;        // ₪/מ"ר מסחרי
+  marketingDiscountPct?: number;         // 2% — הנחות שיווק
+  brokerageFeePct?: number;              // 2% — עמלות תיווך
+  absorptionRatePerMonth?: number;       // יח"ד/חודש — קצב מכירה
+  priceEscalationPctPerYear?: number;    // 3% — צמיחת מחירי דיור לאורך תקופת המכירה
+}
+
+export interface UnitMixBreakdownRow {
+  type: UnitType;
+  label: string;
+  count: number;
+  avgSizeSqm: number;
+  pricePerSqm: number;
+  basePrice: number;              // count × size × price
+  premiumPct: number;             // type + floor premium (decimal, e.g. 0.27)
+  totalRevenue: number;           // basePrice × (1 + premiumPct)
+}
+
+export interface AncillaryRevenueRow {
+  label: string;
+  detail: string;                 // e.g. "22 × 25,000 ₪"
+  total: number;
+}
+
+export interface RevenueBreakdown {
+  unitMixRows: UnitMixBreakdownRow[];
+  unitMixTotal: number;
+  ancillaryRows: AncillaryRevenueRow[];
+  ancillaryTotal: number;
+  grossRevenue: number;                   // unitMix + ancillary (VAT-incl, pre-escalation)
+  salesDurationMonths: number;
+  escalationMultiplier: number;
+  escalationUplift: number;               // grossRevenue × (esc - 1)
+  escalatedRevenue: number;               // grossRevenue × escalationMultiplier
+  marketingDiscountPct: number;
+  marketingDiscount: number;
+  brokerageFeePct: number;
+  brokerageFee: number;
+  netRevenueToDeveloper: number;          // VAT-incl after discount + brokerage
 }
 
 
