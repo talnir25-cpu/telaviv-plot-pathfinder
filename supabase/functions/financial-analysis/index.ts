@@ -225,6 +225,7 @@ Deno.serve(async (req) => {
         ownersReturnAreaSqm: financial.ownersReturnAreaSqm,
         ownersReturnBonusPerUnitSqm: financial.ownersReturnBonusPerUnitSqm,
         minOwnerUnitSizeSqm: financial.minOwnerUnitSizeSqm,
+        revenue: financial.revenue,
       };
 
       const report = assembleReport(engineInput);
