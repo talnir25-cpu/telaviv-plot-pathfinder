@@ -236,6 +236,30 @@ Deno.serve(async (req) => {
       ? `שטח בנוי קיים (מדוד ממקור: ${body.existingBuiltAreaSource ?? "לא ידוע"}, אמינות: ${body.existingBuiltAreaConfidence ?? "לא ידוע"}): ${body.existingBuiltAreaSqm} מ"ר — השתמש בערך הזה ישירות כ-existing.builtAreaSqm; אל תאמוד מחדש.`
       : `שטח בנוי קיים: לא ידוע — חשב לפי existingUnits × ~85 מ"ר`;
 
+    const plotAreaForCalc = body.area ?? body.shapeArea ?? 0;
+    const hasSetbacks =
+      body.frontSetbackM != null && body.sideSetbackM != null && body.rearSetbackM != null;
+    const typicalFloorArea = hasSetbacks && plotAreaForCalc > 0
+      ? estimateTypicalFloorArea(plotAreaForCalc, {
+          front: body.frontSetbackM!,
+          side: body.sideSetbackM!,
+          rear: body.rearSetbackM!,
+        })
+      : 0;
+    const coveragePctVal = typicalFloorArea && plotAreaForCalc
+      ? Math.round((typicalFloorArea / plotAreaForCalc) * 100)
+      : 0;
+
+    const setbacksLine = hasSetbacks
+      ? `\nקווי בניין (מקור: ${body.setbackSource === "regulation" ? "תקנון רובע" : "הזנת משתמש"}):
+  קדמי ${body.frontSetbackM} מ׳ / צדדי ${body.sideSetbackM} מ׳ / אחורי ${body.rearSetbackM} מ׳
+שטח קומה טיפוסי מירבי (קירוב מלבני): ~${typicalFloorArea} מ"ר (תכסית ~${coveragePctVal}%)
+
+אילוץ קשיח: proposed.builtAreaSqm ≤ ${typicalFloorArea} × proposed.floors
+אם FAR שאיפתי דורש שטח גדול יותר — הגדל את floors (עד maxFloors) ולא את השטח לקומה.
+החזר ב-zoning.frontSetbackM/sideSetbackM/rearSetbackM את הערכים שקיבלת.`
+      : "";
+
     const userPrompt = `נתח את ההיתכנות להתחדשות עירונית של החלקה הבאה:
 
 רובע: ${body.quarter}
@@ -247,7 +271,7 @@ Deno.serve(async (req) => {
 מספר קומות קיים: ${body.existingFloors}
 ${builtAreaLine}
 סטטוס שימור (לפי המשתמש): ${body.conservation ? "כן" : "לא ידוע / לא"}
-${body.notes ? `הערות נוספות: ${body.notes}` : ""}
+${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}
 
 החזר דוח היתכנות מלא ומובנה דרך הכלי render_feasibility_report.
 חשב את המכפיל, יח"ד חדשות, שטח מכירה משוער, וזהה דגלים אדומים רלוונטיים.`;
