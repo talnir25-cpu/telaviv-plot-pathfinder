@@ -57,7 +57,24 @@ export interface FeasibilityReport {
     coveragePct?: number;                   // אחוז תכסית אפקטיבי
     floorsNeededForFAR?: number;            // קומות נדרשות לתמיכה ב-proposed.builtAreaSqm
     setbackSource?: "regulation" | "manual" | "manual_override";
+    // פוטנציאל הגדלת תכסית בהליך התחדשות עירונית (אופציונלי)
+    renewalPotential?: {
+      track: "tama38_2" | "pinui_binui" | "rova_plan";
+      trackLabel: string;
+      frontSetbackM: number;
+      sideSetbackM: number;
+      rearSetbackM: number;
+      typicalFloorAreaSqm: number;       // שטח קומה אחרי הליך התחדשות
+      coveragePct: number;
+      upliftSqmPerFloor: number;         // דלתא מול baseline
+      upliftPct: number;                 // % מהתכסית הבסיסית
+      realizationFactor: number;         // 0.7–1.0
+      effectiveUpliftSqmTotal: number;   // upliftSqmPerFloor × floors × realizationFactor
+      tenantShareOfUpliftPct: number;
+      source: string;
+    };
   };
+
 
   redFlags: RedFlag[];
   committeeSummary: string;
