@@ -90,6 +90,10 @@ const FinancialInputSchema = z.object({
   contingencyPct: z.number().min(0).max(25).optional(),
   constructionMode: z.enum(["full_rebuild", "addition_only"]).optional(),
   strengtheningCostPerSqm: z.number().min(0).max(20_000).optional(),
+  // urban-renewal owners' return overrides (all optional)
+  ownersReturnAreaSqm: z.number().min(0).max(1_000_000).optional(),
+  ownersReturnBonusPerUnitSqm: z.number().min(0).max(80).optional(),
+  minOwnerUnitSizeSqm: z.number().min(40).max(200).optional(),
 });
 
 const AnalyzeBodySchema = z.object({
