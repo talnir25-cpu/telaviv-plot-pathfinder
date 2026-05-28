@@ -388,6 +388,52 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}
       if (body.existingFloors >= 5 && plotArea > 0 && plotArea < 800 && report.status === "high_potential") {
         report.status = "medium_potential";
       }
+
+      // ── ולידציית תכסית: האם ה-FAR המוצע ריאלי גיאומטרית? ──
+      if (hasSetbacks && typicalFloorArea > 0) {
+        if (!report.zoning) report.zoning = {};
+        report.zoning.frontSetbackM = body.frontSetbackM;
+        report.zoning.sideSetbackM = body.sideSetbackM;
+        report.zoning.rearSetbackM = body.rearSetbackM;
+        report.zoning.typicalFloorAreaSqm = typicalFloorArea;
+        report.zoning.coveragePct = coveragePctVal;
+        report.zoning.setbackSource = body.setbackSource ?? "regulation";
+
+        const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
+        const proposedFloorsVal = report.proposed?.floors ?? 0;
+        const maxFloorsVal = report.zoning?.maxFloors ?? 0;
+        const floorsNeeded = Math.ceil(proposedBuilt / typicalFloorArea);
+        report.zoning.floorsNeededForFAR = floorsNeeded;
+
+        const srcLabel = body.setbackSource === "regulation"
+          ? "תקנון רובע"
+          : "הזנת משתמש";
+        const srcTag = `בדיקת תכסית — קווי בניין (${srcLabel})`;
+
+        if (floorsNeeded > proposedFloorsVal && floorsNeeded <= maxFloorsVal) {
+          report.redFlags.push({
+            level: "warning",
+            title: "תכנון לא ריאלי גיאומטרית",
+            description: `שטח הבנייה המוצע (${proposedBuilt} מ"ר) דורש ${floorsNeeded} קומות בהינתן שטח קומה טיפוסי של ${typicalFloorArea} מ"ר, אך הוצעו רק ${proposedFloorsVal}. שקול להגדיל את מספר הקומות.`,
+            source: srcTag,
+          });
+        } else if (floorsNeeded > maxFloorsVal && maxFloorsVal > 0) {
+          report.redFlags.push({
+            level: "critical",
+            title: "התכסית חוסמת את ה-FAR",
+            description: `נדרשות ${floorsNeeded} קומות לתמיכה בשטח המוצע (${proposedBuilt} מ"ר), אך מקסימום הקומות לפי תקנון הוא ${maxFloorsVal}. ה-FAR השאיפתי אינו ניתן למימוש בקווי הבניין הנוכחיים.`,
+            source: srcTag,
+          });
+          report.status = "blocked";
+        } else if (proposedFloorsVal > floorsNeeded * 1.5 && floorsNeeded > 0) {
+          report.redFlags.push({
+            level: "info",
+            title: "ניצול חסר של תכסית",
+            description: `${proposedFloorsVal} קומות מוצעות עבור שטח שניתן להכיל ב-${floorsNeeded} קומות בלבד — ייתכן שכדאי לבחון תכנון נמוך וקומפקטי יותר.`,
+            source: srcTag,
+          });
+        }
+      }
     } catch (e) {
       console.error("post-validation error (non-fatal)", e);
     }
