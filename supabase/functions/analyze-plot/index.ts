@@ -611,9 +611,10 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
           const r = zoneInfo.rights;
           const bonusKey = TRACK_TO_BONUS_KEY[renewalTrack];
           const farBonus = Number(((r as any)[`${bonusKey}_far_bonus`]) ?? 0);
-          const unitsBonusPct = bonusKey === "rova_plan"
-            ? 0
-            : Number(((r as any)[`${bonusKey}_units_bonus_pct`]) ?? 0);
+
+          // ⚠️ הערה: לא מכפילים ב-units_bonus_pct.
+          // ה-far_bonus כבר מגדיל את שטח הבנייה, וכמות יח"ד נגזרת ממנו דרך
+          // מקדם הצפיפות. הכפלה נוספת ב-units_bonus_pct הייתה ספירה כפולה.
 
           const effectiveFAR = (r.max_far + farBonus) / 100;
           const maxFloorsDet = (r.max_floors_above ?? 0) + (r.max_floors_roof ?? 0);
@@ -631,12 +632,12 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
 
           const heightDet = Math.round(proposedFloorsDet * FLOOR_HEIGHT_M * 10) / 10;
 
-          // יח"ד דטרמיניסטי לפי מקדם הצפיפות
-          const baseUnits = Math.floor(proposedBuilt / r.density_coefficient_sqm_per_unit);
+          // יח"ד דטרמיניסטי: שטח בנייה מותר ÷ מקדם הצפיפות מהתקנון
           const proposedUnitsDet = Math.max(
             body.existingUnits ?? 0,
-            Math.floor(baseUnits * (1 + unitsBonusPct / 100)),
+            Math.floor(proposedBuilt / r.density_coefficient_sqm_per_unit),
           );
+          const unitsBonusPct = 0; // נשמר לתצוגה בלבד — לא בשימוש בחישוב
 
           const sellableArea = proposedBuilt * SELLABLE_RATIO;
           const farDet = Number((proposedBuilt / plotAreaDet).toFixed(2));
