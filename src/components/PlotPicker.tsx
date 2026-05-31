@@ -269,7 +269,10 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPlot) return;
+    if (!selectedPlot) {
+      toast.error("יש לבחור חלקה לפני הניתוח");
+      return;
+    }
     const ba = Number(existingBuiltArea);
     const fs = Number(frontSetback);
     const ss = Number(sideSetback);
@@ -277,7 +280,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     const std = DEFAULT_SETBACKS[quarter];
     const isManual = fs !== std.front || ss !== std.side || rs !== std.rear;
     const outOfRange = [fs, ss, rs].some((v) => v < 0 || v > 15);
-    onAnalyze({
+    const candidate = {
       quarter,
       gush: selectedPlot.gush,
       helka: selectedPlot.helka,
@@ -290,11 +293,24 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       existingBuiltAreaConfidence: ba > 0 ? builtAreaConfidence ?? undefined : undefined,
       conservation,
       notes: notes.trim() || undefined,
-      frontSetbackM: fs >= 0 ? fs : undefined,
-      sideSetbackM: ss >= 0 ? ss : undefined,
-      rearSetbackM: rs >= 0 ? rs : undefined,
-      setbackSource: !isManual ? "regulation" : outOfRange ? "manual_override" : "manual",
-    });
+      frontSetbackM: Number.isFinite(fs) && fs >= 0 ? fs : undefined,
+      sideSetbackM: Number.isFinite(ss) && ss >= 0 ? ss : undefined,
+      rearSetbackM: Number.isFinite(rs) && rs >= 0 ? rs : undefined,
+      setbackSource: (!isManual
+        ? "regulation"
+        : outOfRange
+        ? "manual_override"
+        : "manual") as AnalysisInput["setbackSource"],
+    };
+    const parsed = analysisInputSchema.safeParse(candidate);
+    if (!parsed.success) {
+      const msgs = formatErrorList(parsed.error);
+      toast.error(msgs[0], {
+        description: msgs.length > 1 ? msgs.slice(1, 4).join(" • ") : undefined,
+      });
+      return;
+    }
+    onAnalyze(parsed.data as AnalysisInput);
   };
 
   return (
