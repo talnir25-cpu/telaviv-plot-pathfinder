@@ -36,6 +36,7 @@ import type {
   UnitMixRow,
   UnitType,
 } from "@/types/feasibility";
+import { financialInputSchema, flattenErrors, formatErrorList, type FieldErrors } from "@/lib/validation";
 
 // Build a sensible default unit-mix for the # of sale units.
 const buildDefaultUnitMix = (saleUnits: number, pricePerSqm: number): UnitMixRow[] => {
@@ -143,12 +144,14 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
   const [loadingDefaults, setLoadingDefaults] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [report, setReport] = useState<FinancialReport | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   // Fetch AI-suggested defaults on mount / when plot changes
   useEffect(() => {
     let cancelled = false;
     setReport(null);
     setInput(null);
+    setFieldErrors({});
     setLoadingDefaults(true);
     (async () => {
       try {
@@ -222,10 +225,28 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
     if (!input) return;
     const num = Number(value.replace(/[^\d.]/g, ""));
     setInput({ ...input, [key]: isNaN(num) ? 0 : num });
+    if (fieldErrors[key as string]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[key as string];
+        return next;
+      });
+    }
   };
 
   const runAnalysis = async () => {
     if (!input) return;
+    const parsed = financialInputSchema.safeParse(input);
+    if (!parsed.success) {
+      const errors = flattenErrors(parsed.error);
+      setFieldErrors(errors);
+      const msgs = formatErrorList(parsed.error);
+      toast.error(msgs[0], {
+        description: msgs.length > 1 ? `${msgs.length - 1} שגיאות נוספות סומנו בטופס` : undefined,
+      });
+      return;
+    }
+    setFieldErrors({});
     setAnalyzing(true);
     setReport(null);
     try {
@@ -234,7 +255,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           mode: "analyze",
           plot,
           planning,
-          financial: input,
+          financial: parsed.data,
         },
       });
       if (error || !data?.report) {
@@ -395,25 +416,32 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           <div key={g} className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">{g}</h3>
             <div className="grid gap-4 md:grid-cols-3">
-              {visibleFields.filter((f) => f.group === g).map((f) => (
-                <div key={f.key} className="space-y-1.5">
-                  <Label htmlFor={f.key} className="text-xs">
-                    {f.label}
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id={f.key}
-                      inputMode="decimal"
-                      value={(input[f.key] as number | undefined) ?? 0}
-                      onChange={(e) => updateField(f.key, e.target.value)}
-                      className="pl-16 text-sm"
-                    />
-                    <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
-                      {f.suffix}
-                    </span>
+              {visibleFields.filter((f) => f.group === g).map((f) => {
+                const err = fieldErrors[f.key as string];
+                return (
+                  <div key={f.key} className="space-y-1.5">
+                    <Label htmlFor={f.key} className="text-xs">
+                      {f.label}
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id={f.key}
+                        inputMode="decimal"
+                        value={(input[f.key] as number | undefined) ?? 0}
+                        onChange={(e) => updateField(f.key, e.target.value)}
+                        aria-invalid={!!err}
+                        className={`pl-16 text-sm ${err ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                      />
+                      <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                        {f.suffix}
+                      </span>
+                    </div>
+                    {err && (
+                      <p className="text-[11px] text-destructive leading-tight">{err}</p>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}
