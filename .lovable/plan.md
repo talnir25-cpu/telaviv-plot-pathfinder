@@ -1,25 +1,57 @@
-## עדכון `src/components/AppHeader.tsx`
+## הבעיה
 
-החלפת ה-header הנוכחי במבנה שנבחר (v3 — Sophisticated data hero), תוך שימוש בטוקנים הסמנטיים של הפרויקט (`bg-gradient-hero`, `primary-foreground`, `accent`, `primary-glow`) כדי לשמור על תאימות מצב כהה/בהיר.
+`proposed.units`, `proposed.builtAreaSqm` ו-`proposed.floors` מגיעים כיום מה-AI (Gemini) בתוך `analyze-plot`. כל קריאה חוזרת לאותה חלקה מחזירה ערכים מעט שונים, כי המודל לא דטרמיניסטי.
 
-### שינויי מבנה
-1. **רקע מועשר**: שכבת רקע נקודות (radial-gradient grid 40px) מעל ה-gradient הקיים, בנוסף לשני ה-blobs המטושטשים (אחד נשמר, אחד מוגדל).
-2. **שורת eyebrow חדשה**: צ׳יפ "Tel Aviv • Urban Renewal Intelligence" + מפריד קצר + תווית בטא ("גרסת בטא: רובעים 3-4, תל אביב*") — כל המטא-מידע בשורה אחת במקום פסקה.
-3. **כותרת מודגשת**: H1 בשתי שורות, השורה השנייה ("בהתחדשות עירונית") עם gradient text מ-`accent` אל `primary-foreground`. גודל `text-4xl md:text-6xl`.
-4. **תיאור תמציתי**: פסקה אחת קצרה במקום שלוש שורות, ברוחב מוגבל (`max-w-2xl`) לקריאות טובה.
-5. **תגי סימוכין משודרגים**: שלושת ה-badges הופכים לכרטיסיות מעוגלות (`rounded-xl`) עם blur, dot צבעוני בקצה (כחול פועם, סגול, ירוק) ו-hover state.
+## הפתרון
 
-### שינויי טקסט
-- הסרת אייקון Building (לא בכיוון שנבחר).
-- הסרת שלוש שורות התיאור הארוכות — איחוד למשפט אחד.
-- העברת "גרסת בטא" משורת התיאור לשורת ה-eyebrow.
+להוסיף **שכבת חישוב דטרמיניסטית** ב-`supabase/functions/analyze-plot/index.ts` שרצה אחרי שה-AI חוזר, ודורסת את שלושת השדות לפי נוסחה קבועה. ה-AI ימשיך להחזיר `zoning` (maxFAR, maxFloors, maxHeightMeters), דגלים אדומים, סיכום ועדה — אבל היקף הבנייה המוצעת ייגזר אך ורק מהקלט והתקנון.
 
-### עיצוב
-- שימוש בטוקנים סמנטיים בלבד (אין צבעים hard-coded חוץ מ-`emerald-400` לנקודה השלישית — אפשר להחליף ב-token אם תרצה).
-- שמירה על `dir="rtl"` הגלובלי של `index.html`.
-- ללא שינוי ב-`AppHeader` props/exports — קומפוננטה ללא props גם בגרסה החדשה.
+## הנוסחה (קבועה, ללא רנדומליות)
 
-### קבצים שיתעדכנו
-- `src/components/AppHeader.tsx` — rewrite מלא של ה-component (כולל הוספת sub-component פנימי `ReferenceBadge` למניעת חזרה).
+קלט: `plotArea`, `existingUnits`, `existingFloors`, `quarter`, `renewalTrack` (כבר מחושב), `typicalFloorAreaSqm` (קווי בניין סטטוטוריים), `renewalFloorArea` (קווי בניין מוקלים), `zoning.maxFAR`, `zoning.maxFloors`, `zoning.maxHeightMeters`.
 
-ללא שינויים ב-`index.css`, `tailwind.config.ts`, או קבצים אחרים.
+1. **שטח קומה אפקטיבי**
+   `floorAreaEff = renewalFloorArea || typicalFloorAreaSqm`
+
+2. **שטח בנוי מוצע** (התנגשות בין שלוש מגבלות, נבחר המינימום):
+   - `byFAR = plotArea × maxFAR`
+   - `byEnvelope = floorAreaEff × maxFloors`
+   - `proposedBuiltAreaSqm = round(min(byFAR, byEnvelope))`
+
+3. **קומות מוצעות**
+   `proposedFloors = min(maxFloors, ceil(proposedBuiltAreaSqm / floorAreaEff))`
+
+4. **גובה מוצע**
+   `heightMeters = min(maxHeightMeters, proposedFloors × 3.2)`
+
+5. **יח״ד מוצעות** — שילוב של מכפיל מסלול וצפיפות פיזית, נבחר המינימום:
+   - מכפיל מסלול קבוע (טבלה למטה) → `byMultiplier = round(existingUnits × multiplier)`
+   - צפיפות פיזית: `sellableArea = proposedBuiltAreaSqm × 0.78` (ברוטו→נטו מכירה), `byDensity = floor(sellableArea / avgUnitSize)`, כאשר `avgUnitSize = 95 מ"ר`
+   - `proposedUnits = min(byMultiplier, byDensity)`, ולא פחות מ-`existingUnits`
+
+טבלת מכפילי מסלול (קבועה):
+| מסלול        | multiplier |
+|--------------|-----------:|
+| tama38_2     | 1.6        |
+| rova_plan    | 2.3        |
+| pinui_binui  | 3.0        |
+
+6. **גזרים** — `metrics.multiplier`, `metrics.newUnits`, `metrics.estimatedSellableArea`, `metrics.avgUnitSize`, `proposed.far` מחושבים מחדש מהערכים שלמעלה.
+
+## איפה הקוד משתנה
+
+קובץ יחיד: `supabase/functions/analyze-plot/index.ts`, בבלוק ה-post-validation (סביב שורה 395). מוסיפים פונקציה פנימית `computeProposed(...)` ודורסים את `report.proposed` ו-`report.metrics` לפני ההחזרה. אם `plotArea` או `maxFAR`/`maxFloors` חסרים — נופלים בחזרה לערכי ה-AI (failsafe).
+
+טיפוסים ב-`src/types/feasibility.ts` נשארים כמו שהם. לקוח לא משתנה.
+
+## מה זה מבטיח
+
+- אותה חלקה + אותם פרמטרי משתמש (יח״ד קיימות, קווי בניין, שימור) ⇒ אותם `proposed.units`, `proposed.builtAreaSqm`, `proposed.floors` בכל הרצה.
+- הניתוח האיכותני (דגלים, סיכום) עדיין יכול להשתנות מעט, אבל המספרים הגרעיניים יציבים.
+- שינוי קל בקלט (למשל הזנת קווי בניין ידנית) ⇒ שינוי צפוי ומוסבר במספרים.
+
+## מה לא כלול
+
+- שינוי במנוע הפיננסי — הוא כבר דטרמיניסטי וצורך את `proposed` כקלט, אז ייהנה אוטומטית מהיציבות.
+- שינוי ב-UI / רכיבים.
+- שינוי בלוגיקת ה-renewalPotential (נשארת כפי שהיא).

@@ -534,9 +534,83 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
           });
         }
       }
+
+      // ── חישוב דטרמיניסטי של היקף הבנייה המוצעת ──
+      // דורס את proposed.* ו-metrics.* כדי שאותו קלט יחזיר תמיד אותה תוצאה.
+      try {
+        const plotAreaDet = body.area ?? body.shapeArea ?? 0;
+        const maxFAR = Number(report.zoning?.maxFAR ?? 0);
+        const maxFloorsDet = Number(report.zoning?.maxFloors ?? 0);
+        const maxHeightDet = Number(report.zoning?.maxHeightMeters ?? 0);
+        const floorAreaEff = renewalFloorArea > 0 ? renewalFloorArea : typicalFloorArea;
+
+        if (plotAreaDet > 0 && maxFAR > 0 && maxFloorsDet > 0 && floorAreaEff > 0) {
+          const TRACK_MULTIPLIER: Record<RenewalTrack, number> = {
+            tama38_2: 1.6,
+            rova_plan: 2.3,
+            pinui_binui: 3.0,
+          };
+          const AVG_UNIT_SIZE = 95;       // מ"ר ברוטו ליח״ד
+          const SELLABLE_RATIO = 0.78;    // ברוטו → נטו מכירה
+          const FLOOR_HEIGHT_M = 3.2;
+
+          const byFAR = plotAreaDet * maxFAR;
+          const byEnvelope = floorAreaEff * maxFloorsDet;
+          const proposedBuilt = Math.round(Math.min(byFAR, byEnvelope));
+
+          const proposedFloorsDet = Math.min(
+            maxFloorsDet,
+            Math.max(1, Math.ceil(proposedBuilt / floorAreaEff)),
+          );
+
+          const heightDet = Math.round(
+            (maxHeightDet > 0
+              ? Math.min(maxHeightDet, proposedFloorsDet * FLOOR_HEIGHT_M)
+              : proposedFloorsDet * FLOOR_HEIGHT_M) * 10,
+          ) / 10;
+
+          const multiplierDet = TRACK_MULTIPLIER[renewalTrack];
+          const byMultiplier = Math.round((body.existingUnits ?? 0) * multiplierDet);
+          const sellableArea = proposedBuilt * SELLABLE_RATIO;
+          const byDensity = Math.floor(sellableArea / AVG_UNIT_SIZE);
+          const proposedUnitsDet = Math.max(
+            body.existingUnits ?? 0,
+            Math.min(byMultiplier, byDensity),
+          );
+
+          const farDet = plotAreaDet > 0
+            ? Number((proposedBuilt / plotAreaDet).toFixed(2))
+            : 0;
+
+          report.proposed = {
+            ...(report.proposed ?? {}),
+            units: proposedUnitsDet,
+            floors: proposedFloorsDet,
+            builtAreaSqm: proposedBuilt,
+            far: farDet,
+            heightMeters: heightDet,
+          };
+
+          const existingUnitsForMetrics = report.existing?.units ?? body.existingUnits ?? 0;
+          report.metrics = {
+            ...(report.metrics ?? {}),
+            multiplier: existingUnitsForMetrics > 0
+              ? Number((proposedUnitsDet / existingUnitsForMetrics).toFixed(2))
+              : 0,
+            newUnits: Math.max(0, proposedUnitsDet - existingUnitsForMetrics),
+            estimatedSellableArea: Math.round(sellableArea),
+            avgUnitSize: proposedUnitsDet > 0
+              ? Math.round(proposedBuilt / proposedUnitsDet)
+              : AVG_UNIT_SIZE,
+          };
+        }
+      } catch (e) {
+        console.error("deterministic proposed-compute error (non-fatal)", e);
+      }
     } catch (e) {
       console.error("post-validation error (non-fatal)", e);
     }
+
 
 
 
