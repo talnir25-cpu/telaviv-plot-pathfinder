@@ -1,37 +1,30 @@
-# תוכנית: שורת מכפילי KPI בראש הדוח
+## מצב נוכחי (כבר קיים באפליקציה)
 
-## מטרה
-להוסיף בראש `DashboardReport` שורת KPI בולטת עם 6 המכפילים המרכזיים שיעניקו ליזם תמונת כדאיות מהירה — כולל מכפילים שמתייחסים לתכסית הקיימת ולפוטנציאל ההתחדשות.
+המנגנון לזיהוי **קומות + יחידות דיור קיימות** במגרש כבר מחובר במלואו:
 
-## המכפילים שייכללו (גישה היברידית)
+**Backend** — `supabase/functions/lookup-plot-units/index.ts`:
+- `govmap_bldg` — שכבת BUILDINGS של GovMap, מוציאה קומות מדודות פיזית (`high` confidence)
+- `tlv_permits` — היתרי בנייה ת"א (FeatureServer 772), שדה `yechidot_diyur`
+- `nadlan` — ספירת תת-חלקות מעסקאות נדל"ן (lower bound ליח"ד)
+- `heuristic` — fallback
+- Cache בטבלת `plot_units_cache` עם `confidence` ו-`sources_json`
 
-1. **מכפיל יחידות** — `proposed.units / existing.units`
-   בנצ'מרק: <1.8 אדום, 1.8–2.2 צהוב, >2.2 ירוק
-2. **מכפיל שטחים (GFA)** — `proposed.builtAreaSqm / existing.builtAreaSqm`
-   בנצ'מרק: <2.0 אדום, 2.0–2.5 צהוב, >2.5 ירוק
-3. **הגדלת תכסית** — `(renewalCoverage - baselineCoverage) / baselineCoverage`
-   ערך מתוך `renewalPotential` שכבר קיים
-4. **תמורה לדייר (מ"ר)** — `tenantUpliftFromCoverage.upliftPerUnitSqm`
-   ערך מתוך מנוע הפיננסי הקיים
-5. **ROC** — `(revenue - cost) / cost`
-   בנצ'מרק: <15% אדום, 15–25% צהוב, >25% ירוק
-6. **Cost-to-Revenue** — `totalCost / totalRevenue`
-   בנצ'מרק: >85% אדום, 75–85% צהוב, <75% ירוק
+**Frontend** — `src/components/PlotPicker.tsx`:
+- קריאה אוטומטית ב-`useEffect` ברגע שנבחרה חלקה (שורה 221-235)
+- מילוי שדות `existingUnits`, `existingFloors`, `existingBuiltArea`
+- כפתור עריכה ידנית + שמירה ב-cache (`saveManualUnits`)
+- תצוגת מקור + רמת אמינות + דיאלוג raw לכל מקור
 
-## תצוגה
-שורת KPI Cards אופקית בראש הדוח (מעל הבלוקים הקיימים), עם:
-- ערך מספרי גדול
-- תווית קצרה בעברית
-- אינדיקטור צבע (ירוק/צהוב/אדום) לפי הבנצ'מרק
-- Tooltip בהצבעה עם הסבר התובנה העסקית הקצר
-- ב-mobile (viewport נוכחי 832px): 3 עמודות × 2 שורות; ב-desktop: 6 עמודות
+## מה נעשה בפועל
 
-## קבצים שישתנו
-- **חדש**: `src/components/KpiHeader.tsx` — קומפוננטת השורה עם 6 הכרטיסים
-- **חדש**: `src/lib/kpi-calculations.ts` — חישוב 6 המכפילים + פונקציית בנצ'מרק לצבע
-- **עריכה**: `src/components/DashboardReport.tsx` — שילוב `<KpiHeader>` בראש הדוח
-- ללא שינויי backend / טיפוסים / migrations — כל הנתונים כבר זמינים ב-`FeasibilityReport`
+### 1. אימות שהמנגנון עובד
+- להריץ `lookup-plot-units` על 2-3 חלקות לדוגמה ברובע 3/4
+- לבדוק שמקור `govmap_bldg` מחזיר `floors` עם `confidence: high`
+- לבדוק את `edge_function_logs` לאיתור כשלים שקטים
 
-## נקודות לאישור
-- אם הנתון של מכפיל חסר (למשל אין `renewalPotential`) — להציג "—" עם tooltip מסביר, או להסתיר את הכרטיס? **ברירת מחדל מוצעת: להציג "—"** כדי לשמור על מבנה קבוע.
-- האם להוסיף כפתור "הצג עוד מכפילים" שיפתח את שאר ה-10 (מבין 16 שהוצעו)? **ברירת מחדל מוצעת: לא בשלב זה** — נשמור פוקוס.
+### 2. תיעדוף GovMap לקומות (לפי בחירת המשתמש)
+- בדיקת לוגיקת aggregation ב-`lookup-plot-units` — לוודא שכש-`govmap_bldg.floors` קיים עם `high`, הוא גובר על שאר המקורות עבור שדה הקומות (ייתכן ש-`tlv_permits` גובר כיום)
+- אם נדרש — לעדכן עדיפויות כך ש-`floorsSource` יבוא מ-GovMap כשהוא זמין ומדויק
+
+### 3. שיפורים קטנים (רק אם האימות יחשוף בעיות)
+- הרחבת `mapTolerance` הדינמי אם מ
