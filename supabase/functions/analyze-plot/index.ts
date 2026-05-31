@@ -25,7 +25,36 @@ interface PlotInput {
   sideSetbackM?: number;
   rearSetbackM?: number;
   setbackSource?: "regulation" | "manual" | "manual_override";
+  // אופציונלי — דריסה ידנית של ייעוד הקרקע ע"י המשתמש
+  zoneLabelOverride?: string;
+  areaHint?: "declaration" | "market_street" | "rest";
 }
+
+interface ZoneInfo {
+  plan_code: string;
+  zone_label: string;
+  rights: {
+    coverage_pct: number | null;
+    max_far: number;
+    max_floors_above: number;
+    max_floors_roof: number | null;
+    density_coefficient_sqm_per_unit: number;
+    min_unit_size_sqm: number | null;
+    setback_front_m: number | null;
+    setback_side_m: number | null;
+    setback_rear_m: number | null;
+    tama38_far_bonus: number;
+    pinui_far_bonus: number;
+    rova_plan_far_bonus: number;
+    tama38_units_bonus_pct: number;
+    pinui_units_bonus_pct: number;
+  };
+  source_citation: string;
+  notes: string | null;
+  confidence: "high" | "medium" | "low";
+  available_zones: string[];
+}
+
 
 // העתק דטרמיניסטי של src/lib/setback-standards.ts (Deno לא מייבא מ-src/)
 function estimateTypicalFloorArea(
