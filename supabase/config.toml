@@ -2,3 +2,6 @@ project_id = "sewnnwxbsupifmrixuan"
 
 [functions.analyze-plot]
 verify_jwt = false
+
+[functions.lookup-zone-info]
+verify_jwt = false
