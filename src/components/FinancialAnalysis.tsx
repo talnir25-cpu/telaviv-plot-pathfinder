@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
 import { Card } from "@/components/ui/card";
@@ -557,6 +557,9 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
       {/* Detailed revenue breakdown (unit mix table) */}
       {report.revenueBreakdown && <RevenueBreakdownPanel report={report} />}
 
+      {/* Monthly sales cash flow */}
+      {report.revenueBreakdown && <SalesCashFlowPanel report={report} />}
+
       {/* Construction-cost breakdown */}
       <ConstructionBreakdownPanel report={report} />
 
@@ -803,6 +806,191 @@ const RevenueBreakdownPanel = ({ report }: { report: FinancialReport }) => {
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+const SalesCashFlowPanel = ({ report }: { report: FinancialReport }) => {
+  const rb = report.revenueBreakdown;
+  if (!rb) return null;
+  const totalUnits = rb.unitMixRows.reduce((a, x) => a + x.count, 0);
+  const months = Math.max(1, Math.round(rb.salesDurationMonths));
+  if (totalUnits === 0 || months === 0) return null;
+
+  // Derived monthly escalation rate from the total escalation multiplier.
+  const monthlyEsc = months > 0 ? Math.pow(Math.max(1, rb.escalationMultiplier), 1 / months) - 1 : 0;
+  const annualEscPct = (Math.pow(1 + monthlyEsc, 12) - 1) * 100;
+
+  // Spread units evenly (fractional) across months.
+  const unitsPerMonth = totalUnits / months;
+  // Raw weighted total to normalize against escalatedRevenue + ancillary (so all monthly
+  // totals sum exactly to the report's gross escalated revenue).
+  const targetGross = rb.escalatedRevenue + rb.ancillaryTotal;
+  let rawTotal = 0;
+  const rawRows: { idx: number; cumUnits: number; units: number; index: number }[] = [];
+  let cumUnits = 0;
+  for (let t = 0; t < months; t++) {
+    cumUnits += unitsPerMonth;
+    const indexFactor = Math.pow(1 + monthlyEsc, t);
+    const raw = unitsPerMonth * indexFactor;
+    rawTotal += raw;
+    rawRows.push({ idx: t, cumUnits, units: unitsPerMonth, index: indexFactor });
+  }
+  const scale = rawTotal > 0 ? targetGross / rawTotal : 0;
+  const netFactor = rb.netRevenueToDeveloper > 0 && targetGross > 0
+    ? rb.netRevenueToDeveloper / targetGross
+    : 1;
+
+  let cumGross = 0;
+  let cumNet = 0;
+  const rows = rawRows.map((r) => {
+    const gross = r.units * r.index * scale;
+    const net = gross * netFactor;
+    cumGross += gross;
+    cumNet += net;
+    return {
+      month: r.idx + 1,
+      label: `ח׳ ${r.idx + 1}`,
+      units: Number(r.units.toFixed(2)),
+      cumUnits: Math.min(totalUnits, Number(r.cumUnits.toFixed(2))),
+      priceIndex: r.index,
+      gross,
+      net,
+      cumGross,
+      cumNet,
+    };
+  });
+
+  // Show first 6, last 3, and middle marker if long
+  const displayRows = months <= 12
+    ? rows
+    : [...rows.slice(0, 6), ...rows.slice(rows.length - 3)];
+
+  const peakMonth = rows.reduce((a, b) => (b.gross > a.gross ? b : a), rows[0]);
+  const halfway = rows.find((r) => r.cumNet >= rb.netRevenueToDeveloper / 2);
+
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold">תזרים מכירות חודשי (קצב מכירה + אינדקסציה)</h4>
+        <div className="flex flex-wrap gap-1.5">
+          <Badge variant="outline" className="text-[10px]">
+            קצב {(totalUnits / months).toFixed(2)} יח״ד/חודש
+          </Badge>
+          <Badge variant="outline" className="text-[10px]">
+            משך {months} ח׳
+          </Badge>
+          <Badge variant="outline" className="text-[10px]">
+            אינדקסציה ≈ {annualEscPct.toFixed(1)}% שנתי
+          </Badge>
+        </div>
+      </div>
+
+      {/* Mini bar chart of cumulative net revenue */}
+      <div className="mb-4 space-y-1">
+        {rows.map((r) => {
+          const pct = (r.cumNet / rb.netRevenueToDeveloper) * 100;
+          return (
+            <div key={r.month} className="flex items-center gap-2 text-[10px]">
+              <span className="w-10 shrink-0 text-muted-foreground tabular-nums">{r.label}</span>
+              <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="absolute inset-y-0 right-0 bg-primary/70"
+                  style={{ width: `${Math.min(100, pct).toFixed(1)}%` }}
+                />
+              </div>
+              <span className="w-14 shrink-0 text-end tabular-nums text-muted-foreground">
+                {pct.toFixed(0)}%
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Highlights */}
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 text-[11px]">
+        <div className="rounded-lg border bg-muted/20 p-2">
+          <div className="text-muted-foreground">חודש שיא פדיון</div>
+          <div className="mt-0.5 font-semibold tabular-nums">ח׳ {peakMonth.month}</div>
+          <div className="text-[10px] text-muted-foreground">{fmtNIS(peakMonth.gross)}</div>
+        </div>
+        <div className="rounded-lg border bg-muted/20 p-2">
+          <div className="text-muted-foreground">חצי מהפדיון נטו</div>
+          <div className="mt-0.5 font-semibold tabular-nums">
+            {halfway ? `ח׳ ${halfway.month}` : "—"}
+          </div>
+          <div className="text-[10px] text-muted-foreground">
+            {halfway ? fmtNIS(halfway.cumNet) : ""}
+          </div>
+        </div>
+        <div className="rounded-lg border bg-muted/20 p-2">
+          <div className="text-muted-foreground">מדד מחיר בסוף תקופה</div>
+          <div className="mt-0.5 font-semibold tabular-nums">
+            ×{rb.escalationMultiplier.toFixed(3)}
+          </div>
+          <div className="text-[10px] text-muted-foreground">
+            +{fmtNIS(rb.escalationUplift)}
+          </div>
+        </div>
+        <div className="rounded-lg border bg-muted/20 p-2">
+          <div className="text-muted-foreground">סה״כ פדיון נטו ליזם</div>
+          <div className="mt-0.5 font-semibold tabular-nums text-primary">
+            {fmtNIS(rb.netRevenueToDeveloper)}
+          </div>
+          <div className="text-[10px] text-muted-foreground">כולל מע״מ</div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-muted/40 text-muted-foreground">
+            <tr>
+              <th className="p-2 text-end">חודש</th>
+              <th className="p-2 text-center">יח״ד בחודש</th>
+              <th className="p-2 text-center">יח״ד מצטבר</th>
+              <th className="p-2 text-center">מדד מחיר</th>
+              <th className="p-2 text-center">פדיון ברוטו</th>
+              <th className="p-2 text-center">פדיון נטו</th>
+              <th className="p-2 text-start">מצטבר נטו</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayRows.map((r, i) => {
+              const isGap = months > 12 && i === 6;
+              return (
+                <Fragment key={r.month}>
+                  {isGap && (
+                    <tr className="border-t bg-muted/10 text-center text-[10px] text-muted-foreground">
+                      <td colSpan={7} className="p-1.5">… {months - 9} חודשי ביניים …</td>
+                    </tr>
+                  )}
+                  <tr className="border-t">
+                    <td className="p-2 font-medium">{r.label}</td>
+                    <td className="p-2 text-center tabular-nums">{r.units.toFixed(2)}</td>
+                    <td className="p-2 text-center tabular-nums">{r.cumUnits.toFixed(1)}</td>
+                    <td className="p-2 text-center tabular-nums">×{r.priceIndex.toFixed(3)}</td>
+                    <td className="p-2 text-center tabular-nums">{fmtNIS(r.gross)}</td>
+                    <td className="p-2 text-center tabular-nums">{fmtNIS(r.net)}</td>
+                    <td className="p-2 text-start tabular-nums font-semibold">{fmtNIS(r.cumNet)}</td>
+                  </tr>
+                </Fragment>
+              );
+            })}
+            <tr className="border-t bg-muted/20 font-semibold">
+              <td className="p-2" colSpan={4}>סה״כ {months} חודשים</td>
+              <td className="p-2 text-center tabular-nums">{fmtNIS(targetGross)}</td>
+              <td className="p-2 text-center tabular-nums">{fmtNIS(rb.netRevenueToDeveloper)}</td>
+              <td className="p-2 text-start tabular-nums">100%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+        ℹ קצב המכירה והאינדקסציה השנתית נלקחים מפרמטרי הפדיון בקלט. המדד נגזר חודשית
+        מהמכפיל הכולל, וההכנסה החודשית מנורמלת כך שהסכום הכולל זהה לדוח הפדיון.
+      </p>
     </div>
   );
 };
