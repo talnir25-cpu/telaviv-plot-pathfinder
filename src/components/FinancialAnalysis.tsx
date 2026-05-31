@@ -416,25 +416,32 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           <div key={g} className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">{g}</h3>
             <div className="grid gap-4 md:grid-cols-3">
-              {visibleFields.filter((f) => f.group === g).map((f) => (
-                <div key={f.key} className="space-y-1.5">
-                  <Label htmlFor={f.key} className="text-xs">
-                    {f.label}
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id={f.key}
-                      inputMode="decimal"
-                      value={(input[f.key] as number | undefined) ?? 0}
-                      onChange={(e) => updateField(f.key, e.target.value)}
-                      className="pl-16 text-sm"
-                    />
-                    <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
-                      {f.suffix}
-                    </span>
+              {visibleFields.filter((f) => f.group === g).map((f) => {
+                const err = fieldErrors[f.key as string];
+                return (
+                  <div key={f.key} className="space-y-1.5">
+                    <Label htmlFor={f.key} className="text-xs">
+                      {f.label}
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id={f.key}
+                        inputMode="decimal"
+                        value={(input[f.key] as number | undefined) ?? 0}
+                        onChange={(e) => updateField(f.key, e.target.value)}
+                        aria-invalid={!!err}
+                        className={`pl-16 text-sm ${err ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                      />
+                      <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                        {f.suffix}
+                      </span>
+                    </div>
+                    {err && (
+                      <p className="text-[11px] text-destructive leading-tight">{err}</p>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}
