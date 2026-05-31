@@ -15,7 +15,7 @@ export const AppHeader = () => {
         <div className="absolute -left-20 bottom-0 h-80 w-80 rounded-full bg-primary-glow/30 blur-3xl" />
       </div>
 
-      <div className="container relative z-10 py-12 md:py-20">
+      <div className="container relative z-10 py-7 md:py-10">
         <div className="flex flex-col items-start gap-6">
           {/* Eyebrow + beta scope */}
           <div className="flex flex-wrap items-center gap-4">
