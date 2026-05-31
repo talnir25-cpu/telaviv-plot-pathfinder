@@ -24,7 +24,7 @@ const pct = (label: string, min = 0, max = 100) =>
 
 /* ───────────────────────── AnalysisInput ───────────────────────── */
 
-export const analysisInputSchema: z.ZodType<AnalysisInput> = z
+export const analysisInputSchema = z
   .object({
     quarter: z.union([z.literal(3), z.literal(4)]),
     gush: intPositive("גוש", 99_999),
