@@ -578,7 +578,9 @@ export const DashboardReport = ({
 
         {/* PROPOSED — existing vs proposed, multipliers, committee */}
         <TabsContent value="proposed" className="mt-4 space-y-4">
+          <CalculationSourceCard report={report} />
           <div className="grid gap-4 lg:grid-cols-3">
+
             <Card dir="rtl" className="p-5 shadow-card text-right lg:col-span-2">
               <div className="mb-3 flex items-center gap-2">
                 <Layers className="h-4 w-4 text-primary" />
