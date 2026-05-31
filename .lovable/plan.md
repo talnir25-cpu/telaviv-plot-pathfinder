@@ -1,30 +1,38 @@
-## מצב נוכחי (כבר קיים באפליקציה)
+# ארגון מחדש של הדוח
 
-המנגנון לזיהוי **קומות + יחידות דיור קיימות** במגרש כבר מחובר במלואו:
+מעבר ממבנה 6 טאבים למבנה 5 טאבים עם זרימה נרטיבית: *מה קיים? → מה מותר לבנות? → מה מוצע? → מה מסוכן? → כמה זה שווה?*
 
-**Backend** — `supabase/functions/lookup-plot-units/index.ts`:
-- `govmap_bldg` — שכבת BUILDINGS של GovMap, מוציאה קומות מדודות פיזית (`high` confidence)
-- `tlv_permits` — היתרי בנייה ת"א (FeatureServer 772), שדה `yechidot_diyur`
-- `nadlan` — ספירת תת-חלקות מעסקאות נדל"ן (lower bound ליח"ד)
-- `heuristic` — fallback
-- Cache בטבלת `plot_units_cache` עם `confidence` ו-`sources_json`
+## מבנה חדש
 
-**Frontend** — `src/components/PlotPicker.tsx`:
-- קריאה אוטומטית ב-`useEffect` ברגע שנבחרה חלקה (שורה 221-235)
-- מילוי שדות `existingUnits`, `existingFloors`, `existingBuiltArea`
-- כפתור עריכה ידנית + שמירה ב-cache (`saveManualUnits`)
-- תצוגת מקור + רמת אמינות + דיאלוג raw לכל מקור
+| # | טאב | תוכן |
+|---|---|---|
+| 1 | **חלקה** (חדש) | מפה (PlotMap) + נתוני GIS (גוש/חלקה/שטח/centroid/מבנים) + יח״ד וקומות קיימות |
+| 2 | **זכויות ותכסית** | זיכוי בנייה + קווי בניין + חישוב ביטוח + פוטנציאל התחדשות (ללא אילוצים פיזיים) |
+| 3 | **תכנון מוצע** | השוואת קיים/ממוצע/מוצע + מכפילים + סיכום ועדה (הוצא מ"סקירה") |
+| 4 | **סיכונים ואילוצים** | דגלים אדומים + אילוצים פיזיים (עצים, חניה, מים) + אילוצים רגולטוריים |
+| 5 | **פיננסי** | ללא שינוי |
 
-## מה נעשה בפועל
+**רצועת ה-KPI** (`KpiHeader`) נשארת כפי שהיא מעל הטאבים.
+**"מקורות"** עוברת מטאב ל-Dialog/Accordion נגיש מהכותרת.
 
-### 1. אימות שהמנגנון עובד
-- להריץ `lookup-plot-units` על 2-3 חלקות לדוגמה ברובע 3/4
-- לבדוק שמקור `govmap_bldg` מחזיר `floors` עם `confidence: high`
-- לבדוק את `edge_function_logs` לאיתור כשלים שקטים
+## שינויים בקוד
 
-### 2. תיעדוף GovMap לקומות (לפי בחירת המשתמש)
-- בדיקת לוגיקת aggregation ב-`lookup-plot-units` — לוודא שכש-`govmap_bldg.floors` קיים עם `high`, הוא גובר על שאר המקורות עבור שדה הקומות (ייתכן ש-`tlv_permits` גובר כיום)
-- אם נדרש — לעדכן עדיפויות כך ש-`floorsSource` יבוא מ-GovMap כשהוא זמין ומדויק
+### `src/components/DashboardReport.tsx`
+- שינוי `TabsList` מ-6 ל-5 טריגרים: `parcel`, `zoning`, `proposed`, `risks`, `financial`
+- יצירת `TabsContent value="parcel"` שמכיל את `<PlotMap>` + כרטיס GIS חדש (גוש/חלקה/שטח רשום/centroid/מספר מבנים/יח״ד/קומות קיימות)
+- העברת כרטיס "קיים מול מוצע" + KPI cards + סיכום ועדה מ-`overview` ל-`TabsContent value="proposed"`
+- העברת בלוקי אילוצים פיזיים (עצים, חניה, מים) מטאב `zoning` ל-`risks`
+- הוצאת טאב `map` ו-`sources`; "מקורות" → כפתור בכותרת שפותח `Dialog` עם רשימת המקורות
 
-### 3. שיפורים קטנים (רק אם האימות יחשוף בעיות)
-- הרחבת `mapTolerance` הדינמי אם מ
+### `src/components/KpiHeader.tsx`
+- ללא שינוי (נשאר מעל ה-Tabs)
+
+### קבצים נוספים
+- ייתכן שיידרש פיצול לקומפוננטות קטנות (`ParcelTab.tsx`, `ProposedTab.tsx`, `RisksTab.tsx`) כדי לשמור על `DashboardReport.tsx` קריא, אם הקובץ גדל מעבר ל-~400 שורות.
+
+## מה לא משתנה
+- `KpiHeader` (רצועת ה-KPI)
+- `FinancialAnalysis`
+- `PlotMap` (רק עובר למיקום חדש בתוך טאב "חלקה")
+- כל הלוגיקה העסקית, החישובים והנתונים
+- יישור RTL והעיצוב הקיים
