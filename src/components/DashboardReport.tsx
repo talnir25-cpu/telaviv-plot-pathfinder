@@ -107,8 +107,8 @@ const ComparisonRow = ({
   badge?: React.ReactNode;
 }) => (
   <tr>
-    <td className="border-b border-border/60 py-3 text-end text-sm font-medium text-muted-foreground">
-      <div className="flex items-center justify-end gap-2">
+    <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
+      <div className="flex items-center justify-start gap-2">
         {badge}
         <span>{label}</span>
       </div>
@@ -254,7 +254,7 @@ export const DashboardReport = ({
                 <table dir="rtl" className="w-full border-separate border-spacing-x-6 border-spacing-y-0">
                   <thead>
                     <tr className="border-b-2 border-border">
-                      <th className="border-b-2 border-border pb-2 text-end text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="border-b-2 border-border pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         פרמטר
                       </th>
                       <th className="w-32 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
