@@ -29,7 +29,7 @@ export const PlotMap = ({ gush, helka }: Props) => {
         <Button asChild variant="ghost" size="sm">
           <a href={externalUrl} target="_blank" rel="noopener noreferrer">
             פתח ב-GovMap
-            <ExternalLink className="mr-1 h-3.5 w-3.5" />
+            <ExternalLink className="me-1 h-3.5 w-3.5" />
           </a>
         </Button>
       </div>

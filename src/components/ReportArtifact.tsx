@@ -118,7 +118,7 @@ const Metric = ({
     </p>
     <p className="mt-1 text-2xl font-bold tracking-tight text-foreground">
       {value}
-      {unit && <span className="mr-1 text-sm font-medium text-muted-foreground">{unit}</span>}
+      {unit && <span className="me-1 text-sm font-medium text-muted-foreground">{unit}</span>}
     </p>
   </div>
 );
@@ -138,11 +138,11 @@ const ComparisonRow = ({
     <td className="py-3 text-sm font-medium text-muted-foreground">{label}</td>
     <td className="py-3 text-sm">
       {existing}
-      {unit && <span className="mr-1 text-muted-foreground">{unit}</span>}
+      {unit && <span className="me-1 text-muted-foreground">{unit}</span>}
     </td>
     <td className="py-3 text-sm font-semibold text-primary">
       {proposed}
-      {unit && <span className="mr-1 text-muted-foreground">{unit}</span>}
+      {unit && <span className="me-1 text-muted-foreground">{unit}</span>}
     </td>
   </tr>
 );
@@ -242,13 +242,13 @@ export const ReportArtifact = ({
           <table className="w-full">
             <thead>
               <tr className="border-b-2 border-border">
-                <th className="pb-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="pb-3 text-end text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   פרמטר
                 </th>
-                <th className="pb-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="pb-3 text-end text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   מצב קיים
                 </th>
-                <th className="pb-3 text-right text-xs font-semibold uppercase tracking-wider text-primary">
+                <th className="pb-3 text-end text-xs font-semibold uppercase tracking-wider text-primary">
                   מצב מוצע
                 </th>
               </tr>

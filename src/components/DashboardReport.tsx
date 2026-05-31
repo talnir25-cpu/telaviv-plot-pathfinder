@@ -87,7 +87,7 @@ const StatTile = ({
       </p>
       <p className="text-lg font-bold leading-tight">
         {value}
-        {unit && <span className="mr-1 text-xs font-medium text-muted-foreground">{unit}</span>}
+        {unit && <span className="me-1 text-xs font-medium text-muted-foreground">{unit}</span>}
       </p>
     </div>
   </div>
@@ -107,7 +107,7 @@ const ComparisonRow = ({
   badge?: React.ReactNode;
 }) => (
   <tr>
-    <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
+    <td className="border-b border-border/60 py-3 text-end text-sm font-medium text-muted-foreground">
       <div className="flex items-center justify-end gap-2">
         {badge}
         <span>{label}</span>
@@ -115,11 +115,11 @@ const ComparisonRow = ({
     </td>
     <td className="w-32 border-b border-border/60 py-3 text-center text-sm tabular-nums">
       {existing}
-      {unit && existing !== "—" && <span className="mr-1 text-muted-foreground">{unit}</span>}
+      {unit && existing !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
     </td>
     <td className="w-32 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
       {proposed}
-      {unit && <span className="mr-1 text-muted-foreground">{unit}</span>}
+      {unit && <span className="me-1 text-muted-foreground">{unit}</span>}
     </td>
   </tr>
 );
@@ -254,7 +254,7 @@ export const DashboardReport = ({
                 <table dir="rtl" className="w-full border-separate border-spacing-x-6 border-spacing-y-0">
                   <thead>
                     <tr className="border-b-2 border-border">
-                      <th className="border-b-2 border-border pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="border-b-2 border-border pb-2 text-end text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         פרמטר
                       </th>
                       <th className="w-32 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -381,7 +381,7 @@ export const DashboardReport = ({
                       <p className="text-xs text-muted-foreground">שטח קומה טיפוסי</p>
                       <p className="mt-1 text-base font-semibold">
                         {fmt(report.zoning.typicalFloorAreaSqm)} מ״ר
-                        <span className="mr-2 text-xs font-normal text-muted-foreground">
+                        <span className="me-2 text-xs font-normal text-muted-foreground">
                           (תכסית {fmt(report.zoning.coveragePct ?? 0)}%)
                         </span>
                       </p>
@@ -390,7 +390,7 @@ export const DashboardReport = ({
                     <div className="rounded-lg border bg-muted/30 px-4 py-3">
                       <p className="text-xs text-muted-foreground">קומות נדרשות / מוצע</p>
                       <p className={`mt-1 text-base font-semibold ${statusColor}`}>
-                        {fmt(floorsNeeded)} / {fmt(proposedFloors)} <span className="mr-1">{statusIcon}</span>
+                        {fmt(floorsNeeded)} / {fmt(proposedFloors)} <span className="me-1">{statusIcon}</span>
                       </p>
                       <p className="mt-0.5 text-[10px] text-muted-foreground">
                         {isOk
@@ -425,7 +425,7 @@ export const DashboardReport = ({
                       <p className="text-xs text-muted-foreground">תכסית בהתחדשות</p>
                       <p className="mt-1 text-base font-semibold text-primary">
                         {fmt(rp.typicalFloorAreaSqm)} מ״ר
-                        <span className="mr-2 text-xs font-normal text-muted-foreground">
+                        <span className="me-2 text-xs font-normal text-muted-foreground">
                           ({fmt(rp.coveragePct)}%)
                         </span>
                       </p>
@@ -434,7 +434,7 @@ export const DashboardReport = ({
                       <p className="text-xs text-muted-foreground">תוספת לקומה</p>
                       <p className="mt-1 text-base font-semibold text-emerald-600 dark:text-emerald-500">
                         +{fmt(rp.upliftSqmPerFloor)} מ״ר
-                        <span className="mr-2 text-xs font-normal text-muted-foreground">
+                        <span className="me-2 text-xs font-normal text-muted-foreground">
                           (+{fmt(rp.upliftPct)}%)
                         </span>
                       </p>
