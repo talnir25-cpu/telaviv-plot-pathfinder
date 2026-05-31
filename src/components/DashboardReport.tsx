@@ -349,7 +349,7 @@ const CalculationSourceCard = ({ report }: { report: FeasibilityReport }) => {
   );
 };
 
-
+export const DashboardReport = ({
   report,
   plotLabel,
   gush,
