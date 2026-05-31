@@ -327,7 +327,7 @@ export const DashboardReport = ({
 
         {/* ZONING */}
         <TabsContent value="zoning" className="mt-4">
-          <Card className="p-5 shadow-card">
+          <Card dir="rtl" className="p-5 shadow-card text-right">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Ruler className="h-4 w-4 text-primary" />
