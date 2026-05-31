@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import plotsData from "@/data/plots.json";
 import type { Plot, AnalysisInput } from "@/types/feasibility";
+import { analysisInputSchema, formatErrorList } from "@/lib/validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
