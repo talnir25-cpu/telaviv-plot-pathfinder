@@ -36,6 +36,7 @@ import type {
   UnitMixRow,
   UnitType,
 } from "@/types/feasibility";
+import { financialInputSchema, flattenErrors, formatErrorList, type FieldErrors } from "@/lib/validation";
 
 // Build a sensible default unit-mix for the # of sale units.
 const buildDefaultUnitMix = (saleUnits: number, pricePerSqm: number): UnitMixRow[] => {
