@@ -79,7 +79,34 @@ export interface FeasibilityReport {
   redFlags: RedFlag[];
   committeeSummary: string;
   sources: string[];
+  // מקור החישוב של proposed.units / builtAreaSqm — שקיפות מלאה
+  calculationSource?: CalculationSource;
 }
+
+export type CalculationSource =
+  | {
+      method: "regulation";
+      plan_code: string;
+      zone_label: string;
+      source_citation: string;
+      confidence: "high" | "medium" | "low";
+      available_zones: string[];
+      base_far_pct: number;
+      far_bonus_pct: number;
+      effective_far_pct: number;
+      density_coefficient_sqm_per_unit: number;
+      units_bonus_pct: number;
+      max_floors: number;
+      renewal_track: "tama38_2" | "pinui_binui" | "rova_plan";
+      renewal_track_label: string;
+    }
+  | {
+      method: "ai_estimate";
+      renewal_track: "tama38_2" | "pinui_binui" | "rova_plan";
+      renewal_track_label: string;
+      multiplier_used: number;
+      note: string;
+    };
 
 export interface AnalysisInput {
   quarter: 3 | 4;
@@ -99,7 +126,11 @@ export interface AnalysisInput {
   sideSetbackM?: number;
   rearSetbackM?: number;
   setbackSource?: "regulation" | "manual" | "manual_override";
+  // דריסה ידנית של ייעוד הקרקע (לפי תקנון רובע)
+  zoneLabelOverride?: string;
+  areaHint?: "declaration" | "market_street" | "rest";
 }
+
 
 // ============ Financial analysis ============
 

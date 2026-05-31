@@ -25,7 +25,36 @@ interface PlotInput {
   sideSetbackM?: number;
   rearSetbackM?: number;
   setbackSource?: "regulation" | "manual" | "manual_override";
+  // אופציונלי — דריסה ידנית של ייעוד הקרקע ע"י המשתמש
+  zoneLabelOverride?: string;
+  areaHint?: "declaration" | "market_street" | "rest";
 }
+
+interface ZoneInfo {
+  plan_code: string;
+  zone_label: string;
+  rights: {
+    coverage_pct: number | null;
+    max_far: number;
+    max_floors_above: number;
+    max_floors_roof: number | null;
+    density_coefficient_sqm_per_unit: number;
+    min_unit_size_sqm: number | null;
+    setback_front_m: number | null;
+    setback_side_m: number | null;
+    setback_rear_m: number | null;
+    tama38_far_bonus: number;
+    pinui_far_bonus: number;
+    rova_plan_far_bonus: number;
+    tama38_units_bonus_pct: number;
+    pinui_units_bonus_pct: number;
+  };
+  source_citation: string;
+  notes: string | null;
+  confidence: "high" | "medium" | "low";
+  available_zones: string[];
+}
+
 
 // העתק דטרמיניסטי של src/lib/setback-standards.ts (Deno לא מייבא מ-src/)
 function estimateTypicalFloorArea(
@@ -262,9 +291,34 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── שליפת זכויות הבנייה מהתקנון (lookup-zone-info) ──
+    let zoneInfo: ZoneInfo | null = null;
+    try {
+      const supaUrl = Deno.env.get("SUPABASE_URL");
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+      if (supaUrl && anonKey) {
+        const zResp = await fetch(`${supaUrl}/functions/v1/lookup-zone-info`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}`, apikey: anonKey },
+          body: JSON.stringify({
+            quarter: body.quarter,
+            gush: body.gush,
+            helka: body.helka,
+            zone_label_override: body.zoneLabelOverride,
+            area_hint: body.areaHint,
+          }),
+        });
+        if (zResp.ok) zoneInfo = await zResp.json();
+        else console.warn("lookup-zone-info non-OK", zResp.status, await zResp.text());
+      }
+    } catch (e) {
+      console.warn("lookup-zone-info failed (non-fatal)", e);
+    }
+
     const builtAreaLine = body.existingBuiltAreaSqm && body.existingBuiltAreaSqm > 0
       ? `שטח בנוי קיים (מדוד ממקור: ${body.existingBuiltAreaSource ?? "לא ידוע"}, אמינות: ${body.existingBuiltAreaConfidence ?? "לא ידוע"}): ${body.existingBuiltAreaSqm} מ"ר — השתמש בערך הזה ישירות כ-existing.builtAreaSqm; אל תאמוד מחדש.`
       : `שטח בנוי קיים: לא ידוע — חשב לפי existingUnits × ~85 מ"ר`;
+
 
     const plotAreaForCalc = body.area ?? body.shapeArea ?? 0;
     const hasSetbacks =
@@ -536,51 +590,56 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
       }
 
       // ── חישוב דטרמיניסטי של היקף הבנייה המוצעת ──
-      // דורס את proposed.* ו-metrics.* כדי שאותו קלט יחזיר תמיד אותה תוצאה.
+      // מקור עדיפות 1: zoneInfo מהתקנון (lookup-zone-info)
+      // מקור עדיפות 2 (fallback): zoning של ה-AI + מכפיל מסלול
       try {
         const plotAreaDet = body.area ?? body.shapeArea ?? 0;
-        const maxFAR = Number(report.zoning?.maxFAR ?? 0);
-        const maxFloorsDet = Number(report.zoning?.maxFloors ?? 0);
-        const maxHeightDet = Number(report.zoning?.maxHeightMeters ?? 0);
-        const floorAreaEff = renewalFloorArea > 0 ? renewalFloorArea : typicalFloorArea;
+        const SELLABLE_RATIO = 0.78;    // ברוטו → נטו מכירה
+        const FLOOR_HEIGHT_M = 3.2;
 
-        if (plotAreaDet > 0 && maxFAR > 0 && maxFloorsDet > 0 && floorAreaEff > 0) {
-          const TRACK_MULTIPLIER: Record<RenewalTrack, number> = {
-            tama38_2: 1.6,
-            rova_plan: 2.3,
-            pinui_binui: 3.0,
-          };
-          const AVG_UNIT_SIZE = 95;       // מ"ר ברוטו ליח״ד
-          const SELLABLE_RATIO = 0.78;    // ברוטו → נטו מכירה
-          const FLOOR_HEIGHT_M = 3.2;
+        // מיפוי מסלול → שם השדה בטבלת zoning_rights
+        const TRACK_TO_BONUS_KEY: Record<RenewalTrack, "tama38" | "pinui" | "rova_plan"> = {
+          tama38_2: "tama38",
+          pinui_binui: "pinui",
+          rova_plan: "rova_plan",
+        };
 
-          const byFAR = plotAreaDet * maxFAR;
-          const byEnvelope = floorAreaEff * maxFloorsDet;
+        let calcSource: any = null;
+
+        if (zoneInfo && plotAreaDet > 0 && zoneInfo.rights.density_coefficient_sqm_per_unit > 0) {
+          // ───────── מסלול מבוסס תקנון ─────────
+          const r = zoneInfo.rights;
+          const bonusKey = TRACK_TO_BONUS_KEY[renewalTrack];
+          const farBonus = Number(((r as any)[`${bonusKey}_far_bonus`]) ?? 0);
+          const unitsBonusPct = bonusKey === "rova_plan"
+            ? 0
+            : Number(((r as any)[`${bonusKey}_units_bonus_pct`]) ?? 0);
+
+          const effectiveFAR = (r.max_far + farBonus) / 100;
+          const maxFloorsDet = (r.max_floors_above ?? 0) + (r.max_floors_roof ?? 0);
+          const floorAreaEff = renewalFloorArea > 0 ? renewalFloorArea : typicalFloorArea;
+
+          const byFAR = plotAreaDet * effectiveFAR;
+          const byEnvelope = floorAreaEff > 0 && maxFloorsDet > 0
+            ? floorAreaEff * maxFloorsDet
+            : byFAR; // אם אין נתון לתכסית — לא מגביל
           const proposedBuilt = Math.round(Math.min(byFAR, byEnvelope));
 
-          const proposedFloorsDet = Math.min(
-            maxFloorsDet,
-            Math.max(1, Math.ceil(proposedBuilt / floorAreaEff)),
-          );
+          const proposedFloorsDet = floorAreaEff > 0
+            ? Math.min(Math.max(maxFloorsDet, 1), Math.max(1, Math.ceil(proposedBuilt / floorAreaEff)))
+            : Math.max(maxFloorsDet, 1);
 
-          const heightDet = Math.round(
-            (maxHeightDet > 0
-              ? Math.min(maxHeightDet, proposedFloorsDet * FLOOR_HEIGHT_M)
-              : proposedFloorsDet * FLOOR_HEIGHT_M) * 10,
-          ) / 10;
+          const heightDet = Math.round(proposedFloorsDet * FLOOR_HEIGHT_M * 10) / 10;
 
-          const multiplierDet = TRACK_MULTIPLIER[renewalTrack];
-          const byMultiplier = Math.round((body.existingUnits ?? 0) * multiplierDet);
-          const sellableArea = proposedBuilt * SELLABLE_RATIO;
-          const byDensity = Math.floor(sellableArea / AVG_UNIT_SIZE);
+          // יח"ד דטרמיניסטי לפי מקדם הצפיפות
+          const baseUnits = Math.floor(proposedBuilt / r.density_coefficient_sqm_per_unit);
           const proposedUnitsDet = Math.max(
             body.existingUnits ?? 0,
-            Math.min(byMultiplier, byDensity),
+            Math.floor(baseUnits * (1 + unitsBonusPct / 100)),
           );
 
-          const farDet = plotAreaDet > 0
-            ? Number((proposedBuilt / plotAreaDet).toFixed(2))
-            : 0;
+          const sellableArea = proposedBuilt * SELLABLE_RATIO;
+          const farDet = Number((proposedBuilt / plotAreaDet).toFixed(2));
 
           report.proposed = {
             ...(report.proposed ?? {}),
@@ -601,9 +660,102 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
             estimatedSellableArea: Math.round(sellableArea),
             avgUnitSize: proposedUnitsDet > 0
               ? Math.round(proposedBuilt / proposedUnitsDet)
-              : AVG_UNIT_SIZE,
+              : (r.min_unit_size_sqm ?? 90),
           };
+
+          calcSource = {
+            method: "regulation",
+            plan_code: zoneInfo.plan_code,
+            zone_label: zoneInfo.zone_label,
+            source_citation: zoneInfo.source_citation,
+            confidence: zoneInfo.confidence,
+            available_zones: zoneInfo.available_zones,
+            base_far_pct: r.max_far,
+            far_bonus_pct: farBonus,
+            effective_far_pct: r.max_far + farBonus,
+            density_coefficient_sqm_per_unit: r.density_coefficient_sqm_per_unit,
+            units_bonus_pct: unitsBonusPct,
+            max_floors: maxFloorsDet,
+            renewal_track: renewalTrack,
+            renewal_track_label: RENEWAL_TRACK_LABEL[renewalTrack],
+          };
+        } else {
+          // ───────── Fallback: חישוב ישן מבוסס AI ─────────
+          const maxFAR = Number(report.zoning?.maxFAR ?? 0);
+          const maxFloorsDet = Number(report.zoning?.maxFloors ?? 0);
+          const maxHeightDet = Number(report.zoning?.maxHeightMeters ?? 0);
+          const floorAreaEff = renewalFloorArea > 0 ? renewalFloorArea : typicalFloorArea;
+
+          if (plotAreaDet > 0 && maxFAR > 0 && maxFloorsDet > 0 && floorAreaEff > 0) {
+            const TRACK_MULTIPLIER: Record<RenewalTrack, number> = {
+              tama38_2: 1.6,
+              rova_plan: 2.3,
+              pinui_binui: 3.0,
+            };
+            const AVG_UNIT_SIZE = 95;
+
+            const byFAR = plotAreaDet * maxFAR;
+            const byEnvelope = floorAreaEff * maxFloorsDet;
+            const proposedBuilt = Math.round(Math.min(byFAR, byEnvelope));
+
+            const proposedFloorsDet = Math.min(
+              maxFloorsDet,
+              Math.max(1, Math.ceil(proposedBuilt / floorAreaEff)),
+            );
+
+            const heightDet = Math.round(
+              (maxHeightDet > 0
+                ? Math.min(maxHeightDet, proposedFloorsDet * FLOOR_HEIGHT_M)
+                : proposedFloorsDet * FLOOR_HEIGHT_M) * 10,
+            ) / 10;
+
+            const multiplierDet = TRACK_MULTIPLIER[renewalTrack];
+            const byMultiplier = Math.round((body.existingUnits ?? 0) * multiplierDet);
+            const sellableArea = proposedBuilt * SELLABLE_RATIO;
+            const byDensity = Math.floor(sellableArea / AVG_UNIT_SIZE);
+            const proposedUnitsDet = Math.max(
+              body.existingUnits ?? 0,
+              Math.min(byMultiplier, byDensity),
+            );
+
+            const farDet = Number((proposedBuilt / plotAreaDet).toFixed(2));
+
+            report.proposed = {
+              ...(report.proposed ?? {}),
+              units: proposedUnitsDet,
+              floors: proposedFloorsDet,
+              builtAreaSqm: proposedBuilt,
+              far: farDet,
+              heightMeters: heightDet,
+            };
+
+            const existingUnitsForMetrics = report.existing?.units ?? body.existingUnits ?? 0;
+            report.metrics = {
+              ...(report.metrics ?? {}),
+              multiplier: existingUnitsForMetrics > 0
+                ? Number((proposedUnitsDet / existingUnitsForMetrics).toFixed(2))
+                : 0,
+              newUnits: Math.max(0, proposedUnitsDet - existingUnitsForMetrics),
+              estimatedSellableArea: Math.round(sellableArea),
+              avgUnitSize: proposedUnitsDet > 0
+                ? Math.round(proposedBuilt / proposedUnitsDet)
+                : AVG_UNIT_SIZE,
+            };
+
+            calcSource = {
+              method: "ai_estimate",
+              renewal_track: renewalTrack,
+              renewal_track_label: RENEWAL_TRACK_LABEL[renewalTrack],
+              multiplier_used: multiplierDet,
+              note: "ייעוד לא נמצא בטבלת זכויות — נעשה שימוש בהערכת AI",
+            };
+          }
         }
+
+        if (calcSource) {
+          report.calculationSource = calcSource;
+        }
+
       } catch (e) {
         console.error("deterministic proposed-compute error (non-fatal)", e);
       }
