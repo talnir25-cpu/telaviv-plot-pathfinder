@@ -144,7 +144,7 @@ export const DashboardReport = ({
   const status = STATUS_STYLES[report.status];
 
   return (
-    <section className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <section dir="rtl" className="space-y-4 text-right animate-in fade-in slide-in-from-bottom-2 duration-500">
       {/* Compact hero */}
       <Card className="overflow-hidden border-0 shadow-elegant">
         <div className="bg-gradient-hero p-5 text-primary-foreground">
