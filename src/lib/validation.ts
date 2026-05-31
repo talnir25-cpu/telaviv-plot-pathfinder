@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AnalysisInput, FinancialInput } from "@/types/feasibility";
+
 
 /* ───────────────────────── helpers ───────────────────────── */
 
