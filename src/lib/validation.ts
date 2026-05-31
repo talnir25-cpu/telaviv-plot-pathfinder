@@ -64,7 +64,7 @@ export const analysisInputSchema = z
 
 /* ───────────────────────── FinancialInput ───────────────────────── */
 
-export const financialInputSchema: z.ZodType<FinancialInput> = z
+export const financialInputSchema = z
   .object({
     projectType: z.enum(["urban_renewal", "new_construction", "combination"]),
     renewalSubtype: z.enum(["tama38", "pinui_binui"]).optional(),
