@@ -291,9 +291,34 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── שליפת זכויות הבנייה מהתקנון (lookup-zone-info) ──
+    let zoneInfo: ZoneInfo | null = null;
+    try {
+      const supaUrl = Deno.env.get("SUPABASE_URL");
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+      if (supaUrl && anonKey) {
+        const zResp = await fetch(`${supaUrl}/functions/v1/lookup-zone-info`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}`, apikey: anonKey },
+          body: JSON.stringify({
+            quarter: body.quarter,
+            gush: body.gush,
+            helka: body.helka,
+            zone_label_override: body.zoneLabelOverride,
+            area_hint: body.areaHint,
+          }),
+        });
+        if (zResp.ok) zoneInfo = await zResp.json();
+        else console.warn("lookup-zone-info non-OK", zResp.status, await zResp.text());
+      }
+    } catch (e) {
+      console.warn("lookup-zone-info failed (non-fatal)", e);
+    }
+
     const builtAreaLine = body.existingBuiltAreaSqm && body.existingBuiltAreaSqm > 0
       ? `שטח בנוי קיים (מדוד ממקור: ${body.existingBuiltAreaSource ?? "לא ידוע"}, אמינות: ${body.existingBuiltAreaConfidence ?? "לא ידוע"}): ${body.existingBuiltAreaSqm} מ"ר — השתמש בערך הזה ישירות כ-existing.builtAreaSqm; אל תאמוד מחדש.`
       : `שטח בנוי קיים: לא ידוע — חשב לפי existingUnits × ~85 מ"ר`;
+
 
     const plotAreaForCalc = body.area ?? body.shapeArea ?? 0;
     const hasSetbacks =
