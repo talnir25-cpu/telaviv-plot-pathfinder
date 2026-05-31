@@ -328,7 +328,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="address" className="mt-4 space-y-3">
+        <TabsContent value="address" dir="rtl" className="mt-4 space-y-3 text-right">
           <div className="space-y-2">
             <Label htmlFor="address">כתובת מלאה בתל אביב-יפו</Label>
             <div className="flex gap-2">
