@@ -146,7 +146,7 @@ export const DashboardReport = ({
   return (
     <section dir="rtl" className="space-y-4 text-right animate-in fade-in slide-in-from-bottom-2 duration-500">
       {/* Compact hero */}
-      <Card className="overflow-hidden border-0 shadow-elegant">
+      <Card dir="rtl" className="overflow-hidden border-0 shadow-elegant text-right">
         <div className="bg-gradient-hero p-5 text-primary-foreground">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 space-y-1">
@@ -287,7 +287,7 @@ export const DashboardReport = ({
             </Card>
 
             {/* Committee summary */}
-            <Card className="overflow-hidden border-0 shadow-elegant">
+            <Card dir="rtl" className="overflow-hidden border-0 shadow-elegant text-right">
               <div className="flex h-full flex-col bg-gradient-hero p-5 text-primary-foreground">
                 <div className="mb-2 flex items-center gap-2">
                   <Sparkles className="h-4 w-4" />
@@ -309,7 +309,7 @@ export const DashboardReport = ({
           </div>
 
           {report.sources.length > 0 && (
-            <Card className="p-3 shadow-card">
+            <Card dir="rtl" className="p-3 shadow-card text-right">
               <div className="flex flex-wrap items-center gap-2">
                 <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -520,7 +520,7 @@ export const DashboardReport = ({
 
         {/* RISKS */}
         <TabsContent value="risks" className="mt-4">
-          <Card className="p-5 shadow-card">
+          <Card dir="rtl" className="p-5 shadow-card text-right">
             <div className="mb-4 flex items-center gap-2">
               <ShieldAlert className="h-4 w-4 text-danger" />
               <h3 className="text-base font-bold">דגלים אדומים וסיכונים</h3>
@@ -572,7 +572,7 @@ export const DashboardReport = ({
 
         {/* SOURCES */}
         <TabsContent value="sources" className="mt-4 space-y-4">
-          <Card className="p-5 shadow-card">
+          <Card dir="rtl" className="p-5 shadow-card text-right">
             <div className="mb-2 flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-primary" />
               <h3 className="text-base font-bold">על מה מבוססות התובנות</h3>

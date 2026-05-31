@@ -249,7 +249,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
 
   if (loadingDefaults || !input) {
     return (
-      <Card className="flex items-center justify-center gap-3 p-12 text-sm text-muted-foreground">
+      <Card dir="rtl" className="flex items-center justify-center gap-3 p-12 text-sm text-muted-foreground text-right">
         <Loader2 className="h-5 w-5 animate-spin" />
         טוען המלצות פיננסיות מבוססות AI...
       </Card>
@@ -260,7 +260,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
   const visibleFields = fieldsForType(input);
 
   return (
-    <div className="space-y-6">
+    <div dir="rtl" className="space-y-6 text-right">
       <Card className="space-y-5 p-6 shadow-card">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -448,7 +448,7 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
   const VerdictIcon = meta.icon;
 
   return (
-    <Card className="space-y-6 p-6 shadow-card">
+    <Card dir="rtl" className="space-y-6 p-6 shadow-card text-right">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4">
         <div className="flex items-start gap-3">
           <div className={`flex h-11 w-11 items-center justify-center rounded-lg border ${meta.tone}`}>
