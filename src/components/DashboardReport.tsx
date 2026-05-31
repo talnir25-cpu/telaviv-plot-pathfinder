@@ -246,7 +246,7 @@ export const DashboardReport = ({
           <div className="grid gap-4 lg:grid-cols-3">
             {/* Comparison */}
             <Card dir="rtl" className="p-5 shadow-card lg:col-span-2">
-              <div className="mb-3 flex items-center justify-end gap-2">
+              <div className="mb-3 flex items-center justify-start gap-2">
                 <h3 className="text-base font-bold">קיים מול מוצע</h3>
                 <Layers className="h-4 w-4 text-primary" />
               </div>
