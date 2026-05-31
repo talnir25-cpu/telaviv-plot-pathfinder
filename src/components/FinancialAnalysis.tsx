@@ -557,6 +557,9 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
       {/* Detailed revenue breakdown (unit mix table) */}
       {report.revenueBreakdown && <RevenueBreakdownPanel report={report} />}
 
+      {/* Monthly sales cash flow */}
+      {report.revenueBreakdown && <SalesCashFlowPanel report={report} />}
+
       {/* Construction-cost breakdown */}
       <ConstructionBreakdownPanel report={report} />
 
