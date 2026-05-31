@@ -1,4 +1,5 @@
 import type { FeasibilityReport, AnalysisInput } from "@/types/feasibility";
+import { KpiHeader } from "@/components/KpiHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -202,6 +203,9 @@ export const DashboardReport = ({
           </div>
         </div>
       </Card>
+
+      {/* KPI Header — מכפילי כדאיות מרכזיים */}
+      <KpiHeader report={report} />
 
       {/* Dashboard tabs */}
       <Tabs defaultValue="overview" className="w-full">
