@@ -1,43 +1,78 @@
-import { Building2, TrendingUp } from "lucide-react";
-
 export const AppHeader = () => {
   return (
     <header className="relative overflow-hidden bg-gradient-hero text-primary-foreground">
-      <div className="absolute inset-0 opacity-20" aria-hidden>
+      {/* Background pattern + decorative blobs */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div
+          className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage:
+              "radial-gradient(hsl(var(--primary-glow)) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
         <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-accent/40 blur-3xl" />
-        <div className="absolute -left-20 bottom-0 h-72 w-72 rounded-full bg-primary-glow/40 blur-3xl" />
+        <div className="absolute -left-20 bottom-0 h-80 w-80 rounded-full bg-primary-glow/30 blur-3xl" />
       </div>
-      <div className="container relative z-10 py-10 md:py-14">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-foreground/10 backdrop-blur-sm ring-1 ring-primary-foreground/20">
-            <Building2 className="h-6 w-6" />
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-primary-foreground/70">
+
+      <div className="container relative z-10 py-12 md:py-20">
+        <div className="flex flex-col items-start gap-6">
+          {/* Eyebrow + beta scope */}
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-primary-foreground/90">
               Tel Aviv • Urban Renewal Intelligence
-            </p>
-            <h1 className="text-2xl font-bold leading-tight md:text-3xl">
-              מנוע בדיקות היתכנות בהתחדשות עירונית
-            </h1>
+            </span>
+            <div className="h-px w-12 bg-primary-foreground/30" />
+            <span className="text-sm font-light text-primary-foreground/70">
+              גרסת בטא: רובעים 3-4, תל אביב*
+            </span>
           </div>
-        </div>
-        <p className="mt-4 max-w-2xl whitespace-pre-line text-sm text-primary-foreground/85 md:text-base">
-          ניתוח מהיר ומבוסס נתונים {"\n"}
-          זכויות בנייה, פרופיל פיננסי, מיפוי סיכונים/הזדמנויות מבוסס תקנוני התכניות ומדיניות עירייה {"\n"}
-          גרסאת בטא: רובעים 3 ו-4, תל אביב*
-        </p>
-        <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/10 px-3 py-1 ring-1 ring-primary-foreground/20">
-            <TrendingUp className="h-3.5 w-3.5" /> תא/3616א רובע 3
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/10 px-3 py-1 ring-1 ring-primary-foreground/20">
-            <TrendingUp className="h-3.5 w-3.5" /> תא/3729א רובע 4
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/10 px-3 py-1 ring-1 ring-primary-foreground/20">
-            תא/5000 • מדיניות חניה מהדורה 8
-          </span>
+
+          {/* Headline */}
+          <div className="max-w-3xl">
+            <h1 className="mb-5 text-4xl font-extrabold leading-tight tracking-tight md:text-6xl">
+              מנוע בדיקות היתכנות
+              <br />
+              <span className="bg-gradient-to-l from-accent to-primary-foreground bg-clip-text text-transparent">
+                בהתחדשות עירונית
+              </span>
+            </h1>
+            <p className="max-w-2xl text-base font-light leading-relaxed text-primary-foreground/80 md:text-lg">
+              ניתוח מהיר ומבוסס נתונים לחישוב זכויות בנייה, פרופיל פיננסי ומיפוי
+              סיכונים/הזדמנויות — מבוסס תקנוני התכניות ומדיניות העירייה.
+            </p>
+          </div>
+
+          {/* Reference badges */}
+          <div className="mt-2 flex flex-wrap gap-3">
+            <ReferenceBadge dotClass="bg-accent" label="תא/3616א רובע 3" pulse />
+            <ReferenceBadge dotClass="bg-primary-glow" label="תא/3729א רובע 4" />
+            <ReferenceBadge
+              dotClass="bg-emerald-400"
+              label="תא/5000 • מדיניות חניה מהדורה 8"
+            />
+          </div>
         </div>
       </div>
     </header>
   );
 };
+
+const ReferenceBadge = ({
+  label,
+  dotClass,
+  pulse,
+}: {
+  label: string;
+  dotClass: string;
+  pulse?: boolean;
+}) => (
+  <div className="group inline-flex items-center gap-2 rounded-xl border border-primary-foreground/15 bg-primary-foreground/5 px-4 py-2 backdrop-blur-md transition-all hover:border-accent/50 hover:bg-primary-foreground/10">
+    <span
+      className={`h-2 w-2 rounded-full ${dotClass} ${pulse ? "animate-pulse" : ""}`}
+    />
+    <span className="whitespace-nowrap text-sm font-medium text-primary-foreground/90">
+      {label}
+    </span>
+  </div>
+);
