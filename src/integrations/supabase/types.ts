@@ -74,6 +74,84 @@ export type Database = {
         }
         Relationships: []
       }
+      zoning_rights: {
+        Row: {
+          coverage_pct: number | null
+          created_at: string
+          density_coefficient_sqm_per_unit: number
+          id: string
+          location_filter: Json
+          max_far: number
+          max_floors_above: number
+          max_floors_roof: number | null
+          min_unit_size_sqm: number | null
+          notes: string | null
+          pinui_far_bonus: number | null
+          pinui_units_bonus_pct: number | null
+          plan_code: string
+          quarter: number
+          rova_plan_far_bonus: number | null
+          setback_front_m: number | null
+          setback_rear_m: number | null
+          setback_side_m: number | null
+          source_citation: string | null
+          tama38_far_bonus: number | null
+          tama38_units_bonus_pct: number | null
+          updated_at: string
+          zone_label: string
+        }
+        Insert: {
+          coverage_pct?: number | null
+          created_at?: string
+          density_coefficient_sqm_per_unit: number
+          id?: string
+          location_filter?: Json
+          max_far: number
+          max_floors_above: number
+          max_floors_roof?: number | null
+          min_unit_size_sqm?: number | null
+          notes?: string | null
+          pinui_far_bonus?: number | null
+          pinui_units_bonus_pct?: number | null
+          plan_code: string
+          quarter: number
+          rova_plan_far_bonus?: number | null
+          setback_front_m?: number | null
+          setback_rear_m?: number | null
+          setback_side_m?: number | null
+          source_citation?: string | null
+          tama38_far_bonus?: number | null
+          tama38_units_bonus_pct?: number | null
+          updated_at?: string
+          zone_label: string
+        }
+        Update: {
+          coverage_pct?: number | null
+          created_at?: string
+          density_coefficient_sqm_per_unit?: number
+          id?: string
+          location_filter?: Json
+          max_far?: number
+          max_floors_above?: number
+          max_floors_roof?: number | null
+          min_unit_size_sqm?: number | null
+          notes?: string | null
+          pinui_far_bonus?: number | null
+          pinui_units_bonus_pct?: number | null
+          plan_code?: string
+          quarter?: number
+          rova_plan_far_bonus?: number | null
+          setback_front_m?: number | null
+          setback_rear_m?: number | null
+          setback_side_m?: number | null
+          source_citation?: string | null
+          tama38_far_bonus?: number | null
+          tama38_units_bonus_pct?: number | null
+          updated_at?: string
+          zone_label?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
