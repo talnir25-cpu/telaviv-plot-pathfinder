@@ -302,11 +302,11 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       <Tabs value={mode} onValueChange={(v) => setMode(v as "address" | "manual")} className="mb-5">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="address">
-            <MapPin className="ml-2 h-4 w-4" />
+            <MapPin className="ms-2 h-4 w-4" />
             חיפוש לפי כתובת
           </TabsTrigger>
           <TabsTrigger value="manual">
-            <Search className="ml-2 h-4 w-4" />
+            <Search className="ms-2 h-4 w-4" />
             בחירה ידנית (גוש/חלקה)
           </TabsTrigger>
         </TabsList>
@@ -316,7 +316,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             <Label htmlFor="address">כתובת מלאה בתל אביב-יפו</Label>
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <MapPin className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <MapPin className="absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="address"
                   placeholder="לדוגמה: דיזנגוף 50, תל אביב"
@@ -328,7 +328,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                       lookupAddress();
                     }
                   }}
-                  className="pr-10"
+                  className="pe-10"
                 />
               </div>
               <Button
@@ -341,7 +341,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <>
-                    <Search className="ml-2 h-4 w-4" />
+                    <Search className="ms-2 h-4 w-4" />
                     אתר חלקה
                   </>
                 )}
@@ -401,7 +401,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         <div className="space-y-2">
           <Label htmlFor="gush">מספר גוש</Label>
           <div className="relative">
-            <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="gush"
               list="gush-list"
@@ -412,7 +412,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                 setGushQuery(e.target.value.replace(/\D/g, ""));
                 setHelka("");
               }}
-              className="pr-10"
+              className="pe-10"
             />
             <datalist id="gush-list">
               {filteredGush.map((g) => (
@@ -719,7 +719,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                 <table className="w-full text-xs">
                   <thead className="bg-muted/40 text-muted-foreground">
                     <tr>
-                      <th className="px-3 py-1.5 text-right font-medium">מקור</th>
+                      <th className="px-3 py-1.5 text-end font-medium">מקור</th>
                       <th className="px-2 py-1.5 text-center font-medium">סטטוס</th>
                       <th className="px-2 py-1.5 text-center font-medium">יח"ד</th>
                       <th className="px-2 py-1.5 text-center font-medium">קומות</th>
@@ -768,7 +768,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               הנתון אינו מאומת — אם ידוע לך הערך הנכון, תקן/י ושמור כדי לעדכן את הקאש לכל המשתמשים.
             </span>
             <Button type="button" size="sm" variant="outline" onClick={saveManualUnits} className="shrink-0">
-              <Database className="ml-1.5 h-3.5 w-3.5" />
+              <Database className="ms-1.5 h-3.5 w-3.5" />
               שמור כמאומת
             </Button>
           </div>
@@ -824,11 +824,11 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                         <table className="w-full text-xs">
                           <thead className="bg-muted/50">
                             <tr>
-                              <th className="px-2 py-1 text-right font-medium">תיק בניין</th>
-                              <th className="px-2 py-1 text-right font-medium">יח"ד</th>
-                              <th className="px-2 py-1 text-right font-medium">סטטוס פיזי</th>
-                              <th className="px-2 py-1 text-right font-medium">תאריך היתר</th>
-                              <th className="px-2 py-1 text-right font-medium">תמ"א 38</th>
+                              <th className="px-2 py-1 text-end font-medium">תיק בניין</th>
+                              <th className="px-2 py-1 text-end font-medium">יח"ד</th>
+                              <th className="px-2 py-1 text-end font-medium">סטטוס פיזי</th>
+                              <th className="px-2 py-1 text-end font-medium">תאריך היתר</th>
+                              <th className="px-2 py-1 text-end font-medium">תמ"א 38</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -901,12 +901,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           >
             {loading ? (
               <>
-                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                <Loader2 className="ms-2 h-4 w-4 animate-spin" />
                 מנתח את החלקה...
               </>
             ) : (
               <>
-                <Sparkles className="ml-2 h-4 w-4" />
+                <Sparkles className="ms-2 h-4 w-4" />
                 הפק דוח היתכנות
               </>
             )}

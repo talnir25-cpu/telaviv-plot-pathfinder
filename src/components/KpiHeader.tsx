@@ -46,7 +46,7 @@ export const KpiHeader = ({ report }: Props) => {
                   </div>
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-xs text-right" dir="rtl">
+              <TooltipContent side="bottom" className="max-w-xs text-end" dir="rtl">
                 <p className="text-xs leading-relaxed">{kpi.insight}</p>
               </TooltipContent>
             </Tooltip>

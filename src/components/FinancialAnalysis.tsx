@@ -406,9 +406,9 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
                       inputMode="decimal"
                       value={(input[f.key] as number | undefined) ?? 0}
                       onChange={(e) => updateField(f.key, e.target.value)}
-                      className="pl-16 text-sm"
+                      className="ps-16 text-sm"
                     />
-                    <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                    <span className="pointer-events-none absolute start-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
                       {f.suffix}
                     </span>
                   </div>
@@ -426,12 +426,12 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
         >
           {analyzing ? (
             <>
-              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+              <Loader2 className="ms-2 h-4 w-4 animate-spin" />
               מחשב רווחיות, מימון ורגישות...
             </>
           ) : (
             <>
-              <Calculator className="ml-2 h-4 w-4" />
+              <Calculator className="ms-2 h-4 w-4" />
               הפק דוח פיננסי
             </>
           )}
@@ -591,7 +591,7 @@ const FinancialReportCard = ({ report }: { report: FinancialReport }) => {
               </p>
               <p className="mt-0.5 text-sm font-semibold tabular-nums">
                 {fmtNIS(report.tenantUpliftFromCoverage.perUnitUpliftValue)}
-                <span className="mr-1 text-[10px] font-normal text-muted-foreground">
+                <span className="me-1 text-[10px] font-normal text-muted-foreground">
                   ≈ {report.tenantUpliftFromCoverage.perUnitUpliftSqm} מ״ר
                 </span>
               </p>
@@ -643,7 +643,7 @@ const ConstructionBreakdownPanel = ({ report }: { report: FinancialReport }) => 
     <div className={`flex justify-between gap-2 text-sm ${bold ? "border-t pt-2 font-semibold" : ""}`}>
       <span className="text-muted-foreground">
         {label}
-        {sub && <span className="ml-1 text-[10px] opacity-70">{sub}</span>}
+        {sub && <span className="ms-1 text-[10px] opacity-70">{sub}</span>}
       </span>
       <span className="tabular-nums">{value}</span>
     </div>
@@ -738,12 +738,12 @@ const RevenueBreakdownPanel = ({ report }: { report: FinancialReport }) => {
         <table className="w-full text-xs">
           <thead className="bg-muted/40 text-muted-foreground">
             <tr>
-              <th className="p-2 text-right">סוג</th>
+              <th className="p-2 text-end">סוג</th>
               <th className="p-2 text-center">כמות</th>
               <th className="p-2 text-center">שטח ממ׳ (מ״ר)</th>
               <th className="p-2 text-center">₪/מ״ר</th>
               <th className="p-2 text-center">פרמיה</th>
-              <th className="p-2 text-left">סה״כ</th>
+              <th className="p-2 text-start">סה״כ</th>
             </tr>
           </thead>
           <tbody>
@@ -754,12 +754,12 @@ const RevenueBreakdownPanel = ({ report }: { report: FinancialReport }) => {
                 <td className="p-2 text-center tabular-nums">{r.avgSizeSqm}</td>
                 <td className="p-2 text-center tabular-nums">{r.pricePerSqm.toLocaleString("he-IL")}</td>
                 <td className="p-2 text-center tabular-nums">{r.premiumPct > 0 ? `+${(r.premiumPct * 100).toFixed(1)}%` : "—"}</td>
-                <td className="p-2 text-left tabular-nums">{fmtNIS(r.totalRevenue)}</td>
+                <td className="p-2 text-start tabular-nums">{fmtNIS(r.totalRevenue)}</td>
               </tr>
             ))}
             <tr className="border-t bg-muted/20 font-semibold">
               <td className="p-2" colSpan={5}>סה״כ Unit Mix</td>
-              <td className="p-2 text-left tabular-nums">{fmtNIS(rb.unitMixTotal)}</td>
+              <td className="p-2 text-start tabular-nums">{fmtNIS(rb.unitMixTotal)}</td>
             </tr>
           </tbody>
         </table>
@@ -855,7 +855,7 @@ const ProfitGauge = ({
             </div>
           </div>
         </div>
-        <div className="text-left">
+        <div className="text-start">
           <div className={`text-sm font-semibold tabular-nums ${tone.text}`}>
             {gap >= 0 ? "+" : ""}{gap.toFixed(1)}%
           </div>
@@ -866,7 +866,7 @@ const ProfitGauge = ({
       {/* Bar */}
       <div className="relative h-3 w-full overflow-visible rounded-full bg-muted">
         <div
-          className={`absolute inset-y-0 right-0 rounded-full transition-all ${tone.bar}`}
+          className={`absolute inset-y-0 end-0 rounded-full transition-all ${tone.bar}`}
           style={{ width: `${rocPos}%` }}
         />
         {/* Target marker */}
@@ -911,7 +911,7 @@ const SensitivityTable = ({ report }: { report: FinancialReport }) => {
         <table className="w-full text-xs">
           <thead className="bg-muted/40 text-muted-foreground">
             <tr>
-              <th className="p-2 text-right">מחיר ↓ / עלות ←</th>
+              <th className="p-2 text-end">מחיר ↓ / עלות ←</th>
               {costDeltas.map((c) => (
                 <th key={c} className="p-2 text-center">
                   {c > 0 ? `+${c}%` : `${c}%`} עלות
