@@ -274,7 +274,82 @@ const SourcesDialog = ({
   </Dialog>
 );
 
-export const DashboardReport = ({
+const CalculationSourceCard = ({ report }: { report: FeasibilityReport }) => {
+  const src = report.calculationSource;
+  if (!src) return null;
+
+  if (src.method === "regulation") {
+    const confColor =
+      src.confidence === "high"
+        ? "border-success/40 bg-success/5"
+        : src.confidence === "medium"
+        ? "border-primary/40 bg-primary/5"
+        : "border-warning/40 bg-warning/10";
+    const confLabel =
+      src.confidence === "high" ? "ייעוד מאומת" : src.confidence === "medium" ? "ייעוד סביר" : "ייעוד ברירת מחדל — אשר ידנית";
+    return (
+      <Card dir="rtl" className={cn("p-4 text-right border", confColor)}>
+        <div className="mb-2 flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-bold">מקור החישוב</h3>
+          <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] font-medium">{confLabel}</span>
+        </div>
+        <div className="grid gap-2 text-xs sm:grid-cols-2">
+          <div>
+            <span className="text-muted-foreground">תכנית: </span>
+            <span className="font-semibold">{src.plan_code}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">ייעוד: </span>
+            <span className="font-semibold">{src.zone_label}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">סך זכויות (FAR): </span>
+            <span className="font-semibold tabular-nums">
+              {src.base_far_pct}%
+              {src.far_bonus_pct > 0 && (
+                <span className="text-success"> +{src.far_bonus_pct}% ({src.renewal_track_label})</span>
+              )}
+              {" "}= {src.effective_far_pct}%
+            </span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">מקדם צפיפות: </span>
+            <span className="font-semibold tabular-nums">{src.density_coefficient_sqm_per_unit} מ"ר/יח"ד</span>
+            {src.units_bonus_pct > 0 && (
+              <span className="text-success"> · בונוס יח"ד +{src.units_bonus_pct}%</span>
+            )}
+          </div>
+          <div>
+            <span className="text-muted-foreground">מקס' קומות: </span>
+            <span className="font-semibold tabular-nums">{src.max_floors}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">ציטוט: </span>
+            <span className="font-medium">{src.source_citation}</span>
+          </div>
+        </div>
+        <p className="mt-2 text-[10px] text-muted-foreground">
+          חישוב יח"ד: ⌊שטח מגרש × FAR אפקטיבי ÷ מקדם צפיפות⌋ × (1 + בונוס יח"ד)
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card dir="rtl" className="p-4 text-right border border-warning/40 bg-warning/10">
+      <div className="mb-1 flex items-center gap-2">
+        <AlertTriangle className="h-4 w-4 text-warning" />
+        <h3 className="text-sm font-bold">מקור החישוב: הערכת AI</h3>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {src.note} · מסלול: {src.renewal_track_label} · מכפיל יח"ד: {src.multiplier_used}×
+      </p>
+    </Card>
+  );
+};
+
+
   report,
   plotLabel,
   gush,
