@@ -406,9 +406,9 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
                       inputMode="decimal"
                       value={(input[f.key] as number | undefined) ?? 0}
                       onChange={(e) => updateField(f.key, e.target.value)}
-                      className="ps-16 text-sm"
+                      className="pl-16 text-sm"
                     />
-                    <span className="pointer-events-none absolute start-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                    <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
                       {f.suffix}
                     </span>
                   </div>
@@ -866,7 +866,7 @@ const ProfitGauge = ({
       {/* Bar */}
       <div className="relative h-3 w-full overflow-visible rounded-full bg-muted">
         <div
-          className={`absolute inset-y-0 end-0 rounded-full transition-all ${tone.bar}`}
+          className={`absolute inset-y-0 right-0 rounded-full transition-all ${tone.bar}`}
           style={{ width: `${rocPos}%` }}
         />
         {/* Target marker */}

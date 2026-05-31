@@ -4,8 +4,8 @@ export const AppHeader = () => {
   return (
     <header className="relative overflow-hidden bg-gradient-hero text-primary-foreground">
       <div className="absolute inset-0 opacity-20" aria-hidden>
-        <div className="absolute -end-20 -top-20 h-72 w-72 rounded-full bg-accent/40 blur-3xl" />
-        <div className="absolute -start-20 bottom-0 h-72 w-72 rounded-full bg-primary-glow/40 blur-3xl" />
+        <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-accent/40 blur-3xl" />
+        <div className="absolute -left-20 bottom-0 h-72 w-72 rounded-full bg-primary-glow/40 blur-3xl" />
       </div>
       <div className="container relative z-10 py-10 md:py-14">
         <div className="flex items-center gap-3">

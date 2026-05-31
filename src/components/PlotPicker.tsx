@@ -316,7 +316,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             <Label htmlFor="address">כתובת מלאה בתל אביב-יפו</Label>
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <MapPin className="absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <MapPin className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="address"
                   placeholder="לדוגמה: דיזנגוף 50, תל אביב"
@@ -328,7 +328,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                       lookupAddress();
                     }
                   }}
-                  className="pe-10"
+                  className="pr-10"
                 />
               </div>
               <Button
@@ -401,7 +401,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         <div className="space-y-2">
           <Label htmlFor="gush">מספר גוש</Label>
           <div className="relative">
-            <Search className="absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="gush"
               list="gush-list"
@@ -412,7 +412,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                 setGushQuery(e.target.value.replace(/\D/g, ""));
                 setHelka("");
               }}
-              className="pe-10"
+              className="pr-10"
             />
             <datalist id="gush-list">
               {filteredGush.map((g) => (
