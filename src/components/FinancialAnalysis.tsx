@@ -144,12 +144,14 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
   const [loadingDefaults, setLoadingDefaults] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [report, setReport] = useState<FinancialReport | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   // Fetch AI-suggested defaults on mount / when plot changes
   useEffect(() => {
     let cancelled = false;
     setReport(null);
     setInput(null);
+    setFieldErrors({});
     setLoadingDefaults(true);
     (async () => {
       try {
@@ -223,10 +225,28 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
     if (!input) return;
     const num = Number(value.replace(/[^\d.]/g, ""));
     setInput({ ...input, [key]: isNaN(num) ? 0 : num });
+    if (fieldErrors[key as string]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[key as string];
+        return next;
+      });
+    }
   };
 
   const runAnalysis = async () => {
     if (!input) return;
+    const parsed = financialInputSchema.safeParse(input);
+    if (!parsed.success) {
+      const errors = flattenErrors(parsed.error);
+      setFieldErrors(errors);
+      const msgs = formatErrorList(parsed.error);
+      toast.error(msgs[0], {
+        description: msgs.length > 1 ? `${msgs.length - 1} שגיאות נוספות סומנו בטופס` : undefined,
+      });
+      return;
+    }
+    setFieldErrors({});
     setAnalyzing(true);
     setReport(null);
     try {
@@ -235,7 +255,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
           mode: "analyze",
           plot,
           planning,
-          financial: input,
+          financial: parsed.data,
         },
       });
       if (error || !data?.report) {
