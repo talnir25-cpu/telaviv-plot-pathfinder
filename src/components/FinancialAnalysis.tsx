@@ -959,13 +959,13 @@ const SalesCashFlowPanel = ({ report }: { report: FinancialReport }) => {
             {displayRows.map((r, i) => {
               const isGap = months > 12 && i === 6;
               return (
-                <>
+                <Fragment key={r.month}>
                   {isGap && (
-                    <tr key={`gap-${r.month}`} className="border-t bg-muted/10 text-center text-[10px] text-muted-foreground">
+                    <tr className="border-t bg-muted/10 text-center text-[10px] text-muted-foreground">
                       <td colSpan={7} className="p-1.5">… {months - 9} חודשי ביניים …</td>
                     </tr>
                   )}
-                  <tr key={r.month} className="border-t">
+                  <tr className="border-t">
                     <td className="p-2 font-medium">{r.label}</td>
                     <td className="p-2 text-center tabular-nums">{r.units.toFixed(2)}</td>
                     <td className="p-2 text-center tabular-nums">{r.cumUnits.toFixed(1)}</td>
@@ -974,7 +974,7 @@ const SalesCashFlowPanel = ({ report }: { report: FinancialReport }) => {
                     <td className="p-2 text-center tabular-nums">{fmtNIS(r.net)}</td>
                     <td className="p-2 text-start tabular-nums font-semibold">{fmtNIS(r.cumNet)}</td>
                   </tr>
-                </>
+                </Fragment>
               );
             })}
             <tr className="border-t bg-muted/20 font-semibold">
