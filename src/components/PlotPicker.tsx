@@ -268,6 +268,19 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     }
   };
 
+  // הוצאת שם רחוב מתוך הכתובת המלאה ("ויצמן 33, תל אביב" → "ויצמן")
+  const extractStreet = (full: string | null | undefined): string | undefined => {
+    if (!full) return undefined;
+    let s = full.trim();
+    // מסיר כל מה שאחרי הפסיק הראשון
+    s = s.split(",")[0]?.trim() ?? s;
+    // מסיר תחילית רחוב/שדרות/דרך
+    s = s.replace(/^(רח'?|רחוב|שד'?|שדרות|דרך)\s+/u, "");
+    // מסיר מספר בית בסוף
+    s = s.replace(/\s+\d+[א-ת]?$/u, "");
+    return s.trim() || undefined;
+  };
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlot) {
@@ -281,6 +294,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     const std = DEFAULT_SETBACKS[quarter];
     const isManual = fs !== std.front || ss !== std.side || rs !== std.rear;
     const outOfRange = [fs, ss, rs].some((v) => v < 0 || v > 15);
+    const addressForStreet = resolvedAddress ?? (mode === "address" ? address : null);
+    const street = extractStreet(addressForStreet);
     const candidate = {
       quarter,
       gush: selectedPlot.gush,
@@ -302,6 +317,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         : outOfRange
         ? "manual_override"
         : "manual") as AnalysisInput["setbackSource"],
+      street,
+      address: addressForStreet ?? undefined,
     };
     const parsed = analysisInputSchema.safeParse(candidate);
     if (!parsed.success) {
