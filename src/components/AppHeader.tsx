@@ -1,3 +1,5 @@
+import { Building2, Sparkles } from "lucide-react";
+
 export const AppHeader = () => {
   return (
     <header className="relative overflow-hidden bg-gradient-hero text-primary-foreground">
