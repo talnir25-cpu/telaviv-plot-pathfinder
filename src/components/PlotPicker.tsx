@@ -335,13 +335,13 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     <Card className="p-6 shadow-card">
       <Tabs value={mode} onValueChange={(v) => setMode(v as "address" | "manual")} className="mb-5">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="address">
-            <MapPin className="ms-2 h-4 w-4" />
-            חיפוש לפי כתובת
-          </TabsTrigger>
           <TabsTrigger value="manual">
             <Search className="ms-2 h-4 w-4" />
             בחירה ידנית (גוש/חלקה)
+          </TabsTrigger>
+          <TabsTrigger value="address">
+            <MapPin className="ms-2 h-4 w-4" />
+            חיפוש לפי כתובת
           </TabsTrigger>
         </TabsList>
 
