@@ -129,6 +129,9 @@ export interface AnalysisInput {
   // דריסה ידנית של ייעוד הקרקע (לפי תקנון רובע)
   zoneLabelOverride?: string;
   areaHint?: "declaration" | "market_street" | "rest";
+  // שם רחוב — לזיהוי ייעוד אוטומטי לפי טבלת רחובות בתקנון
+  street?: string;
+  address?: string;
 }
 
 
