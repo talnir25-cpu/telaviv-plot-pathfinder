@@ -1,3 +1,5 @@
+import { Building2, Sparkles } from "lucide-react";
+
 export const AppHeader = () => {
   return (
     <header className="relative overflow-hidden bg-gradient-hero text-primary-foreground">
@@ -19,6 +21,10 @@ export const AppHeader = () => {
         <div className="flex flex-col items-start gap-6">
           {/* Eyebrow + beta scope */}
           <div className="flex flex-wrap items-center gap-4">
+            <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-primary-foreground/20 bg-primary-foreground/10 shadow-lg backdrop-blur-md">
+              <Building2 className="h-6 w-6 text-primary-foreground" strokeWidth={2.25} />
+              <Sparkles className="absolute -right-1.5 -top-1.5 h-4 w-4 text-accent drop-shadow-[0_0_6px_hsl(var(--accent))]" strokeWidth={2.5} />
+            </div>
             <span className="rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-primary-foreground/90">
               Tel Aviv • Urban Renewal Intelligence
             </span>
