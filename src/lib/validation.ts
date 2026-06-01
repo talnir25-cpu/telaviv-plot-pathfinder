@@ -46,6 +46,10 @@ export const analysisInputSchema = z
     sideSetbackM: z.number().min(0, "קו בניין צדדי: לא שלילי").max(15, "קו בניין צדדי: עד 15 מ׳").optional(),
     rearSetbackM: z.number().min(0, "קו בניין אחורי: לא שלילי").max(15, "קו בניין אחורי: עד 15 מ׳").optional(),
     setbackSource: z.enum(["regulation", "manual", "manual_override"]).optional(),
+    zoneLabelOverride: z.string().optional(),
+    areaHint: z.enum(["declaration", "market_street", "rest"]).optional(),
+    street: z.string().max(120).optional(),
+    address: z.string().max(300).optional(),
   })
   .superRefine((v, ctx) => {
     // עקביות שטח: שטח בנוי לא יכול לעלות על שטח מגרש × קומות × 2 (חוצן בטיחות)

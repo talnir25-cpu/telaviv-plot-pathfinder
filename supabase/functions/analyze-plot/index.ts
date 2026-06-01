@@ -28,6 +28,8 @@ interface PlotInput {
   // אופציונלי — דריסה ידנית של ייעוד הקרקע ע"י המשתמש
   zoneLabelOverride?: string;
   areaHint?: "declaration" | "market_street" | "rest";
+  street?: string;
+  address?: string;
 }
 
 interface ZoneInfo {
@@ -304,6 +306,7 @@ Deno.serve(async (req) => {
             quarter: body.quarter,
             gush: body.gush,
             helka: body.helka,
+            street: body.street,
             zone_label_override: body.zoneLabelOverride,
             area_hint: body.areaHint,
           }),
