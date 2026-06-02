@@ -569,7 +569,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           const fs = Number(frontSetback);
           const ss = Number(sideSetback);
           const rs = Number(rearSetback);
-          const plotArea = selectedPlot?.area ?? selectedPlot?.shapeArea ?? 0;
+          const plotArea = selectedPlot?.effectiveArea ?? 0;
           const floorArea = estimateTypicalFloorArea(plotArea, { front: fs, side: ss, rear: rs });
           const cov = coveragePct(floorArea, plotArea);
           const isManual = fs !== std.front || ss !== std.side || rs !== std.rear;
