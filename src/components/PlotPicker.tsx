@@ -999,7 +999,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           <Button
             type="submit"
             size="lg"
-            disabled={!selectedPlot || loading}
+            disabled={!selectedPlot || loading || selectedPlot.isPublicLand}
             className="w-full bg-gradient-hero text-primary-foreground hover:opacity-95"
           >
             {loading ? (
