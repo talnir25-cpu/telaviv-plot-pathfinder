@@ -34,6 +34,13 @@ import { BookOpen, RotateCcw } from "lucide-react";
 
 type UnitsSource = "manual" | "tlv_permits" | "govmap_bldg" | "nadlan" | "heuristic" | "estimate" | null;
 
+// Module-level cache for fetched GovMap geometry, keyed by `${gush}-${helka}`.
+// Persists across PlotPicker mounts within a session to avoid repeated calls
+// (reduces 403/502 risk and latency). `null` value = known-fallback result.
+type GeomCacheEntry = { width: number; depth: number } | null;
+const geometryCache = new Map<string, GeomCacheEntry>();
+const geomKey = (gush: number | string, helka: number | string) => `${gush}-${helka}`;
+
 interface SourceResult {
   source: string;
   units: number | null;
@@ -295,7 +302,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   }, [selectedPlot]);
 
   // Auto-fetch plot geometry (bbox width/depth) from GovMap whenever a new plot
-  // is selected. On failure (GovMap 403/502, network error) the edge function
+  // is selected. Results (success and known-fallback) are cached in-memory per
+  // (gush, helka) to avoid repeated upstream calls. On failure the edge function
   // returns `{ fallback: true }` — we surface a status message and leave the
   // width/depth fields editable for manual entry. Never throws to the UI.
   useEffect(() => {
@@ -305,6 +313,21 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     }
     const reqId = ++geomReqRef.current;
     setGeometryAutoFilled(false);
+
+    const key = geomKey(selectedPlot.gush, selectedPlot.helka);
+    if (geometryCache.has(key)) {
+      const cached = geometryCache.get(key);
+      if (cached) {
+        setPlotWidth(String(cached.width));
+        setPlotDepth(String(cached.depth));
+        setGeometryAutoFilled(true);
+        setGeometryStatus("ok");
+      } else {
+        setGeometryStatus("fallback");
+      }
+      return;
+    }
+
     setGeometryStatus("loading");
     (async () => {
       try {
@@ -313,26 +336,31 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         });
         if (reqId !== geomReqRef.current) return;
         if (error || !data || data.fallback || data.error) {
+          geometryCache.set(key, null);
           setGeometryStatus("fallback");
           return;
         }
         const w = Number(data.width);
         const d = Number(data.depth);
         if (!Number.isFinite(w) || !Number.isFinite(d) || w <= 0 || d <= 0) {
+          geometryCache.set(key, null);
           setGeometryStatus("fallback");
           return;
         }
+        geometryCache.set(key, { width: w, depth: d });
         setPlotWidth(String(w));
         setPlotDepth(String(d));
         setGeometryAutoFilled(true);
         setGeometryStatus("ok");
       } catch {
         if (reqId !== geomReqRef.current) return;
+        // Transient error — do NOT cache as fallback, allow retry on re-select.
         setGeometryStatus("fallback");
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlot]);
+
 
 
 
