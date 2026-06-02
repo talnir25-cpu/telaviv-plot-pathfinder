@@ -156,6 +156,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [plotWidth, setPlotWidth] = useState<string>("");
   const [plotDepth, setPlotDepth] = useState<string>("");
   const [geometryAutoFilled, setGeometryAutoFilled] = useState(false);
+  const [geometryStatus, setGeometryStatus] = useState<"idle" | "loading" | "ok" | "fallback">("idle");
   const lookupReqRef = useRef(0);
   const geomReqRef = useRef(0);
 
