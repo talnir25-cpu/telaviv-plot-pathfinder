@@ -181,6 +181,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         );
         return;
       }
+      if (found.isPublicLand) {
+        toast.error(
+          `הכתובת מופתה לגוש ${data.gush} חלקה ${data.helka} (רובע ${found.q}) — זוהי קרקע ציבורית ואינה זמינה לבחירה.`,
+        );
+        return;
+      }
       setQuarter(found.q);
       setGushQuery(String(found.gush));
       setHelka(String(found.helka));
@@ -197,7 +203,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
   const gushOptions = useMemo(() => {
     const set = new Set<number>();
-    for (const p of PLOTS) if (p.q === quarter) set.add(p.gush);
+    for (const p of PLOTS) if (p.q === quarter && !p.isPublicLand) set.add(p.gush);
     return Array.from(set).sort((a, b) => a - b);
   }, [quarter]);
 
@@ -210,7 +216,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const helkaOptions = useMemo(() => {
     const g = Number(gushQuery);
     if (!g) return [];
-    return PLOTS.filter((p) => p.q === quarter && p.gush === g)
+    return PLOTS.filter((p) => p.q === quarter && p.gush === g && !p.isPublicLand)
       .map((p) => p.helka)
       .sort((a, b) => a - b);
   }, [quarter, gushQuery]);
