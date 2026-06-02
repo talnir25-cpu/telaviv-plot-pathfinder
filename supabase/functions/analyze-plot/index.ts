@@ -24,6 +24,8 @@ interface PlotInput {
   frontSetbackM?: number;
   sideSetbackM?: number;
   rearSetbackM?: number;
+  plotWidthM?: number;
+  plotDepthM?: number;
   setbackSource?: "regulation" | "manual" | "manual_override";
   // אופציונלי — דריסה ידנית של ייעוד הקרקע ע"י המשתמש
   zoneLabelOverride?: string;
