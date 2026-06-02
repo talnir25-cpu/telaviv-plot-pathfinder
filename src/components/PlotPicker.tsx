@@ -153,6 +153,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [sideSetback, setSideSetback] = useState<string>(String(DEFAULT_SETBACKS[3].side));
   const [rearSetback, setRearSetback] = useState<string>(String(DEFAULT_SETBACKS[3].rear));
   const [setbackTouched, setSetbackTouched] = useState(false);
+  const [plotWidth, setPlotWidth] = useState<string>("");
+  const [plotDepth, setPlotDepth] = useState<string>("");
   const lookupReqRef = useRef(0);
 
   const lookupAddress = async () => {
