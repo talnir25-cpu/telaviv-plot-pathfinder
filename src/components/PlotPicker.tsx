@@ -373,6 +373,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       frontSetbackM: Number.isFinite(fs) && fs >= 0 ? fs : undefined,
       sideSetbackM: Number.isFinite(ss) && ss >= 0 ? ss : undefined,
       rearSetbackM: Number.isFinite(rs) && rs >= 0 ? rs : undefined,
+      plotWidthM: (() => { const v = Number(plotWidth); return Number.isFinite(v) && v > 0 ? v : undefined; })(),
+      plotDepthM: (() => { const v = Number(plotDepth); return Number.isFinite(v) && v > 0 ? v : undefined; })(),
       setbackSource: (!isManual
         ? "regulation"
         : outOfRange
