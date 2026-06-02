@@ -100,24 +100,32 @@ Deno.serve(async (req) => {
     const geometry = encodeURIComponent(
       JSON.stringify({ x, y, spatialReference: { wkid: 2039 } }),
     );
-    const queryUrl =
-      `https://ags.govmap.gov.il/Arcgis/rest/services/PARCEL_ALL/MapServer/0/query` +
-      `?geometry=${geometry}` +
-      `&geometryType=esriGeometryPoint&inSR=2039&outSR=2039` +
-      `&spatialRel=esriSpatialRelIntersects&returnGeometry=true&outFields=*&f=json`;
-    const qRes = await fetch(queryUrl, { headers: GOVMAP_HEADERS });
-    const qText = await qRes.text();
-    if (!qRes.ok) {
-      return new Response(JSON.stringify({ error: `ArcGIS ${qRes.status}` }), {
+    // Step 2: IdentifyByXY — request includes geometry rings.
+    const idRes = await fetch("https://ags.govmap.gov.il/Identify/IdentifyByXY", {
+      method: "POST",
+      headers: GOVMAP_HEADERS,
+      body: JSON.stringify({
+        x, y, mapTolerance: 2, IsPersonalSite: false,
+        layers: [{ LayerType: 0, LayerName: "PARCEL_ALL" }],
+      }),
+    });
+    const qText = await idRes.text();
+    if (!idRes.ok) {
+      return new Response(JSON.stringify({ error: `Identify ${idRes.status}` }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     let qJson: unknown;
     try { qJson = JSON.parse(qText); } catch {
-      return new Response(JSON.stringify({ error: "ArcGIS non-JSON", sample: qText.slice(0, 200) }), {
+      return new Response(JSON.stringify({ error: "Identify non-JSON", sample: qText.slice(0, 200) }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (debug) {
+      return new Response(JSON.stringify({ debug: true, x, y, identify: qJson }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
