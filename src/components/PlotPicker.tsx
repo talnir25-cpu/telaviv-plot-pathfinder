@@ -155,7 +155,9 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [setbackTouched, setSetbackTouched] = useState(false);
   const [plotWidth, setPlotWidth] = useState<string>("");
   const [plotDepth, setPlotDepth] = useState<string>("");
+  const [geometryAutoFilled, setGeometryAutoFilled] = useState(false);
   const lookupReqRef = useRef(0);
+  const geomReqRef = useRef(0);
 
   const lookupAddress = async () => {
     const q = address.trim();
@@ -284,9 +286,36 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       setBuiltAreaConfidence(null);
       setExistingBuiltArea("");
       setSources([]);
+      setGeometryAutoFilled(false);
       return;
     }
     runLookup(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPlot]);
+
+  // Auto-fetch plot geometry (bbox width/depth) from GovMap whenever a new plot
+  // is selected. Silently fails — manual entry remains available.
+  useEffect(() => {
+    if (!selectedPlot) return;
+    const reqId = ++geomReqRef.current;
+    setGeometryAutoFilled(false);
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("fetch-plot-geometry", {
+          body: { gush: selectedPlot.gush, helka: selectedPlot.helka },
+        });
+        if (reqId !== geomReqRef.current) return;
+        if (error || !data || data.error) return;
+        const w = Number(data.width);
+        const d = Number(data.depth);
+        if (!Number.isFinite(w) || !Number.isFinite(d) || w <= 0 || d <= 0) return;
+        setPlotWidth(String(w));
+        setPlotDepth(String(d));
+        setGeometryAutoFilled(true);
+      } catch {
+        // silent — leave fields for manual entry
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlot]);
 
@@ -585,24 +614,46 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         <div className="space-y-2 md:col-span-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label htmlFor="plot-width" className="text-sm">רוחב מגרש (מ׳)</Label>
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="plot-width" className="text-sm">רוחב מגרש (מ׳)</Label>
+                {geometryAutoFilled && (
+                  <span
+                    title="נשלף אוטומטית מ-GovMap"
+                    className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    GovMap
+                  </span>
+                )}
+              </div>
               <Input
                 id="plot-width"
                 inputMode="decimal"
                 placeholder="אופציונלי"
                 value={plotWidth}
-                onChange={(e) => setPlotWidth(e.target.value.replace(/[^\d.]/g, ""))}
+                onChange={(e) => { setPlotWidth(e.target.value.replace(/[^\d.]/g, "")); setGeometryAutoFilled(false); }}
                 className="h-9 text-center tabular-nums"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="plot-depth" className="text-sm">עומק מגרש (מ׳)</Label>
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="plot-depth" className="text-sm">עומק מגרש (מ׳)</Label>
+                {geometryAutoFilled && (
+                  <span
+                    title="נשלף אוטומטית מ-GovMap"
+                    className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    GovMap
+                  </span>
+                )}
+              </div>
               <Input
                 id="plot-depth"
                 inputMode="decimal"
                 placeholder="אופציונלי"
                 value={plotDepth}
-                onChange={(e) => setPlotDepth(e.target.value.replace(/[^\d.]/g, ""))}
+                onChange={(e) => { setPlotDepth(e.target.value.replace(/[^\d.]/g, "")); setGeometryAutoFilled(false); }}
                 className="h-9 text-center tabular-nums"
               />
             </div>
