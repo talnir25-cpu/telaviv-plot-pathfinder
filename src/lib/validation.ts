@@ -45,6 +45,8 @@ export const analysisInputSchema = z
     frontSetbackM: z.number().min(0, "קו בניין קדמי: לא שלילי").max(15, "קו בניין קדמי: עד 15 מ׳").optional(),
     sideSetbackM: z.number().min(0, "קו בניין צדדי: לא שלילי").max(15, "קו בניין צדדי: עד 15 מ׳").optional(),
     rearSetbackM: z.number().min(0, "קו בניין אחורי: לא שלילי").max(15, "קו בניין אחורי: עד 15 מ׳").optional(),
+    plotWidthM: z.number().positive("רוחב מגרש: גדול מ-0").max(500, "רוחב מגרש: עד 500 מ׳").optional(),
+    plotDepthM: z.number().positive("עומק מגרש: גדול מ-0").max(500, "עומק מגרש: עד 500 מ׳").optional(),
     setbackSource: z.enum(["regulation", "manual", "manual_override"]).optional(),
     zoneLabelOverride: z.string().optional(),
     areaHint: z.enum(["declaration", "market_street", "rest"]).optional(),
