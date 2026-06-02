@@ -226,7 +226,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         body: {
           gush: selectedPlot.gush,
           helka: selectedPlot.helka,
-          plotArea: selectedPlot.area ?? selectedPlot.shapeArea,
+          plotArea: selectedPlot.effectiveArea,
           refresh,
         },
       });
