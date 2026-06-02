@@ -64,7 +64,14 @@ interface ZoneInfo {
 function estimateTypicalFloorArea(
   plotAreaSqm: number,
   setbacks: { front: number; side: number; rear: number },
+  plotWidth?: number,
+  plotDepth?: number,
 ): number {
+  if (plotWidth && plotDepth && plotWidth > 0 && plotDepth > 0) {
+    const w = Math.max(0, plotWidth - 2 * setbacks.side);
+    const d = Math.max(0, plotDepth - setbacks.front - setbacks.rear);
+    return Math.round(w * d);
+  }
   if (!plotAreaSqm || plotAreaSqm <= 0) return 0;
   const side = Math.sqrt(plotAreaSqm);
   const width = Math.max(0, side - 2 * setbacks.side);
