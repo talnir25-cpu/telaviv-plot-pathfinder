@@ -71,7 +71,44 @@ const STATUS_ICON = {
   skipped: { Icon: AlertCircle, tone: "text-muted-foreground" },
 } as const;
 
-const PLOTS = plotsData as Plot[];
+const MIN_PLOT_AREA_SQM = 100;
+const PUBLIC_LAND_THRESHOLD_SQM = 50_000;
+const AREA_DISCREPANCY_THRESHOLD = 0.2;
+
+export interface EnrichedPlot extends Plot {
+  effectiveArea: number;
+  effectiveSource: "area" | "shapeArea";
+  areaDiscrepancyPct: number; // 0..1
+  hasAreaDiscrepancy: boolean;
+  isPublicLand: boolean;
+}
+
+function enrichPlot(p: Plot): EnrichedPlot {
+  const a = p.area ?? null;
+  const s = p.shapeArea ?? null;
+  let effective = a ?? s ?? 0;
+  let source: "area" | "shapeArea" = a != null ? "area" : "shapeArea";
+  let discrepancy = 0;
+  if (a != null && s != null && a > 0) {
+    discrepancy = Math.abs(a - s) / a;
+    if (discrepancy > AREA_DISCREPANCY_THRESHOLD) {
+      effective = s;
+      source = "shapeArea";
+    }
+  }
+  return {
+    ...p,
+    effectiveArea: effective,
+    effectiveSource: source,
+    areaDiscrepancyPct: discrepancy,
+    hasAreaDiscrepancy: discrepancy > AREA_DISCREPANCY_THRESHOLD,
+    isPublicLand: effective > PUBLIC_LAND_THRESHOLD_SQM,
+  };
+}
+
+const PLOTS: EnrichedPlot[] = (plotsData as Plot[])
+  .map(enrichPlot)
+  .filter((p) => p.effectiveArea >= MIN_PLOT_AREA_SQM);
 
 interface Props {
   onAnalyze: (input: AnalysisInput) => Promise<void> | void;
@@ -189,7 +226,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         body: {
           gush: selectedPlot.gush,
           helka: selectedPlot.helka,
-          plotArea: selectedPlot.area ?? selectedPlot.shapeArea,
+          plotArea: selectedPlot.effectiveArea,
           refresh,
         },
       });
@@ -285,6 +322,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     e.preventDefault();
     if (!selectedPlot) {
       toast.error("יש לבחור חלקה לפני הניתוח");
+      return;
+    }
+    if (selectedPlot.isPublicLand) {
+      toast.error(
+        `החלקה מסומנת כקרקע ציבורית (מעל ${PUBLIC_LAND_THRESHOLD_SQM.toLocaleString("he-IL")} מ"ר) ואינה זמינה לניתוח היתכנות.`,
+      );
       return;
     }
     const ba = Number(existingBuiltArea);
@@ -488,11 +531,37 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         <div className="space-y-2">
           <Label>שטח החלקה</Label>
           <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
-            {selectedPlot
-              ? `${(selectedPlot.area ?? selectedPlot.shapeArea ?? 0).toLocaleString("he-IL")} מ"ר`
-              : "—"}
+            {selectedPlot ? (
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span>{selectedPlot.effectiveArea.toLocaleString("he-IL")} מ"ר</span>
+                  {selectedPlot.isPublicLand && (
+                    <Badge variant="destructive" className="text-[10px]">קרקע ציבורית</Badge>
+                  )}
+                  {selectedPlot.hasAreaDiscrepancy && (
+                    <Badge variant="outline" className="gap-1 text-[10px] text-amber-600 dark:text-amber-400">
+                      <AlertCircle className="h-3 w-3" />
+                      שימוש ב-shapeArea
+                    </Badge>
+                  )}
+                </div>
+                {selectedPlot.hasAreaDiscrepancy && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                    פער של {Math.round(selectedPlot.areaDiscrepancyPct * 100)}% בין שטח רשום ({selectedPlot.area?.toLocaleString("he-IL")} מ"ר) ל-shapeArea ({selectedPlot.shapeArea?.toLocaleString("he-IL")} מ"ר). נעשה שימוש ב-shapeArea.
+                  </p>
+                )}
+                {selectedPlot.isPublicLand && (
+                  <p className="text-[11px] text-destructive">
+                    חלקה זו אינה זמינה לניתוח היתכנות.
+                  </p>
+                )}
+              </div>
+            ) : (
+              "—"
+            )}
           </div>
         </div>
+
 
         {/* קווי בניין ותכסית — נגזרת מהתקנון, ניתנת לעריכה */}
         {(() => {
@@ -500,7 +569,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           const fs = Number(frontSetback);
           const ss = Number(sideSetback);
           const rs = Number(rearSetback);
-          const plotArea = selectedPlot?.area ?? selectedPlot?.shapeArea ?? 0;
+          const plotArea = selectedPlot?.effectiveArea ?? 0;
           const floorArea = estimateTypicalFloorArea(plotArea, { front: fs, side: ss, rear: rs });
           const cov = coveragePct(floorArea, plotArea);
           const isManual = fs !== std.front || ss !== std.side || rs !== std.rear;
@@ -930,7 +999,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           <Button
             type="submit"
             size="lg"
-            disabled={!selectedPlot || loading}
+            disabled={!selectedPlot || loading || selectedPlot.isPublicLand}
             className="w-full bg-gradient-hero text-primary-foreground hover:opacity-95"
           >
             {loading ? (
