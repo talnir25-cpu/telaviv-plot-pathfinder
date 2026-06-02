@@ -19,8 +19,17 @@ export const DEFAULT_SETBACKS: Record<3 | 4, SetbackStandard> = {
 export function estimateTypicalFloorArea(
   plotAreaSqm: number,
   setbacks: { front: number; side: number; rear: number },
+  plotWidth?: number,
+  plotDepth?: number,
 ): number {
+  // עדיפות לממדים פיזיים אם סופקו — רוב מגרשי ת"א מלבניים צרים-ארוכים
+  if (plotWidth && plotDepth && plotWidth > 0 && plotDepth > 0) {
+    const w = Math.max(0, plotWidth - 2 * setbacks.side);
+    const d = Math.max(0, plotDepth - setbacks.front - setbacks.rear);
+    return Math.round(w * d);
+  }
   if (!plotAreaSqm || plotAreaSqm <= 0) return 0;
+  // fallback: קירוב מגרש מרובע
   const side = Math.sqrt(plotAreaSqm);
   const width = Math.max(0, side - 2 * setbacks.side);
   const depth = Math.max(0, side - setbacks.front - setbacks.rear);

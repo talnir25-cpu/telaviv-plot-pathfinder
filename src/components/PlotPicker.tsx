@@ -153,6 +153,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [sideSetback, setSideSetback] = useState<string>(String(DEFAULT_SETBACKS[3].side));
   const [rearSetback, setRearSetback] = useState<string>(String(DEFAULT_SETBACKS[3].rear));
   const [setbackTouched, setSetbackTouched] = useState(false);
+  const [plotWidth, setPlotWidth] = useState<string>("");
+  const [plotDepth, setPlotDepth] = useState<string>("");
   const lookupReqRef = useRef(0);
 
   const lookupAddress = async () => {
@@ -371,6 +373,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       frontSetbackM: Number.isFinite(fs) && fs >= 0 ? fs : undefined,
       sideSetbackM: Number.isFinite(ss) && ss >= 0 ? ss : undefined,
       rearSetbackM: Number.isFinite(rs) && rs >= 0 ? rs : undefined,
+      plotWidthM: (() => { const v = Number(plotWidth); return Number.isFinite(v) && v > 0 ? v : undefined; })(),
+      plotDepthM: (() => { const v = Number(plotDepth); return Number.isFinite(v) && v > 0 ? v : undefined; })(),
       setbackSource: (!isManual
         ? "regulation"
         : outOfRange
@@ -578,6 +582,36 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           </div>
         </div>
 
+        <div className="space-y-2 md:col-span-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="plot-width" className="text-sm">רוחב מגרש (מ׳)</Label>
+              <Input
+                id="plot-width"
+                inputMode="decimal"
+                placeholder="אופציונלי"
+                value={plotWidth}
+                onChange={(e) => setPlotWidth(e.target.value.replace(/[^\d.]/g, ""))}
+                className="h-9 text-center tabular-nums"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="plot-depth" className="text-sm">עומק מגרש (מ׳)</Label>
+              <Input
+                id="plot-depth"
+                inputMode="decimal"
+                placeholder="אופציונלי"
+                value={plotDepth}
+                onChange={(e) => setPlotDepth(e.target.value.replace(/[^\d.]/g, ""))}
+                className="h-9 text-center tabular-nums"
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            להגדלת דיוק חישוב התכסית — רוב המגרשים בת"א מלבניים צרים-ארוכים, ולכן הזנת הממדים הפיזיים מדויקת יותר מהקירוב של מגרש מרובע (√שטח).
+          </p>
+        </div>
+
 
         {/* קווי בניין ותכסית — נגזרת מהתקנון, ניתנת לעריכה */}
         {(() => {
@@ -586,7 +620,11 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           const ss = Number(sideSetback);
           const rs = Number(rearSetback);
           const plotArea = selectedPlot?.effectiveArea ?? 0;
-          const floorArea = estimateTypicalFloorArea(plotArea, { front: fs, side: ss, rear: rs });
+          const pw = Number(plotWidth);
+          const pd = Number(plotDepth);
+          const pwOk = Number.isFinite(pw) && pw > 0 ? pw : undefined;
+          const pdOk = Number.isFinite(pd) && pd > 0 ? pd : undefined;
+          const floorArea = estimateTypicalFloorArea(plotArea, { front: fs, side: ss, rear: rs }, pwOk, pdOk);
           const cov = coveragePct(floorArea, plotArea);
           const isManual = fs !== std.front || ss !== std.side || rs !== std.rear;
           const outOfRange = [fs, ss, rs].some((v) => Number.isNaN(v) || v < 0 || v > 15);

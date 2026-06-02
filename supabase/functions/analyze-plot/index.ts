@@ -24,6 +24,8 @@ interface PlotInput {
   frontSetbackM?: number;
   sideSetbackM?: number;
   rearSetbackM?: number;
+  plotWidthM?: number;
+  plotDepthM?: number;
   setbackSource?: "regulation" | "manual" | "manual_override";
   // אופציונלי — דריסה ידנית של ייעוד הקרקע ע"י המשתמש
   zoneLabelOverride?: string;
@@ -62,7 +64,14 @@ interface ZoneInfo {
 function estimateTypicalFloorArea(
   plotAreaSqm: number,
   setbacks: { front: number; side: number; rear: number },
+  plotWidth?: number,
+  plotDepth?: number,
 ): number {
+  if (plotWidth && plotDepth && plotWidth > 0 && plotDepth > 0) {
+    const w = Math.max(0, plotWidth - 2 * setbacks.side);
+    const d = Math.max(0, plotDepth - setbacks.front - setbacks.rear);
+    return Math.round(w * d);
+  }
   if (!plotAreaSqm || plotAreaSqm <= 0) return 0;
   const side = Math.sqrt(plotAreaSqm);
   const width = Math.max(0, side - 2 * setbacks.side);
@@ -331,7 +340,7 @@ Deno.serve(async (req) => {
           front: body.frontSetbackM!,
           side: body.sideSetbackM!,
           rear: body.rearSetbackM!,
-        })
+        }, body.plotWidthM, body.plotDepthM)
       : 0;
     const coveragePctVal = typicalFloorArea && plotAreaForCalc
       ? Math.round((typicalFloorArea / plotAreaForCalc) * 100)
@@ -341,14 +350,14 @@ Deno.serve(async (req) => {
     const renewalTrack = inferRenewalTrack(body.existingFloors ?? 0, body.existingUnits ?? 0, body.conservation);
     const renewalCfg = plotAreaForCalc > 0 ? RENEWAL_SETBACKS[body.quarter]?.[renewalTrack] : null;
     const renewalFloorArea = renewalCfg
-      ? estimateTypicalFloorArea(plotAreaForCalc, renewalCfg)
+      ? estimateTypicalFloorArea(plotAreaForCalc, renewalCfg, body.plotWidthM, body.plotDepthM)
       : 0;
     const renewalCoveragePct = renewalFloorArea && plotAreaForCalc
       ? Math.round((renewalFloorArea / plotAreaForCalc) * 100)
       : 0;
     const baselineFloorAreaForUplift = typicalFloorArea > 0
       ? typicalFloorArea
-      : (plotAreaForCalc > 0 ? estimateTypicalFloorArea(plotAreaForCalc, { front: 5, side: 3, rear: 5 }) : 0);
+      : (plotAreaForCalc > 0 ? estimateTypicalFloorArea(plotAreaForCalc, { front: 5, side: 3, rear: 5 }, body.plotWidthM, body.plotDepthM) : 0);
     const upliftSqmPerFloor = Math.max(0, renewalFloorArea - baselineFloorAreaForUplift);
     const upliftPct = baselineFloorAreaForUplift > 0
       ? Math.round((upliftSqmPerFloor / baselineFloorAreaForUplift) * 100)
