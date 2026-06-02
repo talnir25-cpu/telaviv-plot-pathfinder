@@ -197,7 +197,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
   const gushOptions = useMemo(() => {
     const set = new Set<number>();
-    for (const p of PLOTS) if (p.q === quarter) set.add(p.gush);
+    for (const p of PLOTS) if (p.q === quarter && !p.isPublicLand) set.add(p.gush);
     return Array.from(set).sort((a, b) => a - b);
   }, [quarter]);
 
