@@ -590,7 +590,11 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           const ss = Number(sideSetback);
           const rs = Number(rearSetback);
           const plotArea = selectedPlot?.effectiveArea ?? 0;
-          const floorArea = estimateTypicalFloorArea(plotArea, { front: fs, side: ss, rear: rs });
+          const pw = Number(plotWidth);
+          const pd = Number(plotDepth);
+          const pwOk = Number.isFinite(pw) && pw > 0 ? pw : undefined;
+          const pdOk = Number.isFinite(pd) && pd > 0 ? pd : undefined;
+          const floorArea = estimateTypicalFloorArea(plotArea, { front: fs, side: ss, rear: rs }, pwOk, pdOk);
           const cov = coveragePct(floorArea, plotArea);
           const isManual = fs !== std.front || ss !== std.side || rs !== std.rear;
           const outOfRange = [fs, ss, rs].some((v) => Number.isNaN(v) || v < 0 || v > 15);
