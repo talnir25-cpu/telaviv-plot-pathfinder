@@ -156,6 +156,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [plotWidth, setPlotWidth] = useState<string>("");
   const [plotDepth, setPlotDepth] = useState<string>("");
   const [geometryAutoFilled, setGeometryAutoFilled] = useState(false);
+  const [geometryStatus, setGeometryStatus] = useState<"idle" | "loading" | "ok" | "fallback">("idle");
   const lookupReqRef = useRef(0);
   const geomReqRef = useRef(0);
 
@@ -294,30 +295,45 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   }, [selectedPlot]);
 
   // Auto-fetch plot geometry (bbox width/depth) from GovMap whenever a new plot
-  // is selected. Silently fails — manual entry remains available.
+  // is selected. On failure (GovMap 403/502, network error) the edge function
+  // returns `{ fallback: true }` — we surface a status message and leave the
+  // width/depth fields editable for manual entry. Never throws to the UI.
   useEffect(() => {
-    if (!selectedPlot) return;
+    if (!selectedPlot) {
+      setGeometryStatus("idle");
+      return;
+    }
     const reqId = ++geomReqRef.current;
     setGeometryAutoFilled(false);
+    setGeometryStatus("loading");
     (async () => {
       try {
         const { data, error } = await supabase.functions.invoke("fetch-plot-geometry", {
           body: { gush: selectedPlot.gush, helka: selectedPlot.helka },
         });
         if (reqId !== geomReqRef.current) return;
-        if (error || !data || data.error) return;
+        if (error || !data || data.fallback || data.error) {
+          setGeometryStatus("fallback");
+          return;
+        }
         const w = Number(data.width);
         const d = Number(data.depth);
-        if (!Number.isFinite(w) || !Number.isFinite(d) || w <= 0 || d <= 0) return;
+        if (!Number.isFinite(w) || !Number.isFinite(d) || w <= 0 || d <= 0) {
+          setGeometryStatus("fallback");
+          return;
+        }
         setPlotWidth(String(w));
         setPlotDepth(String(d));
         setGeometryAutoFilled(true);
+        setGeometryStatus("ok");
       } catch {
-        // silent — leave fields for manual entry
+        if (reqId !== geomReqRef.current) return;
+        setGeometryStatus("fallback");
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlot]);
+
 
 
   const saveManualUnits = async () => {
@@ -661,6 +677,14 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           <p className="text-[11px] text-muted-foreground">
             להגדלת דיוק חישוב התכסית — רוב המגרשים בת"א מלבניים צרים-ארוכים, ולכן הזנת הממדים הפיזיים מדויקת יותר מהקירוב של מגרש מרובע (√שטח).
           </p>
+          {geometryStatus === "loading" && (
+            <p className="text-[11px] text-muted-foreground">טוען ממדים מ-GovMap…</p>
+          )}
+          {geometryStatus === "fallback" && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400">
+              לא ניתן היה לשלוף ממדים אוטומטית מ-GovMap כרגע — ניתן להזין רוחב ועומק ידנית.
+            </p>
+          )}
         </div>
 
 
