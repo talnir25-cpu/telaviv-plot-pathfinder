@@ -49,7 +49,7 @@ function collectBbox(node: unknown, bbox: { minX: number; maxX: number; minY: nu
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const { gush, helka } = await req.json();
+    const { gush, helka, debug } = await req.json();
     const g = Number(gush);
     const h = Number(helka);
     if (!g || !h) {
@@ -94,31 +94,58 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Step 2: IdentifyByXY → returns parcel geometry rings.
-    const idRes = await fetch("https://ags.govmap.gov.il/Identify/IdentifyByXY", {
-      method: "POST",
-      headers: GOVMAP_HEADERS,
-      body: JSON.stringify({
-        x, y, mapTolerance: 2, IsPersonalSite: false,
-        layers: [{ LayerType: 0, LayerName: "PARCEL_ALL" }],
-      }),
-    });
-    const idText = await idRes.text();
-    if (!idRes.ok) {
-      return new Response(JSON.stringify({ error: `Identify ${idRes.status}` }), {
+    // Step 2: ArcGIS REST point-in-polygon query against PARCEL_ALL — returns
+    // geometry rings by default. Spatial query avoids field-name guessing
+    // (different layer indexes use different attribute names).
+    const geometry = encodeURIComponent(
+      JSON.stringify({ x, y, spatialReference: { wkid: 2039 } }),
+    );
+    const queryUrl =
+      `https://ags.govmap.gov.il/Arcgis/rest/services/PARCEL_ALL/MapServer/0/query` +
+      `?geometry=${geometry}` +
+      `&geometryType=esriGeometryPoint&inSR=2039&outSR=2039` +
+      `&spatialRel=esriSpatialRelIntersects&returnGeometry=true&outFields=*&f=json`;
+    const qRes = await fetch(queryUrl, { headers: GOVMAP_HEADERS });
+    const qText = await qRes.text();
+    if (!qRes.ok) {
+      return new Response(JSON.stringify({ error: `ArcGIS ${qRes.status}` }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const idJson = JSON.parse(idText);
+    let qJson: unknown;
+    try { qJson = JSON.parse(qText); } catch {
+      return new Response(JSON.stringify({ error: "ArcGIS non-JSON", sample: qText.slice(0, 200) }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const bbox = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
-    collectBbox(idJson, bbox);
+    collectBbox(qJson, bbox);
     if (!Number.isFinite(bbox.minX) || bbox.maxX - bbox.minX < 1) {
-      return new Response(JSON.stringify({ error: "no geometry in response" }), {
+      return new Response(JSON.stringify({
+        error: "no geometry in response",
+        ...(debug ? { sample: qText.slice(0, 500) } : {}),
+      }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+    const width = Math.round((bbox.maxX - bbox.minX) * 10) / 10;
+    const depth = Math.round((bbox.maxY - bbox.minY) * 10) / 10;
+    return new Response(
+      JSON.stringify({ width, depth, bbox, source: "govmap_ags" }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "unknown";
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
     }
     const width = Math.round((bbox.maxX - bbox.minX) * 10) / 10;
     const depth = Math.round((bbox.maxY - bbox.minY) * 10) / 10;
