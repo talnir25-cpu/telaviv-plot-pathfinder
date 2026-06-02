@@ -531,11 +531,37 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         <div className="space-y-2">
           <Label>שטח החלקה</Label>
           <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
-            {selectedPlot
-              ? `${(selectedPlot.area ?? selectedPlot.shapeArea ?? 0).toLocaleString("he-IL")} מ"ר`
-              : "—"}
+            {selectedPlot ? (
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span>{selectedPlot.effectiveArea.toLocaleString("he-IL")} מ"ר</span>
+                  {selectedPlot.isPublicLand && (
+                    <Badge variant="destructive" className="text-[10px]">קרקע ציבורית</Badge>
+                  )}
+                  {selectedPlot.hasAreaDiscrepancy && (
+                    <Badge variant="outline" className="gap-1 text-[10px] text-amber-600 dark:text-amber-400">
+                      <AlertCircle className="h-3 w-3" />
+                      שימוש ב-shapeArea
+                    </Badge>
+                  )}
+                </div>
+                {selectedPlot.hasAreaDiscrepancy && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                    פער של {Math.round(selectedPlot.areaDiscrepancyPct * 100)}% בין שטח רשום ({selectedPlot.area?.toLocaleString("he-IL")} מ"ר) ל-shapeArea ({selectedPlot.shapeArea?.toLocaleString("he-IL")} מ"ר). נעשה שימוש ב-shapeArea.
+                  </p>
+                )}
+                {selectedPlot.isPublicLand && (
+                  <p className="text-[11px] text-destructive">
+                    חלקה זו אינה זמינה לניתוח היתכנות.
+                  </p>
+                )}
+              </div>
+            ) : (
+              "—"
+            )}
           </div>
         </div>
+
 
         {/* קווי בניין ותכסית — נגזרת מהתקנון, ניתנת לעריכה */}
         {(() => {
