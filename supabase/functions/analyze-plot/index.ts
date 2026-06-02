@@ -340,7 +340,7 @@ Deno.serve(async (req) => {
           front: body.frontSetbackM!,
           side: body.sideSetbackM!,
           rear: body.rearSetbackM!,
-        })
+        }, body.plotWidthM, body.plotDepthM)
       : 0;
     const coveragePctVal = typicalFloorArea && plotAreaForCalc
       ? Math.round((typicalFloorArea / plotAreaForCalc) * 100)
@@ -350,14 +350,14 @@ Deno.serve(async (req) => {
     const renewalTrack = inferRenewalTrack(body.existingFloors ?? 0, body.existingUnits ?? 0, body.conservation);
     const renewalCfg = plotAreaForCalc > 0 ? RENEWAL_SETBACKS[body.quarter]?.[renewalTrack] : null;
     const renewalFloorArea = renewalCfg
-      ? estimateTypicalFloorArea(plotAreaForCalc, renewalCfg)
+      ? estimateTypicalFloorArea(plotAreaForCalc, renewalCfg, body.plotWidthM, body.plotDepthM)
       : 0;
     const renewalCoveragePct = renewalFloorArea && plotAreaForCalc
       ? Math.round((renewalFloorArea / plotAreaForCalc) * 100)
       : 0;
     const baselineFloorAreaForUplift = typicalFloorArea > 0
       ? typicalFloorArea
-      : (plotAreaForCalc > 0 ? estimateTypicalFloorArea(plotAreaForCalc, { front: 5, side: 3, rear: 5 }) : 0);
+      : (plotAreaForCalc > 0 ? estimateTypicalFloorArea(plotAreaForCalc, { front: 5, side: 3, rear: 5 }, body.plotWidthM, body.plotDepthM) : 0);
     const upliftSqmPerFloor = Math.max(0, renewalFloorArea - baselineFloorAreaForUplift);
     const upliftPct = baselineFloorAreaForUplift > 0
       ? Math.round((upliftSqmPerFloor / baselineFloorAreaForUplift) * 100)
