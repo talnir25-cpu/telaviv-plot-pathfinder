@@ -155,7 +155,9 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [setbackTouched, setSetbackTouched] = useState(false);
   const [plotWidth, setPlotWidth] = useState<string>("");
   const [plotDepth, setPlotDepth] = useState<string>("");
+  const [geometryAutoFilled, setGeometryAutoFilled] = useState(false);
   const lookupReqRef = useRef(0);
+  const geomReqRef = useRef(0);
 
   const lookupAddress = async () => {
     const q = address.trim();
