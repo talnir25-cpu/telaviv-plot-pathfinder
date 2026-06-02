@@ -146,18 +146,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-    }
-    const width = Math.round((bbox.maxX - bbox.minX) * 10) / 10;
-    const depth = Math.round((bbox.maxY - bbox.minY) * 10) / 10;
-    return new Response(
-      JSON.stringify({ width, depth, bbox, source: "govmap_ags" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "unknown";
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-});
