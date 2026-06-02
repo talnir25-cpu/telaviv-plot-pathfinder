@@ -286,9 +286,36 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       setBuiltAreaConfidence(null);
       setExistingBuiltArea("");
       setSources([]);
+      setGeometryAutoFilled(false);
       return;
     }
     runLookup(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPlot]);
+
+  // Auto-fetch plot geometry (bbox width/depth) from GovMap whenever a new plot
+  // is selected. Silently fails — manual entry remains available.
+  useEffect(() => {
+    if (!selectedPlot) return;
+    const reqId = ++geomReqRef.current;
+    setGeometryAutoFilled(false);
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("fetch-plot-geometry", {
+          body: { gush: selectedPlot.gush, helka: selectedPlot.helka },
+        });
+        if (reqId !== geomReqRef.current) return;
+        if (error || !data || data.error) return;
+        const w = Number(data.width);
+        const d = Number(data.depth);
+        if (!Number.isFinite(w) || !Number.isFinite(d) || w <= 0 || d <= 0) return;
+        setPlotWidth(String(w));
+        setPlotDepth(String(d));
+        setGeometryAutoFilled(true);
+      } catch {
+        // silent — leave fields for manual entry
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlot]);
 
