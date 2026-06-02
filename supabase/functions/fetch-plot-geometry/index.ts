@@ -97,9 +97,6 @@ Deno.serve(async (req) => {
     // Step 2: ArcGIS REST point-in-polygon query against PARCEL_ALL — returns
     // geometry rings by default. Spatial query avoids field-name guessing
     // (different layer indexes use different attribute names).
-    const geometry = encodeURIComponent(
-      JSON.stringify({ x, y, spatialReference: { wkid: 2039 } }),
-    );
     // Step 2: IdentifyByXY — request includes geometry rings.
     const idRes = await fetch("https://ags.govmap.gov.il/Identify/IdentifyByXY", {
       method: "POST",
