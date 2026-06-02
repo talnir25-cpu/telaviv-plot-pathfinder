@@ -106,9 +106,19 @@ function enrichPlot(p: Plot): EnrichedPlot {
   };
 }
 
-const PLOTS: EnrichedPlot[] = (plotsData as Plot[])
-  .map(enrichPlot)
-  .filter((p) => p.effectiveArea >= MIN_PLOT_AREA_SQM);
+const PLOTS: EnrichedPlot[] = (() => {
+  const enriched = (plotsData as Plot[])
+    .map(enrichPlot)
+    .filter((p) => p.effectiveArea >= MIN_PLOT_AREA_SQM);
+  // Deduplicate gush+helka across quarters — keep the lower quarter (3 wins over 4)
+  const byKey = new Map<string, EnrichedPlot>();
+  for (const p of enriched) {
+    const key = `${p.gush}-${p.helka}`;
+    const existing = byKey.get(key);
+    if (!existing || p.q < existing.q) byKey.set(key, p);
+  }
+  return Array.from(byKey.values());
+})();
 
 interface Props {
   onAnalyze: (input: AnalysisInput) => Promise<void> | void;
