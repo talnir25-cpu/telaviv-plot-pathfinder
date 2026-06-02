@@ -582,6 +582,36 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           </div>
         </div>
 
+        <div className="space-y-2 md:col-span-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="plot-width" className="text-sm">רוחב מגרש (מ׳)</Label>
+              <Input
+                id="plot-width"
+                inputMode="decimal"
+                placeholder="אופציונלי"
+                value={plotWidth}
+                onChange={(e) => setPlotWidth(e.target.value.replace(/[^\d.]/g, ""))}
+                className="h-9 text-center tabular-nums"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="plot-depth" className="text-sm">עומק מגרש (מ׳)</Label>
+              <Input
+                id="plot-depth"
+                inputMode="decimal"
+                placeholder="אופציונלי"
+                value={plotDepth}
+                onChange={(e) => setPlotDepth(e.target.value.replace(/[^\d.]/g, ""))}
+                className="h-9 text-center tabular-nums"
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            להגדלת דיוק חישוב התכסית — רוב המגרשים בת"א מלבניים צרים-ארוכים, ולכן הזנת הממדים הפיזיים מדויקת יותר מהקירוב של מגרש מרובע (√שטח).
+          </p>
+        </div>
+
 
         {/* קווי בניין ותכסית — נגזרת מהתקנון, ניתנת לעריכה */}
         {(() => {
