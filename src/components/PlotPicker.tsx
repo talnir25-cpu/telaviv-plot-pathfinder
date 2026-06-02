@@ -71,7 +71,44 @@ const STATUS_ICON = {
   skipped: { Icon: AlertCircle, tone: "text-muted-foreground" },
 } as const;
 
-const PLOTS = plotsData as Plot[];
+const MIN_PLOT_AREA_SQM = 100;
+const PUBLIC_LAND_THRESHOLD_SQM = 50_000;
+const AREA_DISCREPANCY_THRESHOLD = 0.2;
+
+export interface EnrichedPlot extends Plot {
+  effectiveArea: number;
+  effectiveSource: "area" | "shapeArea";
+  areaDiscrepancyPct: number; // 0..1
+  hasAreaDiscrepancy: boolean;
+  isPublicLand: boolean;
+}
+
+function enrichPlot(p: Plot): EnrichedPlot {
+  const a = p.area ?? null;
+  const s = p.shapeArea ?? null;
+  let effective = a ?? s ?? 0;
+  let source: "area" | "shapeArea" = a != null ? "area" : "shapeArea";
+  let discrepancy = 0;
+  if (a != null && s != null && a > 0) {
+    discrepancy = Math.abs(a - s) / a;
+    if (discrepancy > AREA_DISCREPANCY_THRESHOLD) {
+      effective = s;
+      source = "shapeArea";
+    }
+  }
+  return {
+    ...p,
+    effectiveArea: effective,
+    effectiveSource: source,
+    areaDiscrepancyPct: discrepancy,
+    hasAreaDiscrepancy: discrepancy > AREA_DISCREPANCY_THRESHOLD,
+    isPublicLand: effective > PUBLIC_LAND_THRESHOLD_SQM,
+  };
+}
+
+const PLOTS: EnrichedPlot[] = (plotsData as Plot[])
+  .map(enrichPlot)
+  .filter((p) => p.effectiveArea >= MIN_PLOT_AREA_SQM);
 
 interface Props {
   onAnalyze: (input: AnalysisInput) => Promise<void> | void;
