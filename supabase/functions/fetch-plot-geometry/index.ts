@@ -120,27 +120,36 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (debug) {
-      return new Response(JSON.stringify({ debug: true, x, y, identify: qJson }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const bbox = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
-    collectBbox(qJson, bbox);
-    if (!Number.isFinite(bbox.minX) || bbox.maxX - bbox.minX < 1) {
-      return new Response(JSON.stringify({
-        error: "no geometry in response",
-        ...(debug ? { sample: qText.slice(0, 500) } : {}),
-      }), {
+    // Identify response includes `extent` (xmin/xmax/ymin/ymax) on each Result
+    // — use it directly. Walk the structure to find the first one.
+    type Extent = { xmin: number; xmax: number; ymin: number; ymax: number };
+    const findExtent = (node: unknown): Extent | null => {
+      if (!node || typeof node !== "object") return null;
+      const obj = node as Record<string, unknown>;
+      if (
+        typeof obj.xmin === "number" && typeof obj.xmax === "number" &&
+        typeof obj.ymin === "number" && typeof obj.ymax === "number"
+      ) return obj as unknown as Extent;
+      for (const v of Object.values(obj)) {
+        if (Array.isArray(v)) {
+          for (const item of v) { const e = findExtent(item); if (e) return e; }
+        } else if (v && typeof v === "object") {
+          const e = findExtent(v); if (e) return e;
+        }
+      }
+      return null;
+    };
+    const ext = findExtent(qJson);
+    if (!ext) {
+      return new Response(JSON.stringify({ error: "no extent in response" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const width = Math.round((bbox.maxX - bbox.minX) * 10) / 10;
-    const depth = Math.round((bbox.maxY - bbox.minY) * 10) / 10;
+    const width = Math.round((ext.xmax - ext.xmin) * 10) / 10;
+    const depth = Math.round((ext.ymax - ext.ymin) * 10) / 10;
     return new Response(
-      JSON.stringify({ width, depth, bbox, source: "govmap_ags" }),
+      JSON.stringify({ width, depth, extent: ext, source: "govmap" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
