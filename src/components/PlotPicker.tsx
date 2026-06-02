@@ -324,6 +324,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       toast.error("יש לבחור חלקה לפני הניתוח");
       return;
     }
+    if (selectedPlot.isPublicLand) {
+      toast.error(
+        `החלקה מסומנת כקרקע ציבורית (מעל ${PUBLIC_LAND_THRESHOLD_SQM.toLocaleString("he-IL")} מ"ר) ואינה זמינה לניתוח היתכנות.`,
+      );
+      return;
+    }
     const ba = Number(existingBuiltArea);
     const fs = Number(frontSetback);
     const ss = Number(sideSetback);
