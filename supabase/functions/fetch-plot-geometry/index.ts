@@ -125,12 +125,13 @@ Deno.serve(async (req) => {
       });
       if (bRes.ok) {
         const bJson = JSON.parse(await bRes.text());
-        const YEAR_KEY = /^(year[_\s]?built|bldg[_\s]?year)$/i;
-        const FLOORS_KEY = /^(floors[_\s]?num|floor[_\s]?count|num[_\s]?floors)$/i;
-        const UNITS_KEY = /^(units[_\s]?num|unit[_\s]?count|num[_\s]?units|dwelling[_\s]?units)$/i;
+        const YEAR_KEY = /^(year[_\s]?built|bldg[_\s]?year|shnat[_\s]?bniya|shnat_bniya|shnath|year|taarich|build[_\s]?year|construction[_\s]?year|שנת|שנה)$/i;
+        const FLOORS_KEY = /^(floors[_\s]?num|floor[_\s]?count|num[_\s]?floors|num_floors|komot|koma|floor|floors|mספר_קומות|kомот|FLOOR_NO|FLOORNUM|NUMFLOORS|FLOORSABOVE|floors_above|above_floors|stories)$/i;
+        const UNITS_KEY = /^(units[_\s]?num|unit[_\s]?count|num[_\s]?units|dwelling[_\s]?units|dirot|dira|apartments|num_units|yihadot|yechidot|UNITCOUNT|NUMUNITS|DWELLINGS|residential[_\s]?units)$/i;
         const years: number[] = [];
         const floorsArr: number[] = [];
         const unitsArr: number[] = [];
+        const allNumbers: number[] = [];
         const walk = (node: unknown) => {
           if (!node) return;
           if (Array.isArray(node)) { for (const it of node) walk(it); return; }
@@ -145,6 +146,8 @@ Deno.serve(async (req) => {
               if (Number.isFinite(n) && n >= 1 && n <= 500) unitsArr.push(n);
             } else if (v && (typeof v === "object" || Array.isArray(v))) {
               walk(v);
+            } else if (typeof v === "number" && Number.isFinite(v)) {
+              allNumbers.push(v);
             }
           }
         };
@@ -152,6 +155,20 @@ Deno.serve(async (req) => {
         if (years.length > 0) yearBuilt = Math.min(...years);
         if (floorsArr.length > 0) floorsCount = Math.max(...floorsArr);
         if (unitsArr.length > 0) unitsCount = unitsArr.reduce((a, b) => a + b, 0);
+
+        // Heuristic fallback: only when specific fields were not found.
+        if (yearBuilt === null) {
+          const cands = allNumbers.filter((n) => Number.isInteger(n) && n >= 1920 && n <= 2010);
+          if (cands.length > 0) yearBuilt = Math.min(...cands);
+        }
+        if (floorsCount === null) {
+          const cands = allNumbers.filter((n) => Number.isInteger(n) && n >= 2 && n <= 20);
+          if (cands.length > 0) floorsCount = Math.max(...cands);
+        }
+        if (unitsCount === null) {
+          const cands = allNumbers.filter((n) => Number.isInteger(n) && n >= 2 && n <= 200);
+          if (cands.length > 0) unitsCount = Math.max(...cands);
+        }
       }
     } catch (_) { /* keep nulls */ }
 
