@@ -130,6 +130,7 @@ Deno.serve(async (req) => {
         });
         if (!bRes.ok) return null;
         const bJson = JSON.parse(await bRes.text());
+        console.log("BLDG_RAW", JSON.stringify(bJson).substring(0, 1000));
         const years: number[] = [];
         const floorsArr: number[] = [];
         const unitsArr: number[] = [];
@@ -184,6 +185,8 @@ Deno.serve(async (req) => {
       }
     } catch (_) { /* keep nulls */ }
 
+
+    console.log("BLDG_DEBUG", JSON.stringify({ yearBuilt, floorsCount, unitsCount, bldgRaw: bRes?.ok ? "ok" : "fail" }));
 
     return json({ width, depth, yearBuilt, floorsCount, unitsCount, centroidX: x, centroidY: y, extent: ext, source: "govmap" });
   } catch (err) {
