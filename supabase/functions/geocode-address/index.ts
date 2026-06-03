@@ -268,18 +268,25 @@ Deno.serve(async (req) => {
 let idJson: unknown = null;
 let parcels: ParcelMatch[] = [];
 let best: ParcelMatch | null = null;
+const attempts: Array<{ tol: number; found: ParcelMatch[]; known: number[] }> = [];
 for (const tol of [1, 5, 10]) {
   idJson = await identifyAt(tol);
   parcels = extractParcels(idJson);
-  if (parcels.length === 0) continue;
   const known = parcels.filter((p) => isKnownPlot(p.gush, p.helka));
+  attempts.push({
+    tol,
+    found: parcels.map((p) => ({ ...p, dist: Math.round(Math.hypot(p.centroidX - x, p.centroidY - y)) } as ParcelMatch & { dist: number })),
+    known: known.map((p) => p.helka),
+  });
+  if (parcels.length === 0) continue;
   if (known.length > 0) {
     best = pickBestParcel(known, x, y);
     break;
   }
-  // remember the closest unknown match as a last-resort fallback
   if (!best) best = pickBestParcel(parcels, x, y);
 }
+console.log(`geocode "${resolvedAddress}" x=${x} y=${y} → best=${best?.gush}/${best?.helka}`, JSON.stringify(attempts));
+
 
     const { lat, lon } = itmToWgs84(x, y);
 
