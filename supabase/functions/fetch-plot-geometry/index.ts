@@ -185,8 +185,39 @@ Deno.serve(async (req) => {
       }
     } catch (_) { /* keep nulls */ }
 
+    // Step 4 (best-effort): fetch year built from Israel Tax Authority nadlan API.
+    // Runs only when Step 3 didn't return yearBuilt. Failures are silent.
+    if (yearBuilt === null) {
+      try {
+        const nRes = await fetch(
+          `https://api.nadlan.gov.il/api/v1/apartment?gush=${g}&helka=${h}`,
+          { headers: { "Accept": "application/json", "User-Agent": GOVMAP_HEADERS["User-Agent"] } },
+        );
+        if (nRes.ok) {
+          const nJson = JSON.parse(await nRes.text());
+          console.log("NADLAN_RAW", JSON.stringify(nJson).substring(0, 1000));
+          const YEAR_KEY_NADLAN = /^(yearBuilt|year_built|shnat_bniya|buildYear)$/i;
+          const found: number[] = [];
+          const walk = (node: unknown) => {
+            if (!node) return;
+            if (Array.isArray(node)) { for (const it of node) walk(it); return; }
+            if (typeof node !== "object") return;
+            for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+              if (YEAR_KEY_NADLAN.test(k)) {
+                const n = typeof v === "number" ? v : Number(v);
+                if (Number.isFinite(n) && n >= 1900 && n <= 2024) found.push(n);
+              } else if (v && (typeof v === "object" || Array.isArray(v))) {
+                walk(v);
+              }
+            }
+          };
+          walk(nJson);
+          if (found.length > 0) yearBuilt = Math.min(...found);
+        }
+      } catch (_) { /* keep null */ }
+    }
 
-    console.log("BLDG_DEBUG", JSON.stringify({ yearBuilt, floorsCount, unitsCount, bldgRaw: bRes?.ok ? "ok" : "fail" }));
+    console.log("BLDG_DEBUG", JSON.stringify({ yearBuilt, floorsCount, unitsCount }));
 
     return json({ width, depth, yearBuilt, floorsCount, unitsCount, centroidX: x, centroidY: y, extent: ext, source: "govmap" });
   } catch (err) {
