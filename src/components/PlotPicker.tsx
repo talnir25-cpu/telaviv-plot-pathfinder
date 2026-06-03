@@ -164,6 +164,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [plotDepth, setPlotDepth] = useState<string>("");
   const [buildingYear, setBuildingYear] = useState<string>("");
   const [yearAutoFilled, setYearAutoFilled] = useState(false);
+  const [centroidX, setCentroidX] = useState<number | null>(null);
+  const [centroidY, setCentroidY] = useState<number | null>(null);
   const [geometryAutoFilled, setGeometryAutoFilled] = useState(false);
   const [geometryStatus, setGeometryStatus] = useState<"idle" | "loading" | "ok" | "fallback">("idle");
   const lookupReqRef = useRef(0);
