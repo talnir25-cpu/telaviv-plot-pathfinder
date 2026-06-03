@@ -115,19 +115,21 @@ Deno.serve(async (req) => {
     let floorsCount: number | null = null;
     let unitsCount: number | null = null;
     try {
-      const bRes = await fetch("https://ags.govmap.gov.il/Identify/IdentifyByXY", {
-        method: "POST",
-        headers: GOVMAP_HEADERS,
-        body: JSON.stringify({
-          x, y, mapTolerance: 2, IsPersonalSite: false,
-          layers: [{ LayerType: 0, LayerName: "BLDG_FLOOR_USAGE" }],
-        }),
-      });
-      if (bRes.ok) {
+      const YEAR_KEY = /^(year[_\s]?built|bldg[_\s]?year|shnat[_\s]?bniya|shnat_bniya|shnath|year|taarich|build[_\s]?year|construction[_\s]?year|שנת|שנה)$/i;
+      const FLOORS_KEY = /^(floors[_\s]?num|floor[_\s]?count|num[_\s]?floors|num_floors|komot|koma|floor|floors|mספר_קומות|kомот|FLOOR_NO|FLOORNUM|NUMFLOORS|FLOORSABOVE|floors_above|above_floors|stories)$/i;
+      const UNITS_KEY = /^(units[_\s]?num|unit[_\s]?count|num[_\s]?units|dwelling[_\s]?units|dirot|dira|apartments|num_units|yihadot|yechidot|UNITCOUNT|NUMUNITS|DWELLINGS|residential[_\s]?units)$/i;
+
+      const tryBuilding = async (tol: number) => {
+        const bRes = await fetch("https://ags.govmap.gov.il/Identify/IdentifyByXY", {
+          method: "POST",
+          headers: GOVMAP_HEADERS,
+          body: JSON.stringify({
+            x, y, mapTolerance: tol, IsPersonalSite: false,
+            layers: [{ LayerType: 0, LayerName: "BLDG_FLOOR_USAGE" }],
+          }),
+        });
+        if (!bRes.ok) return null;
         const bJson = JSON.parse(await bRes.text());
-        const YEAR_KEY = /^(year[_\s]?built|bldg[_\s]?year|shnat[_\s]?bniya|shnat_bniya|shnath|year|taarich|build[_\s]?year|construction[_\s]?year|שנת|שנה)$/i;
-        const FLOORS_KEY = /^(floors[_\s]?num|floor[_\s]?count|num[_\s]?floors|num_floors|komot|koma|floor|floors|mספר_קומות|kомот|FLOOR_NO|FLOORNUM|NUMFLOORS|FLOORSABOVE|floors_above|above_floors|stories)$/i;
-        const UNITS_KEY = /^(units[_\s]?num|unit[_\s]?count|num[_\s]?units|dwelling[_\s]?units|dirot|dira|apartments|num_units|yihadot|yechidot|UNITCOUNT|NUMUNITS|DWELLINGS|residential[_\s]?units)$/i;
         const years: number[] = [];
         const floorsArr: number[] = [];
         const unitsArr: number[] = [];
@@ -152,25 +154,36 @@ Deno.serve(async (req) => {
           }
         };
         walk(bJson);
-        if (years.length > 0) yearBuilt = Math.min(...years);
-        if (floorsArr.length > 0) floorsCount = Math.max(...floorsArr);
-        if (unitsArr.length > 0) unitsCount = unitsArr.reduce((a, b) => a + b, 0);
-
-        // Heuristic fallback: only when specific fields were not found.
-        if (yearBuilt === null) {
+        let y2: number | null = years.length > 0 ? Math.min(...years) : null;
+        let f2: number | null = floorsArr.length > 0 ? Math.max(...floorsArr) : null;
+        let u2: number | null = unitsArr.length > 0 ? unitsArr.reduce((a, b) => a + b, 0) : null;
+        if (y2 === null) {
           const cands = allNumbers.filter((n) => Number.isInteger(n) && n >= 1920 && n <= 2010);
-          if (cands.length > 0) yearBuilt = Math.min(...cands);
+          if (cands.length > 0) y2 = Math.min(...cands);
         }
-        if (floorsCount === null) {
+        if (f2 === null) {
           const cands = allNumbers.filter((n) => Number.isInteger(n) && n >= 2 && n <= 20);
-          if (cands.length > 0) floorsCount = Math.max(...cands);
+          if (cands.length > 0) f2 = Math.max(...cands);
         }
-        if (unitsCount === null) {
+        if (u2 === null) {
           const cands = allNumbers.filter((n) => Number.isInteger(n) && n >= 2 && n <= 200);
-          if (cands.length > 0) unitsCount = Math.max(...cands);
+          if (cands.length > 0) u2 = Math.max(...cands);
+        }
+        return { yearBuilt: y2, floorsCount: f2, unitsCount: u2 };
+      };
+
+      // Try a tight tolerance first, then widen if nothing was found.
+      for (const tol of [15, 30]) {
+        const r = await tryBuilding(tol);
+        if (r && (r.yearBuilt !== null || r.floorsCount !== null || r.unitsCount !== null)) {
+          yearBuilt = r.yearBuilt;
+          floorsCount = r.floorsCount;
+          unitsCount = r.unitsCount;
+          break;
         }
       }
     } catch (_) { /* keep nulls */ }
+
 
     return json({ width, depth, yearBuilt, floorsCount, unitsCount, centroidX: x, centroidY: y, extent: ext, source: "govmap" });
   } catch (err) {
