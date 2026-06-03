@@ -48,6 +48,8 @@ export const analysisInputSchema = z
     plotWidthM: z.number().positive("רוחב מגרש: גדול מ-0").max(500, "רוחב מגרש: עד 500 מ׳").optional(),
     plotDepthM: z.number().positive("עומק מגרש: גדול מ-0").max(500, "עומק מגרש: עד 500 מ׳").optional(),
     buildingYear: z.number().int().min(1900, "שנת בנייה: מ-1900").max(2024, "שנת בנייה: עד 2024").optional(),
+    centroidX: z.number().finite().optional(),
+    centroidY: z.number().finite().optional(),
     setbackSource: z.enum(["regulation", "manual", "manual_override"]).optional(),
     zoneLabelOverride: z.string().optional(),
     areaHint: z.enum(["declaration", "market_street", "rest"]).optional(),
