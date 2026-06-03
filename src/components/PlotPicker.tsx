@@ -37,7 +37,7 @@ type UnitsSource = "manual" | "tlv_permits" | "govmap_bldg" | "nadlan" | "heuris
 // Module-level cache for fetched GovMap geometry, keyed by `${gush}-${helka}`.
 // Persists across PlotPicker mounts within a session to avoid repeated calls
 // (reduces 403/502 risk and latency). `null` value = known-fallback result.
-type GeomCacheEntry = { width: number; depth: number; yearBuilt: number | null; centroidX: number | null; centroidY: number | null } | null;
+type GeomCacheEntry = { width: number; depth: number; yearBuilt: number | null; centroidX: number | null; centroidY: number | null; floorsCount: number | null; unitsCount: number | null } | null;
 const geometryCache = new Map<string, GeomCacheEntry>();
 const geomKey = (gush: number | string, helka: number | string) => `${gush}-${helka}`;
 
@@ -167,6 +167,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [centroidX, setCentroidX] = useState<number | null>(null);
   const [centroidY, setCentroidY] = useState<number | null>(null);
   const [geometryAutoFilled, setGeometryAutoFilled] = useState(false);
+  const [existingFloorsAuto, setExistingFloorsAuto] = useState(false);
+  const [existingUnitsAuto, setExistingUnitsAuto] = useState(false);
   const [geometryStatus, setGeometryStatus] = useState<"idle" | "loading" | "ok" | "fallback">("idle");
   const lookupReqRef = useRef(0);
   const geomReqRef = useRef(0);
@@ -320,6 +322,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     setYearAutoFilled(false);
     setCentroidX(null);
     setCentroidY(null);
+    setExistingFloorsAuto(false);
+    setExistingUnitsAuto(false);
 
     const applyYear = (yb: number | null) => {
       if (yb != null) {
@@ -333,6 +337,17 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       setCentroidY(cy);
     };
 
+    const applyFloorsUnits = (fc: number | null, uc: number | null) => {
+      if (fc != null && fc >= 1 && fc <= 50) {
+        setExistingFloors(String(fc));
+        setExistingFloorsAuto(true);
+      }
+      if (uc != null && uc >= 1 && uc <= 500) {
+        setExistingUnits(String(uc));
+        setExistingUnitsAuto(true);
+      }
+    };
+
     const key = geomKey(selectedPlot.gush, selectedPlot.helka);
     if (geometryCache.has(key)) {
       const cached = geometryCache.get(key);
@@ -343,6 +358,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         setGeometryStatus("ok");
         applyYear(cached.yearBuilt);
         applyCentroid(cached.centroidX, cached.centroidY);
+        applyFloorsUnits(cached.floorsCount, cached.unitsCount);
       } else {
         setGeometryStatus("fallback");
       }
@@ -373,13 +389,18 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           : null;
         const cx = typeof data.centroidX === "number" && Number.isFinite(data.centroidX) ? data.centroidX : null;
         const cy = typeof data.centroidY === "number" && Number.isFinite(data.centroidY) ? data.centroidY : null;
-        geometryCache.set(key, { width: w, depth: d, yearBuilt: yb, centroidX: cx, centroidY: cy });
+        const fc = typeof data.floorsCount === "number" && data.floorsCount >= 1 && data.floorsCount <= 50
+          ? data.floorsCount : null;
+        const uc = typeof data.unitsCount === "number" && data.unitsCount >= 1 && data.unitsCount <= 500
+          ? data.unitsCount : null;
+        geometryCache.set(key, { width: w, depth: d, yearBuilt: yb, centroidX: cx, centroidY: cy, floorsCount: fc, unitsCount: uc });
         setPlotWidth(String(w));
         setPlotDepth(String(d));
         setGeometryAutoFilled(true);
         setGeometryStatus("ok");
         applyYear(yb);
         applyCentroid(cx, cy);
+        applyFloorsUnits(fc, uc);
       } catch {
         if (reqId !== geomReqRef.current) return;
         // Transient error — do NOT cache as fallback, allow retry on re-select.
@@ -904,7 +925,18 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="units">יח"ד קיימות</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="units">יח"ד קיימות</Label>
+              {existingUnitsAuto && (
+                <span
+                  title="נשלף אוטומטית מ-GovMap"
+                  className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  GovMap
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-1">
               {unitsLoading ? (
                 <Badge variant="outline" className="gap-1 text-[10px]">
@@ -940,6 +972,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             onChange={(e) => {
               setExistingUnits(e.target.value.replace(/\D/g, ""));
               if (unitsSource && unitsSource !== "manual") setUnitsSource(null);
+              setExistingUnitsAuto(false);
             }}
           />
         </div>
@@ -947,7 +980,18 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="floors">קומות קיימות</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="floors">קומות קיימות</Label>
+              {existingFloorsAuto && (
+                <span
+                  title="נשלף אוטומטית מ-GovMap"
+                  className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  GovMap
+                </span>
+              )}
+            </div>
             {floorsSource && (() => {
               const meta = SOURCE_META[floorsSource] ?? SOURCE_META.estimate;
               const Icon = meta.icon;
@@ -971,7 +1015,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             id="floors"
             inputMode="numeric"
             value={existingFloors}
-            onChange={(e) => setExistingFloors(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => { setExistingFloors(e.target.value.replace(/\D/g, "")); setExistingFloorsAuto(false); }}
           />
         </div>
 
