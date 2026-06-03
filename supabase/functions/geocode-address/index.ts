@@ -262,13 +262,25 @@ Deno.serve(async (req) => {
       try { return JSON.parse(t); } catch { throw new Error(`Identify לא תקין: ${t.slice(0, 120)}`); }
     };
 
-    let idJson = await identifyAt(2);
-    let parcels = extractParcels(idJson);
-    if (parcels.length === 0) {
-      idJson = await identifyAt(15);
-      parcels = extractParcels(idJson);
-    }
-    const best = pickBestParcel(parcels, x, y);
+// Try progressively wider tolerances. At each step prefer a parcel that
+// exists in the app's known plots list (plots.json); only fall back to an
+// unknown parcel if no wider step finds a known one.
+let idJson: unknown = null;
+let parcels: ParcelMatch[] = [];
+let best: ParcelMatch | null = null;
+for (const tol of [1, 5, 10]) {
+  idJson = await identifyAt(tol);
+  parcels = extractParcels(idJson);
+  if (parcels.length === 0) continue;
+  const known = parcels.filter((p) => isKnownPlot(p.gush, p.helka));
+  if (known.length > 0) {
+    best = pickBestParcel(known, x, y);
+    break;
+  }
+  // remember the closest unknown match as a last-resort fallback
+  if (!best) best = pickBestParcel(parcels, x, y);
+}
+
     const { lat, lon } = itmToWgs84(x, y);
 
     if (!best) {
