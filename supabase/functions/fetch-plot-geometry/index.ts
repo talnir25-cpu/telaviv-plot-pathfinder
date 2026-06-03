@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
       }
     } catch (_) { /* keep yearBuilt null */ }
 
-    return json({ width, depth, yearBuilt, extent: ext, source: "govmap" });
+    return json({ width, depth, yearBuilt, centroidX: x, centroidY: y, extent: ext, source: "govmap" });
   } catch (err) {
     return fallback("UNEXPECTED", { detail: err instanceof Error ? err.message : "unknown" });
   }
