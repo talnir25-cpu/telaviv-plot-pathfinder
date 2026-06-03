@@ -186,6 +186,8 @@ Deno.serve(async (req) => {
     } catch (_) { /* keep nulls */ }
 
 
+    console.log("BLDG_DEBUG", JSON.stringify({ yearBuilt, floorsCount, unitsCount, bldgRaw: bRes?.ok ? "ok" : "fail" }));
+
     return json({ width, depth, yearBuilt, floorsCount, unitsCount, centroidX: x, centroidY: y, extent: ext, source: "govmap" });
   } catch (err) {
     return fallback("UNEXPECTED", { detail: err instanceof Error ? err.message : "unknown" });
