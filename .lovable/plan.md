@@ -1,44 +1,43 @@
 ## מטרה
-הוספת שליפת שנת בנייה אוטומטית מ-GovMap, אכלוס שדה חדש ב-PlotPicker, וקבלת הערך בלוגיקת זיהוי מסלול ההתחדשות.
+שיפור שיעור ההצלחה של שליפת `yearBuilt`, `floorsCount`, `unitsCount` מתשובת `BLDG_FLOOR_USAGE` ב-GovMap, על ידי הרחבת ה-regex לשמות שדות נוספים והוספת פאלבק היוריסטי מבוסס טווחים מספריים.
 
-## שינויים
+## שינוי יחיד: `supabase/functions/fetch-plot-geometry/index.ts`
 
-### 1. `supabase/functions/fetch-plot-geometry/index.ts`
-- אחרי Step 2 הקיים (שליפת ה-extent), להוסיף Step 3:
-  - קריאה נוספת ל-`https://ags.govmap.gov.il/Identify/IdentifyByXY` באותן `x,y` עם `layers: [{ LayerType: 0, LayerName: "BLDG_FLOOR_USAGE" }]`, אותם headers/User-Agent כמו ב-Step 1-2.
-  - **הערה:** האנדפוינט `api.govmap.gov.il` שצוין מחזיר 403 (אומת בלוגים קודמים) — נשתמש ב-`ags.govmap.gov.il` שכבר עובד עבור החלקות.
-- פונקציית סריקה רקורסיבית על התשובה: לאסוף כל ערך מספרי תחת מפתח שתואם `YEAR_BUILT`/`yearBuilt` (case-insensitive) בטווח 1900–2024. אם נמצאו מספר ערכים (מספר מבנים) — לקחת `Math.min` (הבניין הוותיק ביותר).
-- להוסיף `yearBuilt: number | null` לאובייקט התשובה הסופי שמכיל `{ width, depth, extent, source }`.
-- כשל ב-Step 3 לא ייכשל את הפונקציה — `yearBuilt: null` ושאר השדות נשארים.
-- הרחבת ה-`fallback()` כך שיחזיר גם `yearBuilt: null` כשרלוונטי (לשמירת חוזה אחיד).
+ב-Step 3 הקיים (בלוק ה-`try` סביב שורות ~110-150):
 
-### 2. `src/components/PlotPicker.tsx`
-- הוספת state `const [buildingYear, setBuildingYear] = useState<string>("")` ו-`const [yearAutoFilled, setYearAutoFilled] = useState(false)`.
-- הרחבת `GeomCacheEntry` ב-cache הקיים ל-`{ width, depth, yearBuilt: number | null } | null`.
-- ב-`useEffect` הקיים של הגיאומטריה (גם במסלול ה-cache hit וגם במסלול הקריאה ל-edge):
-  - אם `data.yearBuilt` קיים → `setBuildingYear(String(data.yearBuilt))` + `setYearAutoFilled(true)`.
-  - אם לא קיים → לא לגעת בשדה (מאפשר קלט ידני).
-  - איפוס `yearAutoFilled` כאשר המשתמש משנה ידנית את ה-input.
-- שדה Input חדש "שנת בנייה" מתחת לשדות רוחב/עומק:
-  - `type="number"`, `placeholder="לדוגמה: 1965"`.
-  - אייקון `Sparkles` קטן עם tooltip "נשלף אוטומטית מ-GovMap" מוצג רק כאשר `yearAutoFilled === true`, באותו דפוס ויזואלי של רוחב/עומק.
-- העברה ל-`AnalysisInput` בעת submit: `buildingYear: buildingYear ? Number(buildingYear) : undefined`.
+### 1. החלפת שלושת ה-regex
 
-### 3. `src/types/feasibility.ts`
-- הוספת `buildingYear?: number;` ל-`AnalysisInput`.
+```ts
+const YEAR_KEY = /^(year[_\s]?built|bldg[_\s]?year|shnat[_\s]?bniya|shnat_bniya|shnath|year|taarich|build[_\s]?year|construction[_\s]?year|שנת|שנה)$/i;
+const FLOORS_KEY = /^(floors[_\s]?num|floor[_\s]?count|num[_\s]?floors|num_floors|komot|koma|floor|floors|mספר_קומות|kомот|FLOOR_NO|FLOORNUM|NUMFLOORS|FLOORSABOVE|floors_above|above_floors|stories)$/i;
+const UNITS_KEY = /^(units[_\s]?num|unit[_\s]?count|num[_\s]?units|dwelling[_\s]?units|dirot|dira|apartments|num_units|yihadot|yechidot|UNITCOUNT|NUMUNITS|DWELLINGS|residential[_\s]?units)$/i;
+```
 
-### 4. `supabase/functions/analyze-plot/index.ts`
-- הוספת `buildingYear?: number` ל-`PlotInput`.
-- בקריאה הקיימת ל-`inferRenewalTrack` (סביב שורה ~350) להעביר את `buildingYear: body.buildingYear`.
+### 2. איסוף כל המספרים בתשובה במהלך אותה סריקה
 
-### 5. `src/lib/setback-standards.ts`
-- הרחבת חתימת `inferRenewalTrack` עם `buildingYear?: number`.
-- סדר הלוגיקה החדש:
-  1. אם `projectType` שולל renewal → `null` (כמו היום).
-  2. אם `renewalSubtype` הוצהר במפורש → לכבד אותו (כמו היום).
-  3. **חדש:** אם `buildingYear != null && buildingYear >= 1980` → `"rova_plan"`.
-  4. אחרת — להמשיך ההיוריסטיקה הקיימת ללא שינוי (קומות/יחידות → `pinui_binui` / `tama38_2`).
+בתוך `walk()`, כאשר ערך נומרי לא תאם לאף `*_KEY`, להוסיף אותו ל-`allNumbers: number[]` (מערך נוסף). הסריקה הרקורסיבית הקיימת נשמרת — רק תוספת לאיסוף.
 
-## הערות
-- אין שינויי DB, אין secrets חדשים, אין שינוי ב-`supabase/config.toml`.
-- אין שינוי בחוזה הקיים של הצרכנים האחרים של `fetch-plot-geometry` (השדה החדש אופציונלי).
+### 3. פאלבק היוריסטי לאחר ה-walk
+
+לאחר ההצבה הקיימת של `yearBuilt`/`floorsCount`/`unitsCount`, להוסיף — רק כאשר השדה הספציפי עדיין `null`:
+
+```ts
+if (yearBuilt === null) {
+  const cands = allNumbers.filter((n) => Number.isInteger(n) && n >= 1920 && n <= 2010);
+  if (cands.length > 0) yearBuilt = Math.min(...cands); // הוותיק ביותר
+}
+if (floorsCount === null) {
+  const cands = allNumbers.filter((n) => Number.isInteger(n) && n >= 2 && n <= 20);
+  if (cands.length > 0) floorsCount = Math.max(...cands);
+}
+if (unitsCount === null) {
+  const cands = allNumbers.filter((n) => Number.isInteger(n) && n >= 2 && n <= 200);
+  if (cands.length > 0) unitsCount = Math.max(...cands); // ערך יחיד שמרני, לא סכום
+}
+```
+
+### הערות
+- הפאלבק רץ רק אם אף שדה ספציפי לא נתפס — כך שאין רגרסיה במקרים שבהם ה-regex כן מצא.
+- שימוש ב-`Math.max` ליחידות (ולא בסכום כמו במסלול ה-regex) כדי להימנע מספירה כפולה של מספרים אקראיים בתשובה (קואורדינטות, ids וכו') שהם בטווח הזה.
+- אין שינוי לפלט הסופי, לחוזה הקריאה, ל-PlotPicker או לפונקציות אחרות.
+- אין שינויי DB / secrets / config.
