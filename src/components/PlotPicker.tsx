@@ -318,12 +318,19 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     const reqId = ++geomReqRef.current;
     setGeometryAutoFilled(false);
     setYearAutoFilled(false);
+    setCentroidX(null);
+    setCentroidY(null);
 
     const applyYear = (yb: number | null) => {
       if (yb != null) {
         setBuildingYear(String(yb));
         setYearAutoFilled(true);
       }
+    };
+
+    const applyCentroid = (cx: number | null, cy: number | null) => {
+      setCentroidX(cx);
+      setCentroidY(cy);
     };
 
     const key = geomKey(selectedPlot.gush, selectedPlot.helka);
@@ -335,6 +342,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         setGeometryAutoFilled(true);
         setGeometryStatus("ok");
         applyYear(cached.yearBuilt);
+        applyCentroid(cached.centroidX, cached.centroidY);
       } else {
         setGeometryStatus("fallback");
       }
@@ -363,12 +371,15 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         const yb = typeof data.yearBuilt === "number" && data.yearBuilt >= 1900 && data.yearBuilt <= 2024
           ? data.yearBuilt
           : null;
-        geometryCache.set(key, { width: w, depth: d, yearBuilt: yb });
+        const cx = typeof data.centroidX === "number" && Number.isFinite(data.centroidX) ? data.centroidX : null;
+        const cy = typeof data.centroidY === "number" && Number.isFinite(data.centroidY) ? data.centroidY : null;
+        geometryCache.set(key, { width: w, depth: d, yearBuilt: yb, centroidX: cx, centroidY: cy });
         setPlotWidth(String(w));
         setPlotDepth(String(d));
         setGeometryAutoFilled(true);
         setGeometryStatus("ok");
         applyYear(yb);
+        applyCentroid(cx, cy);
       } catch {
         if (reqId !== geomReqRef.current) return;
         // Transient error — do NOT cache as fallback, allow retry on re-select.
