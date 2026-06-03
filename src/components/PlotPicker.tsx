@@ -322,6 +322,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     setYearAutoFilled(false);
     setCentroidX(null);
     setCentroidY(null);
+    setExistingFloorsAuto(false);
+    setExistingUnitsAuto(false);
 
     const applyYear = (yb: number | null) => {
       if (yb != null) {
@@ -335,6 +337,17 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       setCentroidY(cy);
     };
 
+    const applyFloorsUnits = (fc: number | null, uc: number | null) => {
+      if (fc != null && fc >= 1 && fc <= 50) {
+        setExistingFloors(String(fc));
+        setExistingFloorsAuto(true);
+      }
+      if (uc != null && uc >= 1 && uc <= 500) {
+        setExistingUnits(String(uc));
+        setExistingUnitsAuto(true);
+      }
+    };
+
     const key = geomKey(selectedPlot.gush, selectedPlot.helka);
     if (geometryCache.has(key)) {
       const cached = geometryCache.get(key);
@@ -345,6 +358,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         setGeometryStatus("ok");
         applyYear(cached.yearBuilt);
         applyCentroid(cached.centroidX, cached.centroidY);
+        applyFloorsUnits(cached.floorsCount, cached.unitsCount);
       } else {
         setGeometryStatus("fallback");
       }
@@ -375,13 +389,18 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           : null;
         const cx = typeof data.centroidX === "number" && Number.isFinite(data.centroidX) ? data.centroidX : null;
         const cy = typeof data.centroidY === "number" && Number.isFinite(data.centroidY) ? data.centroidY : null;
-        geometryCache.set(key, { width: w, depth: d, yearBuilt: yb, centroidX: cx, centroidY: cy });
+        const fc = typeof data.floorsCount === "number" && data.floorsCount >= 1 && data.floorsCount <= 50
+          ? data.floorsCount : null;
+        const uc = typeof data.unitsCount === "number" && data.unitsCount >= 1 && data.unitsCount <= 500
+          ? data.unitsCount : null;
+        geometryCache.set(key, { width: w, depth: d, yearBuilt: yb, centroidX: cx, centroidY: cy, floorsCount: fc, unitsCount: uc });
         setPlotWidth(String(w));
         setPlotDepth(String(d));
         setGeometryAutoFilled(true);
         setGeometryStatus("ok");
         applyYear(yb);
         applyCentroid(cx, cy);
+        applyFloorsUnits(fc, uc);
       } catch {
         if (reqId !== geomReqRef.current) return;
         // Transient error — do NOT cache as fallback, allow retry on re-select.
