@@ -477,6 +477,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       plotWidthM: (() => { const v = Number(plotWidth); return Number.isFinite(v) && v > 0 ? v : undefined; })(),
       plotDepthM: (() => { const v = Number(plotDepth); return Number.isFinite(v) && v > 0 ? v : undefined; })(),
       buildingYear: (() => { const v = Number(buildingYear); return Number.isFinite(v) && v >= 1900 && v <= 2024 ? Math.round(v) : undefined; })(),
+      centroidX: centroidX ?? undefined,
+      centroidY: centroidY ?? undefined,
       setbackSource: (!isManual
         ? "regulation"
         : outOfRange
