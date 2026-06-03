@@ -37,7 +37,7 @@ type UnitsSource = "manual" | "tlv_permits" | "govmap_bldg" | "nadlan" | "heuris
 // Module-level cache for fetched GovMap geometry, keyed by `${gush}-${helka}`.
 // Persists across PlotPicker mounts within a session to avoid repeated calls
 // (reduces 403/502 risk and latency). `null` value = known-fallback result.
-type GeomCacheEntry = { width: number; depth: number; yearBuilt: number | null; centroidX: number | null; centroidY: number | null } | null;
+type GeomCacheEntry = { width: number; depth: number; yearBuilt: number | null; centroidX: number | null; centroidY: number | null; floorsCount: number | null; unitsCount: number | null } | null;
 const geometryCache = new Map<string, GeomCacheEntry>();
 const geomKey = (gush: number | string, helka: number | string) => `${gush}-${helka}`;
 
