@@ -657,6 +657,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         <div className="space-y-2">
           <Label htmlFor="helka">חלקה</Label>
           <Select
+            key={`${quarter}-${gushQuery}`}
             value={helka}
             onValueChange={setHelka}
             disabled={helkaOptions.length === 0}
