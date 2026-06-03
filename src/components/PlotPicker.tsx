@@ -972,6 +972,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             onChange={(e) => {
               setExistingUnits(e.target.value.replace(/\D/g, ""));
               if (unitsSource && unitsSource !== "manual") setUnitsSource(null);
+              setExistingUnitsAuto(false);
             }}
           />
         </div>
