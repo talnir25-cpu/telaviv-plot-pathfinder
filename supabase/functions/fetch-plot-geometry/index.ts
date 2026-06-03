@@ -112,6 +112,8 @@ Deno.serve(async (req) => {
     // Step 3 (best-effort): IdentifyByXY on BLDG_FLOOR_USAGE to extract year built.
     // Failures here MUST NOT fail the whole function — width/depth remain useful.
     let yearBuilt: number | null = null;
+    let floorsCount: number | null = null;
+    let unitsCount: number | null = null;
     try {
       const bRes = await fetch("https://ags.govmap.gov.il/Identify/IdentifyByXY", {
         method: "POST",
@@ -124,26 +126,36 @@ Deno.serve(async (req) => {
       if (bRes.ok) {
         const bJson = JSON.parse(await bRes.text());
         const YEAR_KEY = /^(year[_\s]?built|bldg[_\s]?year)$/i;
-        const found: number[] = [];
+        const FLOORS_KEY = /^(floors[_\s]?num|floor[_\s]?count|num[_\s]?floors)$/i;
+        const UNITS_KEY = /^(units[_\s]?num|unit[_\s]?count|num[_\s]?units|dwelling[_\s]?units)$/i;
+        const years: number[] = [];
+        const floorsArr: number[] = [];
+        const unitsArr: number[] = [];
         const walk = (node: unknown) => {
           if (!node) return;
           if (Array.isArray(node)) { for (const it of node) walk(it); return; }
           if (typeof node !== "object") return;
           for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+            const n = typeof v === "number" ? v : Number(v);
             if (YEAR_KEY.test(k)) {
-              const n = typeof v === "number" ? v : Number(v);
-              if (Number.isFinite(n) && n >= 1900 && n <= 2024) found.push(n);
+              if (Number.isFinite(n) && n >= 1900 && n <= 2024) years.push(n);
+            } else if (FLOORS_KEY.test(k)) {
+              if (Number.isFinite(n) && n >= 1 && n <= 50) floorsArr.push(n);
+            } else if (UNITS_KEY.test(k)) {
+              if (Number.isFinite(n) && n >= 1 && n <= 500) unitsArr.push(n);
             } else if (v && (typeof v === "object" || Array.isArray(v))) {
               walk(v);
             }
           }
         };
         walk(bJson);
-        if (found.length > 0) yearBuilt = Math.min(...found);
+        if (years.length > 0) yearBuilt = Math.min(...years);
+        if (floorsArr.length > 0) floorsCount = Math.max(...floorsArr);
+        if (unitsArr.length > 0) unitsCount = unitsArr.reduce((a, b) => a + b, 0);
       }
-    } catch (_) { /* keep yearBuilt null */ }
+    } catch (_) { /* keep nulls */ }
 
-    return json({ width, depth, yearBuilt, centroidX: x, centroidY: y, extent: ext, source: "govmap" });
+    return json({ width, depth, yearBuilt, floorsCount, unitsCount, centroidX: x, centroidY: y, extent: ext, source: "govmap" });
   } catch (err) {
     return fallback("UNEXPECTED", { detail: err instanceof Error ? err.message : "unknown" });
   }
