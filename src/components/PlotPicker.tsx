@@ -980,7 +980,18 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="floors">קומות קיימות</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="floors">קומות קיימות</Label>
+              {existingFloorsAuto && (
+                <span
+                  title="נשלף אוטומטית מ-GovMap"
+                  className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  GovMap
+                </span>
+              )}
+            </div>
             {floorsSource && (() => {
               const meta = SOURCE_META[floorsSource] ?? SOURCE_META.estimate;
               const Icon = meta.icon;
