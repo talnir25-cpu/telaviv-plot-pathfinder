@@ -72,6 +72,8 @@ Deno.serve(async (req) => {
     const street: string | undefined = body?.street;
     const zoneOverride: string | undefined = body?.zone_label_override;
     const areaHint: string | undefined = body?.area_hint;
+    const centroidX: number | undefined = typeof body?.centroidX === "number" ? body.centroidX : undefined;
+    const centroidY: number | undefined = typeof body?.centroidY === "number" ? body.centroidY : undefined;
 
     if (quarter !== 3 && quarter !== 4) {
       return new Response(
