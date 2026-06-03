@@ -167,6 +167,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [centroidX, setCentroidX] = useState<number | null>(null);
   const [centroidY, setCentroidY] = useState<number | null>(null);
   const [geometryAutoFilled, setGeometryAutoFilled] = useState(false);
+  const [existingFloorsAuto, setExistingFloorsAuto] = useState(false);
+  const [existingUnitsAuto, setExistingUnitsAuto] = useState(false);
   const [geometryStatus, setGeometryStatus] = useState<"idle" | "loading" | "ok" | "fallback">("idle");
   const lookupReqRef = useRef(0);
   const geomReqRef = useRef(0);
