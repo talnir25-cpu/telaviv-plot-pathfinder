@@ -1,6 +1,12 @@
 // Geocode a Tel Aviv address → Gush/Helka via GovMap.
 // Step 1: FreeSearch returns ITM X/Y for the address.
 // Step 2: IdentifyByXY against PARCEL_ALL returns the Gush/Helka.
+import plotsData from "./plots.json" with { type: "json" };
+
+const KNOWN_PLOTS = new Set<string>(
+  (plotsData as Array<{ gush: number; helka: number }>).map((p) => `${p.gush}-${p.helka}`),
+);
+const isKnownPlot = (gush: number, helka: number) => KNOWN_PLOTS.has(`${gush}-${helka}`);
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
