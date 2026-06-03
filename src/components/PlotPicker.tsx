@@ -209,6 +209,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       setGushQuery(String(found.gush));
       setHelka(String(found.helka));
       setResolvedAddress(data.address);
+      setSelectedPlot(found);
       toast.success(`נמצא: גוש ${found.gush} חלקה ${found.helka} (רובע ${found.q})`);
     } catch (e) {
       console.error(e);
@@ -239,11 +240,17 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       .sort((a, b) => a - b);
   }, [quarter, gushQuery]);
 
-  const selectedPlot = useMemo(() => {
+  const [selectedPlot, setSelectedPlot] = useState<EnrichedPlot | null>(null);
+
+  useEffect(() => {
     const g = Number(gushQuery);
     const h = Number(helka);
-    if (!g || !h) return null;
-    return PLOTS.find((p) => p.q === quarter && p.gush === g && p.helka === h) ?? null;
+    if (!g || !h) {
+      setSelectedPlot(null);
+      return;
+    }
+    const found = PLOTS.find((p) => p.q === quarter && p.gush === g && p.helka === h) ?? null;
+    setSelectedPlot(found);
   }, [quarter, gushQuery, helka]);
 
   const runLookup = async (refresh = false) => {
