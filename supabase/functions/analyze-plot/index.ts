@@ -27,6 +27,8 @@ interface PlotInput {
   plotWidthM?: number;
   plotDepthM?: number;
   buildingYear?: number;
+  centroidX?: number;
+  centroidY?: number;
   setbackSource?: "regulation" | "manual" | "manual_override";
   // אופציונלי — דריסה ידנית של ייעוד הקרקע ע"י המשתמש
   zoneLabelOverride?: string;
@@ -320,6 +322,8 @@ Deno.serve(async (req) => {
             street: body.street,
             zone_label_override: body.zoneLabelOverride,
             area_hint: body.areaHint,
+            centroidX: body.centroidX,
+            centroidY: body.centroidY,
           }),
         });
         if (zResp.ok) zoneInfo = await zResp.json();

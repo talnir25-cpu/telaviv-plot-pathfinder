@@ -128,6 +128,8 @@ export interface AnalysisInput {
   plotWidthM?: number;
   plotDepthM?: number;
   buildingYear?: number;
+  centroidX?: number;
+  centroidY?: number;
   setbackSource?: "regulation" | "manual" | "manual_override";
   // דריסה ידנית של ייעוד הקרקע (לפי תקנון רובע)
   zoneLabelOverride?: string;

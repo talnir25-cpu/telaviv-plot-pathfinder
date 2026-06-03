@@ -37,7 +37,7 @@ type UnitsSource = "manual" | "tlv_permits" | "govmap_bldg" | "nadlan" | "heuris
 // Module-level cache for fetched GovMap geometry, keyed by `${gush}-${helka}`.
 // Persists across PlotPicker mounts within a session to avoid repeated calls
 // (reduces 403/502 risk and latency). `null` value = known-fallback result.
-type GeomCacheEntry = { width: number; depth: number; yearBuilt: number | null } | null;
+type GeomCacheEntry = { width: number; depth: number; yearBuilt: number | null; centroidX: number | null; centroidY: number | null } | null;
 const geometryCache = new Map<string, GeomCacheEntry>();
 const geomKey = (gush: number | string, helka: number | string) => `${gush}-${helka}`;
 
@@ -164,6 +164,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [plotDepth, setPlotDepth] = useState<string>("");
   const [buildingYear, setBuildingYear] = useState<string>("");
   const [yearAutoFilled, setYearAutoFilled] = useState(false);
+  const [centroidX, setCentroidX] = useState<number | null>(null);
+  const [centroidY, setCentroidY] = useState<number | null>(null);
   const [geometryAutoFilled, setGeometryAutoFilled] = useState(false);
   const [geometryStatus, setGeometryStatus] = useState<"idle" | "loading" | "ok" | "fallback">("idle");
   const lookupReqRef = useRef(0);
@@ -316,12 +318,19 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     const reqId = ++geomReqRef.current;
     setGeometryAutoFilled(false);
     setYearAutoFilled(false);
+    setCentroidX(null);
+    setCentroidY(null);
 
     const applyYear = (yb: number | null) => {
       if (yb != null) {
         setBuildingYear(String(yb));
         setYearAutoFilled(true);
       }
+    };
+
+    const applyCentroid = (cx: number | null, cy: number | null) => {
+      setCentroidX(cx);
+      setCentroidY(cy);
     };
 
     const key = geomKey(selectedPlot.gush, selectedPlot.helka);
@@ -333,6 +342,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         setGeometryAutoFilled(true);
         setGeometryStatus("ok");
         applyYear(cached.yearBuilt);
+        applyCentroid(cached.centroidX, cached.centroidY);
       } else {
         setGeometryStatus("fallback");
       }
@@ -361,12 +371,15 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         const yb = typeof data.yearBuilt === "number" && data.yearBuilt >= 1900 && data.yearBuilt <= 2024
           ? data.yearBuilt
           : null;
-        geometryCache.set(key, { width: w, depth: d, yearBuilt: yb });
+        const cx = typeof data.centroidX === "number" && Number.isFinite(data.centroidX) ? data.centroidX : null;
+        const cy = typeof data.centroidY === "number" && Number.isFinite(data.centroidY) ? data.centroidY : null;
+        geometryCache.set(key, { width: w, depth: d, yearBuilt: yb, centroidX: cx, centroidY: cy });
         setPlotWidth(String(w));
         setPlotDepth(String(d));
         setGeometryAutoFilled(true);
         setGeometryStatus("ok");
         applyYear(yb);
+        applyCentroid(cx, cy);
       } catch {
         if (reqId !== geomReqRef.current) return;
         // Transient error — do NOT cache as fallback, allow retry on re-select.
@@ -464,6 +477,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       plotWidthM: (() => { const v = Number(plotWidth); return Number.isFinite(v) && v > 0 ? v : undefined; })(),
       plotDepthM: (() => { const v = Number(plotDepth); return Number.isFinite(v) && v > 0 ? v : undefined; })(),
       buildingYear: (() => { const v = Number(buildingYear); return Number.isFinite(v) && v >= 1900 && v <= 2024 ? Math.round(v) : undefined; })(),
+      centroidX: centroidX ?? undefined,
+      centroidY: centroidY ?? undefined,
       setbackSource: (!isManual
         ? "regulation"
         : outOfRange

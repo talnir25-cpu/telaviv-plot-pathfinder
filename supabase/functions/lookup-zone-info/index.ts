@@ -72,6 +72,8 @@ Deno.serve(async (req) => {
     const street: string | undefined = body?.street;
     const zoneOverride: string | undefined = body?.zone_label_override;
     const areaHint: string | undefined = body?.area_hint;
+    const centroidX: number | undefined = typeof body?.centroidX === "number" ? body.centroidX : undefined;
+    const centroidY: number | undefined = typeof body?.centroidY === "number" ? body.centroidY : undefined;
 
     if (quarter !== 3 && quarter !== 4) {
       return new Response(
@@ -139,6 +141,65 @@ Deno.serve(async (req) => {
       if (chosen) {
         confidence = "medium";
         matchReason = "סימון ידני: בתחום אזור ההכרזה אונסקו";
+      }
+    }
+
+    // ── עדיפות 3.5: התאמה גיאוגרפית מ-GovMap (ZONING_TOV) ──
+    if (!chosen && centroidX != null && centroidY != null) {
+      try {
+        const gRes = await fetch("https://ags.govmap.gov.il/Identify/IdentifyByXY", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Origin": "https://www.govmap.gov.il",
+            "Referer": "https://www.govmap.gov.il/",
+          },
+          body: JSON.stringify({
+            x: centroidX,
+            y: centroidY,
+            mapTolerance: 2,
+            IsPersonalSite: false,
+            layers: [{ LayerType: 0, LayerName: "ZONING_TOV" }],
+          }),
+        });
+        if (gRes.ok) {
+          const gJson = JSON.parse(await gRes.text());
+          const ZONE_KEY = /^(zone[_\s]?desc|zone[_\s]?label|tochni[_\s]?tipul|zone[_\s]?type)$/i;
+          const foundLabels: string[] = [];
+          const walk = (node: unknown) => {
+            if (!node) return;
+            if (Array.isArray(node)) { for (const it of node) walk(it); return; }
+            if (typeof node !== "object") return;
+            for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+              if (ZONE_KEY.test(k) && typeof v === "string" && v.trim()) {
+                foundLabels.push(v.trim());
+              } else if (v && (typeof v === "object" || Array.isArray(v))) {
+                walk(v);
+              }
+            }
+          };
+          walk(gJson);
+          for (const lbl of foundLabels) {
+            const match = (zones ?? []).find(
+              (z) => String(z.zone_label).trim() === lbl ||
+                     String(z.zone_label).trim().includes(lbl) ||
+                     lbl.includes(String(z.zone_label).trim()),
+            );
+            if (match) {
+              chosen = match;
+              confidence = "high";
+              matchReason = `התאמה גיאוגרפית מ-GovMap (${lbl}) → ${match.zone_label}`;
+              break;
+            }
+          }
+        } else {
+          console.warn("ZONING_TOV non-OK", gRes.status);
+        }
+      } catch (e) {
+        console.warn("ZONING_TOV lookup failed (non-fatal)", e);
       }
     }
 
