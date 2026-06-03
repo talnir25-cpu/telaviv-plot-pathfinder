@@ -322,6 +322,8 @@ Deno.serve(async (req) => {
             street: body.street,
             zone_label_override: body.zoneLabelOverride,
             area_hint: body.areaHint,
+            centroidX: body.centroidX,
+            centroidY: body.centroidY,
           }),
         });
         if (zResp.ok) zoneInfo = await zResp.json();
