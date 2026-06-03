@@ -130,6 +130,7 @@ Deno.serve(async (req) => {
         });
         if (!bRes.ok) return null;
         const bJson = JSON.parse(await bRes.text());
+        console.log("BLDG_RAW", JSON.stringify(bJson).substring(0, 1000));
         const years: number[] = [];
         const floorsArr: number[] = [];
         const unitsArr: number[] = [];
