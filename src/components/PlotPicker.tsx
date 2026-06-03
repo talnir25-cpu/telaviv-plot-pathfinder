@@ -20,9 +20,15 @@ import { Badge } from "@/components/ui/badge";
 import {
   Loader2, Search, Sparkles, MapPin, CheckCircle2, Database, Building2,
   Calculator, Activity, RefreshCw, ChevronDown, XCircle, AlertCircle, MinusCircle,
+  ExternalLink,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -782,6 +788,30 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                 onChange={(e) => { setBuildingYear(e.target.value.replace(/\D/g, "")); setYearAutoFilled(false); }}
                 className="h-9 text-center tabular-nums"
               />
+              {selectedPlot && !buildingYear && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto px-0 py-0 text-xs"
+                      asChild
+                    >
+                      <a
+                        href={`https://www.nadlan.gov.il/?gush=${selectedPlot.gush}&helka=${selectedPlot.helka}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        בדוק שנת בנייה ב-נדל״ן.gov
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    פתח את אתר הנדל״ן הממשלתי לאיתור שנת הבנייה
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </div>
           </div>
           <p className="text-[11px] text-muted-foreground">
