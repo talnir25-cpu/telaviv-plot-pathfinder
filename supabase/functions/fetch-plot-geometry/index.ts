@@ -108,7 +108,42 @@ Deno.serve(async (req) => {
     const width = Math.round((ext.xmax - ext.xmin) * 10) / 10;
     const depth = Math.round((ext.ymax - ext.ymin) * 10) / 10;
     if (!(width > 0) || !(depth > 0)) return fallback("BAD_EXTENT");
-    return json({ width, depth, extent: ext, source: "govmap" });
+
+    // Step 3 (best-effort): IdentifyByXY on BLDG_FLOOR_USAGE to extract year built.
+    // Failures here MUST NOT fail the whole function — width/depth remain useful.
+    let yearBuilt: number | null = null;
+    try {
+      const bRes = await fetch("https://ags.govmap.gov.il/Identify/IdentifyByXY", {
+        method: "POST",
+        headers: GOVMAP_HEADERS,
+        body: JSON.stringify({
+          x, y, mapTolerance: 2, IsPersonalSite: false,
+          layers: [{ LayerType: 0, LayerName: "BLDG_FLOOR_USAGE" }],
+        }),
+      });
+      if (bRes.ok) {
+        const bJson = JSON.parse(await bRes.text());
+        const YEAR_KEY = /^(year[_\s]?built|bldg[_\s]?year)$/i;
+        const found: number[] = [];
+        const walk = (node: unknown) => {
+          if (!node) return;
+          if (Array.isArray(node)) { for (const it of node) walk(it); return; }
+          if (typeof node !== "object") return;
+          for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+            if (YEAR_KEY.test(k)) {
+              const n = typeof v === "number" ? v : Number(v);
+              if (Number.isFinite(n) && n >= 1900 && n <= 2024) found.push(n);
+            } else if (v && (typeof v === "object" || Array.isArray(v))) {
+              walk(v);
+            }
+          }
+        };
+        walk(bJson);
+        if (found.length > 0) yearBuilt = Math.min(...found);
+      }
+    } catch (_) { /* keep yearBuilt null */ }
+
+    return json({ width, depth, yearBuilt, extent: ext, source: "govmap" });
   } catch (err) {
     return fallback("UNEXPECTED", { detail: err instanceof Error ? err.message : "unknown" });
   }

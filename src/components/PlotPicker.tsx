@@ -37,7 +37,7 @@ type UnitsSource = "manual" | "tlv_permits" | "govmap_bldg" | "nadlan" | "heuris
 // Module-level cache for fetched GovMap geometry, keyed by `${gush}-${helka}`.
 // Persists across PlotPicker mounts within a session to avoid repeated calls
 // (reduces 403/502 risk and latency). `null` value = known-fallback result.
-type GeomCacheEntry = { width: number; depth: number } | null;
+type GeomCacheEntry = { width: number; depth: number; yearBuilt: number | null } | null;
 const geometryCache = new Map<string, GeomCacheEntry>();
 const geomKey = (gush: number | string, helka: number | string) => `${gush}-${helka}`;
 
@@ -162,6 +162,8 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [setbackTouched, setSetbackTouched] = useState(false);
   const [plotWidth, setPlotWidth] = useState<string>("");
   const [plotDepth, setPlotDepth] = useState<string>("");
+  const [buildingYear, setBuildingYear] = useState<string>("");
+  const [yearAutoFilled, setYearAutoFilled] = useState(false);
   const [geometryAutoFilled, setGeometryAutoFilled] = useState(false);
   const [geometryStatus, setGeometryStatus] = useState<"idle" | "loading" | "ok" | "fallback">("idle");
   const lookupReqRef = useRef(0);
@@ -313,6 +315,14 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     }
     const reqId = ++geomReqRef.current;
     setGeometryAutoFilled(false);
+    setYearAutoFilled(false);
+
+    const applyYear = (yb: number | null) => {
+      if (yb != null) {
+        setBuildingYear(String(yb));
+        setYearAutoFilled(true);
+      }
+    };
 
     const key = geomKey(selectedPlot.gush, selectedPlot.helka);
     if (geometryCache.has(key)) {
@@ -322,6 +332,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         setPlotDepth(String(cached.depth));
         setGeometryAutoFilled(true);
         setGeometryStatus("ok");
+        applyYear(cached.yearBuilt);
       } else {
         setGeometryStatus("fallback");
       }
@@ -347,11 +358,15 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           setGeometryStatus("fallback");
           return;
         }
-        geometryCache.set(key, { width: w, depth: d });
+        const yb = typeof data.yearBuilt === "number" && data.yearBuilt >= 1900 && data.yearBuilt <= 2024
+          ? data.yearBuilt
+          : null;
+        geometryCache.set(key, { width: w, depth: d, yearBuilt: yb });
         setPlotWidth(String(w));
         setPlotDepth(String(d));
         setGeometryAutoFilled(true);
         setGeometryStatus("ok");
+        applyYear(yb);
       } catch {
         if (reqId !== geomReqRef.current) return;
         // Transient error — do NOT cache as fallback, allow retry on re-select.
@@ -448,6 +463,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       rearSetbackM: Number.isFinite(rs) && rs >= 0 ? rs : undefined,
       plotWidthM: (() => { const v = Number(plotWidth); return Number.isFinite(v) && v > 0 ? v : undefined; })(),
       plotDepthM: (() => { const v = Number(plotDepth); return Number.isFinite(v) && v > 0 ? v : undefined; })(),
+      buildingYear: (() => { const v = Number(buildingYear); return Number.isFinite(v) && v >= 1900 && v <= 2024 ? Math.round(v) : undefined; })(),
       setbackSource: (!isManual
         ? "regulation"
         : outOfRange
@@ -698,6 +714,28 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                 placeholder="אופציונלי"
                 value={plotDepth}
                 onChange={(e) => { setPlotDepth(e.target.value.replace(/[^\d.]/g, "")); setGeometryAutoFilled(false); }}
+                className="h-9 text-center tabular-nums"
+              />
+            </div>
+            <div className="space-y-1 col-span-2">
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="building-year" className="text-sm">שנת בנייה</Label>
+                {yearAutoFilled && (
+                  <span
+                    title="נשלף אוטומטית מ-GovMap"
+                    className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    GovMap
+                  </span>
+                )}
+              </div>
+              <Input
+                id="building-year"
+                inputMode="numeric"
+                placeholder="לדוגמה: 1965"
+                value={buildingYear}
+                onChange={(e) => { setBuildingYear(e.target.value.replace(/\D/g, "")); setYearAutoFilled(false); }}
                 className="h-9 text-center tabular-nums"
               />
             </div>
