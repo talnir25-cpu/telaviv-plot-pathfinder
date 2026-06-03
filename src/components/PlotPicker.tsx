@@ -1015,7 +1015,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             id="floors"
             inputMode="numeric"
             value={existingFloors}
-            onChange={(e) => setExistingFloors(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => { setExistingFloors(e.target.value.replace(/\D/g, "")); setExistingFloorsAuto(false); }}
           />
         </div>
 
