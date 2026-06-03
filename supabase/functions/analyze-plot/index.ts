@@ -26,6 +26,7 @@ interface PlotInput {
   rearSetbackM?: number;
   plotWidthM?: number;
   plotDepthM?: number;
+  buildingYear?: number;
   setbackSource?: "regulation" | "manual" | "manual_override";
   // אופציונלי — דריסה ידנית של ייעוד הקרקע ע"י המשתמש
   zoneLabelOverride?: string;
@@ -102,8 +103,9 @@ const RENEWAL_TRACK_LABEL: Record<RenewalTrack, string> = {
   rova_plan: "תכנית רובעית",
 };
 
-function inferRenewalTrack(existingFloors: number, existingUnits: number, conservation: boolean): RenewalTrack {
+function inferRenewalTrack(existingFloors: number, existingUnits: number, conservation: boolean, buildingYear?: number): RenewalTrack {
   if (conservation) return "rova_plan";
+  if (buildingYear != null && buildingYear >= 1980) return "rova_plan";
   if (existingFloors >= 5 || existingUnits >= 12) return "pinui_binui";
   return "tama38_2";
 }
@@ -347,7 +349,7 @@ Deno.serve(async (req) => {
       : 0;
 
     // ── חישוב פוטנציאל הגדלת תכסית בהליך התחדשות (דטרמיניסטי) ──
-    const renewalTrack = inferRenewalTrack(body.existingFloors ?? 0, body.existingUnits ?? 0, body.conservation);
+    const renewalTrack = inferRenewalTrack(body.existingFloors ?? 0, body.existingUnits ?? 0, body.conservation, body.buildingYear);
     const renewalCfg = plotAreaForCalc > 0 ? RENEWAL_SETBACKS[body.quarter]?.[renewalTrack] : null;
     const renewalFloorArea = renewalCfg
       ? estimateTypicalFloorArea(plotAreaForCalc, renewalCfg, body.plotWidthM, body.plotDepthM)

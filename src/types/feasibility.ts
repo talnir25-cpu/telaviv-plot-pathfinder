@@ -127,6 +127,7 @@ export interface AnalysisInput {
   rearSetbackM?: number;
   plotWidthM?: number;
   plotDepthM?: number;
+  buildingYear?: number;
   setbackSource?: "regulation" | "manual" | "manual_override";
   // דריסה ידנית של ייעוד הקרקע (לפי תקנון רובע)
   zoneLabelOverride?: string;
