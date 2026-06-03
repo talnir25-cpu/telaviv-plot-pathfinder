@@ -209,6 +209,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       setGushQuery(String(found.gush));
       setHelka(String(found.helka));
       setResolvedAddress(data.address);
+      setSelectedPlot(found);
       toast.success(`נמצא: גוש ${found.gush} חלקה ${found.helka} (רובע ${found.q})`);
     } catch (e) {
       console.error(e);
