@@ -733,6 +733,88 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="builtArea">שטח בנוי קיים (מ"ר)</Label>
+            {builtAreaSource && (() => {
+              const meta = SOURCE_META[builtAreaSource] ?? SOURCE_META.estimate;
+              const Icon = meta.icon;
+              const conf = builtAreaConfidence ? CONFIDENCE_META[builtAreaConfidence] : null;
+              return (
+                <div className="flex items-center gap-1">
+                  <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
+                    <Icon className="h-3 w-3" />
+                    {meta.label}
+                  </Badge>
+                  {conf && (
+                    <Badge variant="outline" className={`text-[10px] ${conf.tone}`}>
+                      {conf.label}
+                    </Badge>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+          <Input
+            id="builtArea"
+            inputMode="numeric"
+            placeholder='לדוגמה 720'
+            value={existingBuiltArea}
+            onChange={(e) => {
+              setExistingBuiltArea(e.target.value.replace(/\D/g, ""));
+              if (builtAreaSource && builtAreaSource !== "manual") setBuiltAreaSource(null);
+            }}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor="building-year">שנת בנייה</Label>
+            {yearAutoFilled && (
+              <span
+                title="נשלף אוטומטית מ-GovMap"
+                className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
+              >
+                <Sparkles className="h-3 w-3" />
+                GovMap
+              </span>
+            )}
+          </div>
+          <Input
+            id="building-year"
+            inputMode="numeric"
+            placeholder="לדוגמה: 1965"
+            value={buildingYear}
+            onChange={(e) => { setBuildingYear(e.target.value.replace(/\D/g, "")); setYearAutoFilled(false); }}
+            className="tabular-nums"
+          />
+          {selectedPlot && !buildingYear && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto px-0 py-0 text-xs"
+                  asChild
+                >
+                  <a
+                    href={`https://www.nadlan.gov.il/?gush=${selectedPlot.gush}&helka=${selectedPlot.helka}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    בדוק שנת בנייה ב-נדל״ן.gov
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                פתח את אתר הנדל״ן הממשלתי לאיתור שנת הבנייה
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <Label htmlFor="units">יח"ד קיימות</Label>
               {existingUnitsAuto && (
@@ -827,89 +909,6 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           />
         </div>
 
-        <div className="space-y-2 md:col-span-2">
-          <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="builtArea">שטח בנוי קיים (מ"ר)</Label>
-            {builtAreaSource && (() => {
-              const meta = SOURCE_META[builtAreaSource] ?? SOURCE_META.estimate;
-              const Icon = meta.icon;
-              const conf = builtAreaConfidence ? CONFIDENCE_META[builtAreaConfidence] : null;
-              return (
-                <div className="flex items-center gap-1">
-                  <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
-                    <Icon className="h-3 w-3" />
-                    {meta.label}
-                  </Badge>
-                  {conf && (
-                    <Badge variant="outline" className={`text-[10px] ${conf.tone}`}>
-                      {conf.label}
-                    </Badge>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-          <Input
-            id="builtArea"
-            inputMode="numeric"
-            placeholder='לדוגמה 720'
-            value={existingBuiltArea}
-            onChange={(e) => {
-              setExistingBuiltArea(e.target.value.replace(/\D/g, ""));
-              if (builtAreaSource && builtAreaSource !== "manual") setBuiltAreaSource(null);
-            }}
-          />
-          <p className="text-xs text-muted-foreground">
-            שטח בנוי כולל מעל הקרקע. נשאב מהיתרי עיריית ת"א / GovMap / נדל"ן כשאפשרי, ומשמש לחישוב עלות חיזוק בתמ"א 38 ולמכפיל הזכויות.
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center gap-1.5">
-            <Label htmlFor="building-year">שנת בנייה</Label>
-            {yearAutoFilled && (
-              <span
-                title="נשלף אוטומטית מ-GovMap"
-                className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
-              >
-                <Sparkles className="h-3 w-3" />
-                GovMap
-              </span>
-            )}
-          </div>
-          <Input
-            id="building-year"
-            inputMode="numeric"
-            placeholder="לדוגמה: 1965"
-            value={buildingYear}
-            onChange={(e) => { setBuildingYear(e.target.value.replace(/\D/g, "")); setYearAutoFilled(false); }}
-            className="tabular-nums"
-          />
-          {selectedPlot && !buildingYear && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto px-0 py-0 text-xs"
-                  asChild
-                >
-                  <a
-                    href={`https://www.nadlan.gov.il/?gush=${selectedPlot.gush}&helka=${selectedPlot.helka}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    בדוק שנת בנייה ב-נדל״ן.gov
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                פתח את אתר הנדל״ן הממשלתי לאיתור שנת הבנייה
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
 
         {selectedPlot && sources.length > 0 && (
           <div className="md:col-span-2">
