@@ -921,7 +921,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         <div className="space-y-2">
           <div className="flex items-center gap-1.5">
             <Label htmlFor="building-year">שנת בנייה</Label>
-            {yearAutoFilled && (
+            {tabuAnalysis?.buildingYear ? (
+              <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+                <FileCheck2 className="h-3 w-3" />
+                טאבו ✓
+              </span>
+            ) : yearAutoFilled && (
               <span
                 title="נשלף אוטומטית מ-GovMap"
                 className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
@@ -970,7 +975,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <Label htmlFor="units">יח"ד קיימות</Label>
-              {existingUnitsAuto && (
+              {tabuAnalysis && tabuAnalysis.units > 0 ? (
+                <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+                  <FileCheck2 className="h-3 w-3" />
+                  טאבו ✓
+                </span>
+              ) : existingUnitsAuto && (
                 <span
                   title="נשלף אוטומטית מ-GovMap"
                   className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
@@ -1025,7 +1035,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <Label htmlFor="floors">קומות קיימות</Label>
-              {existingFloorsAuto && (
+              {tabuAnalysis && tabuAnalysis.floors > 0 ? (
+                <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+                  <FileCheck2 className="h-3 w-3" />
+                  טאבו ✓
+                </span>
+              ) : existingFloorsAuto && (
                 <span
                   title="נשלף אוטומטית מ-GovMap"
                   className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
