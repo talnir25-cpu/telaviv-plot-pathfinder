@@ -853,19 +853,6 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                 <p className="text-[11px] text-muted-foreground">{conservationMeta.reason}</p>
               )}
 
-              <div className="flex items-center justify-between gap-2 border-t pt-2">
-                <Label htmlFor="cons" className="cursor-pointer text-xs text-muted-foreground">
-                  דריסה ידנית — סמן/י אם המבנה לשימור / באזור הכרזת UNESCO
-                </Label>
-                <Switch
-                  id="cons"
-                  checked={conservation}
-                  onCheckedChange={(v) => {
-                    setConservation(v);
-                    setConservationManual(true);
-                  }}
-                />
-              </div>
             </div>
           )}
         </TabsContent>
