@@ -176,6 +176,9 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [existingFloorsAuto, setExistingFloorsAuto] = useState(false);
   const [existingUnitsAuto, setExistingUnitsAuto] = useState(false);
   const [geometryStatus, setGeometryStatus] = useState<"idle" | "loading" | "ok" | "fallback">("idle");
+  const [step1Open, setStep1Open] = useState(true);
+  const [step2Open, setStep2Open] = useState(true);
+  const [step3Open, setStep3Open] = useState(true);
   const lookupReqRef = useRef(0);
   const geomReqRef = useRef(0);
 
