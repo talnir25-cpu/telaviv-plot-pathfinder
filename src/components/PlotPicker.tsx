@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Loader2, Search, Sparkles, MapPin, CheckCircle2, Database, Building2,
   Calculator, Activity, RefreshCw, ChevronDown, XCircle, AlertCircle, MinusCircle,
-  ExternalLink, Upload, FileCheck2,
+  ExternalLink, Upload, FileCheck2, Ruler,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
