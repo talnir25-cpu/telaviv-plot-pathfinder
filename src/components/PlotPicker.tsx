@@ -836,7 +836,6 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               ) : unitsSource ? (
                 (() => {
                   const meta = SOURCE_META[unitsSource] ?? SOURCE_META.estimate;
-                  const Icon = meta.icon;
                   const conf = unitsConfidence ? CONFIDENCE_META[unitsConfidence] : null;
                   return (
                     <>
