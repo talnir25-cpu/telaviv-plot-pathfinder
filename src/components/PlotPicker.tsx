@@ -836,12 +836,10 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               ) : unitsSource ? (
                 (() => {
                   const meta = SOURCE_META[unitsSource] ?? SOURCE_META.estimate;
-                  const Icon = meta.icon;
                   const conf = unitsConfidence ? CONFIDENCE_META[unitsConfidence] : null;
                   return (
                     <>
                       <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
-                        <Icon className="h-3 w-3" />
                         {meta.label}
                       </Badge>
                       {conf && (
