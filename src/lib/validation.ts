@@ -55,6 +55,27 @@ export const analysisInputSchema = z
     areaHint: z.enum(["declaration", "market_street", "rest"]).optional(),
     street: z.string().max(120).optional(),
     address: z.string().max(300).optional(),
+    tabuAnalysis: z
+      .object({
+        units: z.number().int().min(0).max(500),
+        floors: z.number().int().min(0).max(60),
+        avgUnitSize: z.number().min(0).max(1000),
+        plotArea: z.number().min(0).max(200_000),
+        coverageRatio: z.number().min(0).max(100),
+        buildingYear: z.number().int().min(1900).max(2030).nullable(),
+        warnings: z
+          .array(
+            z.object({
+              text: z.string().max(500),
+              party: z.string().max(200),
+              year: z.number().int().min(1900).max(2100),
+            }),
+          )
+          .max(50),
+        hasActiveRenewal: z.boolean(),
+        renewalParty: z.string().max(200).nullable(),
+      })
+      .optional(),
   })
   .superRefine((v, ctx) => {
     // עקביות שטח: שטח בנוי לא יכול לעלות על שטח מגרש × קומות × 2 (חוצן בטיחות)
