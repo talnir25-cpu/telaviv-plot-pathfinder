@@ -1291,18 +1291,35 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           <Switch id="cons" checked={conservation} onCheckedChange={setConservation} />
         </div>
 
-        <div className="md:col-span-2 space-y-2">
-          <Label htmlFor="notes">הערות נוספות (אופציונלי)</Label>
-          <Textarea
-            id="notes"
-            rows={2}
-            placeholder="לדוגמה: מגרש פינתי, חזית מסחרית, תב״ע נקודתית..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
+        <div className="md:col-span-2">
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button type="button" variant="ghost" size="sm" className="h-8 gap-1 px-2 text-xs text-muted-foreground">
+                <ChevronDown className="h-3.5 w-3.5 transition-transform data-[state=open]:rotate-180" />
+                הערות לאנליסט (אופציונלי){notes ? ` · ${notes.length} תווים` : ""}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <Textarea
+                id="notes"
+                rows={2}
+                placeholder="לדוגמה: מגרש פינתי, חזית מסחרית, תב״ע נקודתית..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 sticky bottom-0 -mx-6 -mb-6 mt-2 border-t bg-background/95 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          {selectedPlot && (
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              ינותח: רובע {quarter} · גוש {selectedPlot.gush} · חלקה {selectedPlot.helka}
+              {selectedPlot.effectiveArea > 0 && ` · ${selectedPlot.effectiveArea.toLocaleString("he-IL")} מ"ר`}
+              {existingUnits && ` · ${existingUnits} יח"ד`}
+              {existingFloors && ` · ${existingFloors} קומות`}
+            </p>
+          )}
           <Button
             type="submit"
             size="lg"
