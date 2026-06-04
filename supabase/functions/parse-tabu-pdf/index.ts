@@ -48,7 +48,7 @@ const EXTRACTION_TOOL = {
     type: "object",
     properties: {
       units: { type: "number", description: "Number of dwelling units = number of sub-parcels (תת-חלקות)." },
-      floors: { type: "number", description: "Total floors = highest floor mentioned + 1 (ground=0, 1st=1, ...)." },
+      floors: { type: "number", description: "Total number of physical floors above ground in the building (כולל קרקע, כולל קומת גג/חדר על הגג אם קיימים; לא כולל מרתף)." },
       avgUnitSize: { type: "number", description: "Average unit size in sqm." },
       plotArea: { type: "number", description: "Plot area in sqm (from common property section)." },
       coverageRatio: { type: "number", description: "Coverage % = typical floor area / plot area * 100." },
@@ -68,20 +68,42 @@ const EXTRACTION_TOOL = {
       },
       hasActiveRenewal: { type: "boolean", description: "True if a cautionary note relates to an active urban renewal (תמ\"א/פינוי-בינוי/התחדשות) process." },
       renewalParty: { type: ["string", "null"], description: "Name of the renewal developer / party, if hasActiveRenewal." },
+      floorsDetected: {
+        type: "object",
+        description: "פירוט הקומות שזוהו בנסח, לצורך אימות.",
+        properties: {
+          labels: { type: "array", items: { type: "string" }, description: "כל תוויות הקומות הייחודיות שמופיעות בתת-חלקות (למשל: 'קרקע','א','ב','ג','גג','מרתף')." },
+          hasGround: { type: "boolean", description: "האם מופיעה דירה/יחידה בקומת קרקע." },
+          hasRoof: { type: "boolean", description: "האם מופיעה יחידה בקומת גג / חדר על הגג." },
+          hasBasement: { type: "boolean", description: "האם מופיע מרתף." },
+          highestAboveGround: { type: "number", description: "מספר הקומה הגבוהה ביותר מעל הקרקע (א=1, ב=2, ...). אם רק קרקע — 0." },
+        },
+        required: ["labels", "hasGround", "hasRoof", "hasBasement", "highestAboveGround"],
+      },
+      floorsExplain: { type: "string", description: "הסבר קצר בעברית על אופן ספירת הקומות (למשל: 'קרקע + א-ג + גג = 5')." },
     },
-    required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty"],
+    required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty", "floorsDetected", "floorsExplain"],
   },
 };
 
 const SYSTEM_PROMPT = `אתה מומחה בניתוח נסחי טאבו ישראליים. נתח את הטקסט שחולץ מהנסח ושלוף בדיוק:
-1. מספר תת-חלקות = מספר יחידות דיור
-2. הקומה הגבוהה ביותר המוזכרת (קרקע=0, ראשונה=1, שניה=2, שלישית=3 וכו'); מספר קומות = קומה גבוהה ביותר + 1
-3. שטח ממוצע ליחידה במ"ר (סכום שטחי הדירות חלקי מספר היחידות)
-4. שטח החלקה במ"ר — מהרכוש המשותף
-5. תכסית % = שטח קומה טיפוסית ÷ שטח חלקה × 100
-6. הערות אזהרה — כל הערת אזהרה: טקסט, שם הגורם הזוכה, שנה
+1. מספר תת-חלקות של דירות = מספר יחידות דיור (אל תספור חניות/מחסנים נפרדים).
+2. **מספר קומות פיזיות מעל הקרקע** — לפי הכללים הבאים:
+   - אסוף את כל תוויות הקומות הייחודיות שמופיעות בתת-חלקות (קרקע, א, ב, ג, ..., גג, מרתף).
+   - קומת קרקע נספרת תמיד כקומה אחת (גם אם אין בה דירה רשומה — אלא אם הנסח מציין במפורש שאין קרקע, ואז אל תספור).
+   - הקומה הגבוהה ביותר מעל הקרקע: א=1, ב=2, ג=3, ד=4, ה=5, ו=6 וכו'.
+   - **floors = (1 אם יש קרקע) + highestAboveGround + (1 אם יש קומת גג/חדר על הגג)**.
+   - מרתף אינו נספר.
+   - דוגמה: דירות בקומות קרקע, א, ב, ג + חדר על הגג → floors = 1 + 3 + 1 = 5.
+   - דוגמה: דירות בקומות א, ב, ג בלבד (אין קרקע מוזכרת אך לא נשללת) → floors = 1 + 3 = 4.
+3. שטח ממוצע ליחידה במ"ר (סכום שטחי הדירות חלקי מספר היחידות).
+4. שטח החלקה במ"ר — מהרכוש המשותף.
+5. תכסית % = שטח קומה טיפוסית ÷ שטח חלקה × 100.
+6. הערות אזהרה — כל הערת אזהרה: טקסט, שם הגורם הזוכה, שנה.
 7. שנת בנייה = שנת שטר יצירת הבית המשותף, אם מופיעה. אחרת null.
 8. hasActiveRenewal = true אם יש הערת אזהרה הקשורה להתחדשות עירונית (תמ"א 38, פינוי-בינוי, התחדשות), עם renewalParty = שם היזם.
+9. floorsDetected — מלא את כל השדות עבור אימות.
+10. floorsExplain — הסבר חישוב הקומות בעברית קצרה.
 
 אם מידע חסר — החזר 0 או null במקום לנחש.
 החזר את הנתונים דרך הכלי extract_tabu_data בלבד.`;
