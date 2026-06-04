@@ -41,6 +41,18 @@ export const analysisInputSchema = z
     existingBuiltAreaSource: z.string().optional(),
     existingBuiltAreaConfidence: z.string().optional(),
     conservation: z.boolean(),
+    conservationDetails: z
+      .object({
+        level: z.enum(["מחמיר", "רגיל"]).nullable().optional(),
+        buildingName: z.string().max(300).nullable().optional(),
+        planRef: z.string().max(200).nullable().optional(),
+        strictRestrictions: z.boolean().optional(),
+        inUnescoBuffer: z.boolean().optional(),
+        source: z.string().max(120).optional(),
+        confidence: z.string().max(40).optional(),
+        description: z.string().max(1000).nullable().optional(),
+      })
+      .optional(),
     notes: z.string().max(2000, "הערות: עד 2000 תווים").optional(),
     frontSetbackM: z.number().min(0, "קו בניין קדמי: לא שלילי").max(15, "קו בניין קדמי: עד 15 מ׳").optional(),
     sideSetbackM: z.number().min(0, "קו בניין צדדי: לא שלילי").max(15, "קו בניין צדדי: עד 15 מ׳").optional(),
