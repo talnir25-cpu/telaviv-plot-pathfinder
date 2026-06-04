@@ -34,38 +34,34 @@ const ResultSchema = z.object({
 });
 
 const EXTRACTION_TOOL = {
-  type: "function",
-  function: {
-    name: "extract_tabu_data",
-    description: "Extracts structured planning data from an Israeli Tabu (Nesach) document.",
-    parameters: {
-      type: "object",
-      properties: {
-        units: { type: "number", description: "Number of dwelling units = number of sub-parcels (תת-חלקות)." },
-        floors: { type: "number", description: "Total floors = highest floor mentioned + 1 (ground=0, 1st=1, ...)." },
-        avgUnitSize: { type: "number", description: "Average unit size in sqm." },
-        plotArea: { type: "number", description: "Plot area in sqm (from common property section)." },
-        coverageRatio: { type: "number", description: "Coverage % = typical floor area / plot area * 100." },
-        buildingYear: { type: ["number", "null"], description: "Year of condominium registration deed, or null." },
-        warnings: {
-          type: "array",
-          description: "All cautionary notes (הערות אזהרה).",
-          items: {
-            type: "object",
-            properties: {
-              text: { type: "string" },
-              party: { type: "string", description: "Beneficiary party name." },
-              year: { type: "number" },
-            },
-            required: ["text", "party", "year"],
+  name: "extract_tabu_data",
+  description: "Extracts structured planning data from an Israeli Tabu (Nesach) document.",
+  input_schema: {
+    type: "object",
+    properties: {
+      units: { type: "number", description: "Number of dwelling units = number of sub-parcels (תת-חלקות)." },
+      floors: { type: "number", description: "Total floors = highest floor mentioned + 1 (ground=0, 1st=1, ...)." },
+      avgUnitSize: { type: "number", description: "Average unit size in sqm." },
+      plotArea: { type: "number", description: "Plot area in sqm (from common property section)." },
+      coverageRatio: { type: "number", description: "Coverage % = typical floor area / plot area * 100." },
+      buildingYear: { type: ["number", "null"], description: "Year of condominium registration deed, or null." },
+      warnings: {
+        type: "array",
+        description: "All cautionary notes (הערות אזהרה).",
+        items: {
+          type: "object",
+          properties: {
+            text: { type: "string" },
+            party: { type: "string", description: "Beneficiary party name." },
+            year: { type: "number" },
           },
+          required: ["text", "party", "year"],
         },
-        hasActiveRenewal: { type: "boolean", description: "True if a cautionary note relates to an active urban renewal (תמ\"א/פינוי-בינוי/התחדשות) process." },
-        renewalParty: { type: ["string", "null"], description: "Name of the renewal developer / party, if hasActiveRenewal." },
       },
-      required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty"],
-      additionalProperties: false,
+      hasActiveRenewal: { type: "boolean", description: "True if a cautionary note relates to an active urban renewal (תמ\"א/פינוי-בינוי/התחדשות) process." },
+      renewalParty: { type: ["string", "null"], description: "Name of the renewal developer / party, if hasActiveRenewal." },
     },
+    required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty"],
   },
 };
 
