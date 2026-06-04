@@ -120,6 +120,16 @@ export interface AnalysisInput {
   existingBuiltAreaSource?: string;
   existingBuiltAreaConfidence?: string;
   conservation: boolean;
+  conservationDetails?: {
+    level?: "מחמיר" | "רגיל" | null;
+    buildingName?: string | null;
+    planRef?: string | null;
+    strictRestrictions?: boolean;
+    inUnescoBuffer?: boolean;
+    source?: string;
+    confidence?: string;
+    description?: string | null;
+  };
   notes?: string;
   // קווי בניין שהוזנו / נטענו מהתקנון בטופס המקדים
   frontSetbackM?: number;

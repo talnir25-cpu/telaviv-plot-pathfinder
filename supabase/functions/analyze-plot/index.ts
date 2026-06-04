@@ -20,6 +20,16 @@ interface PlotInput {
   existingBuiltAreaSource?: string;
   existingBuiltAreaConfidence?: string;
   conservation: boolean;
+  conservationDetails?: {
+    level?: "מחמיר" | "רגיל" | null;
+    buildingName?: string | null;
+    planRef?: string | null;
+    strictRestrictions?: boolean;
+    inUnescoBuffer?: boolean;
+    source?: string;
+    confidence?: string;
+    description?: string | null;
+  };
   notes?: string;
   frontSetbackM?: number;
   sideSetbackM?: number;
@@ -423,6 +433,15 @@ Deno.serve(async (req) => {
 מספר קומות קיים: ${body.existingFloors}
 ${builtAreaLine}
 סטטוס שימור (לפי המשתמש): ${body.conservation ? "כן" : "לא ידוע / לא"}
+${body.conservationDetails ? `פרטי שימור (GIS עיריית ת״א):
+  - שם המבנה: ${body.conservationDetails.buildingName ?? "לא צוין"}
+  - רמת שימור: ${body.conservationDetails.level ?? "לא צוינה"}${body.conservationDetails.strictRestrictions ? " (הגבלות מחמירות — גם הפנים מוגן)" : " (שימור חיצוני בלבד — חזיתות)"}
+  - תכנית: ${body.conservationDetails.planRef ?? "תא/2650/ב"}
+  - מתחם UNESCO: ${body.conservationDetails.inUnescoBuffer ? "כן" : "לא"}
+  - תיאור רשמי: ${body.conservationDetails.description ?? "—"}
+  - הנחיה לאנליסט: ${body.conservationDetails.strictRestrictions
+    ? "שימור מחמיר חוסם תוספת קומות משמעותית — הצע נתיב פינוי-בינוי על המגרש או שימור-בנייה משולב"
+    : "שימור חיצוני מאפשר תוספת קומות מעל המבנה הקיים — בחן נתיב תמ״א 38/2 או תכנית רובע עם שימור חזיתות"}` : ""}
 ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${renewalLine}
 
 
