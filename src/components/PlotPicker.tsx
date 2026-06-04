@@ -1188,6 +1188,9 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             >
               <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 3</span>
               <span className="text-sm font-medium text-foreground">גיאומטריה ופרמטרים תכנוניים</span>
+              {tabuStatus === "done" && Number(plotWidth) > 0 && Number(plotDepth) > 0 && Number(buildingYear) > 0 && (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-label="הושלם" />
+              )}
               <span className="text-[11px] text-muted-foreground">· אופציונלי, משפר דיוק תכסית</span>
               <ChevronDown className={`ms-auto h-4 w-4 text-muted-foreground transition-transform ${step3Open ? "rotate-180" : ""}`} />
             </button>
