@@ -881,337 +881,288 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           </div>
         </div>
 
-        <div className="md:col-span-2 mt-2 flex items-center gap-2 border-r-2 border-primary/50 pr-3">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 2</span>
-          <span className="text-sm font-medium text-foreground">המצב הקיים על החלקה</span>
-          <span className="text-[11px] text-muted-foreground">· אומת אוטומטית — תקן ידנית במידת הצורך</span>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="builtArea">שטח בנוי קיים (מ"ר)</Label>
-            {builtAreaSource && (() => {
-              const meta = SOURCE_META[builtAreaSource] ?? SOURCE_META.estimate;
-              const Icon = meta.icon;
-              const conf = builtAreaConfidence ? CONFIDENCE_META[builtAreaConfidence] : null;
-              return (
-                <div className="flex items-center gap-1">
-                  <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
-                    <Icon className="h-3 w-3" />
-                    {meta.label}
-                  </Badge>
-                  {conf && (
-                    <Badge variant="outline" className={`text-[10px] ${conf.tone}`}>
-                      {conf.label}
-                    </Badge>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-          <Input
-            id="builtArea"
-            inputMode="numeric"
-            placeholder='לדוגמה 720'
-            value={existingBuiltArea}
-            onChange={(e) => {
-              setExistingBuiltArea(e.target.value.replace(/\D/g, ""));
-              if (builtAreaSource && builtAreaSource !== "manual") setBuiltAreaSource(null);
-            }}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center gap-1.5">
-            <Label htmlFor="building-year">שנת בנייה</Label>
-            {tabuAnalysis?.buildingYear ? (
-              <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
-                <FileCheck2 className="h-3 w-3" />
-                טאבו ✓
-              </span>
-            ) : yearAutoFilled && (
-              <span
-                title="נשלף אוטומטית מ-GovMap"
-                className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
-              >
-                <Sparkles className="h-3 w-3" />
-                GovMap
-              </span>
-            )}
-          </div>
-          <Input
-            id="building-year"
-            inputMode="numeric"
-            placeholder="לדוגמה: 1965"
-            value={buildingYear}
-            onChange={(e) => { setBuildingYear(e.target.value.replace(/\D/g, "")); setYearAutoFilled(false); }}
-            className="tabular-nums"
-          />
-          {selectedPlot && !buildingYear && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto px-0 py-0 text-xs"
-                  asChild
-                >
-                  <a
-                    href={`https://www.nadlan.gov.il/?gush=${selectedPlot.gush}&helka=${selectedPlot.helka}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    בדוק שנת בנייה ב-נדל״ן.gov
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                פתח את אתר הנדל״ן הממשלתי לאיתור שנת הבנייה
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <Label htmlFor="units">יח"ד קיימות</Label>
-              {tabuAnalysis && tabuAnalysis.units > 0 ? (
-                <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
-                  <FileCheck2 className="h-3 w-3" />
-                  טאבו ✓
-                </span>
-              ) : existingUnitsAuto && (
-                <span
-                  title="נשלף אוטומטית מ-GovMap"
-                  className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
-                >
-                  <Sparkles className="h-3 w-3" />
-                  GovMap
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              {unitsLoading ? (
-                <Badge variant="outline" className="gap-1 text-[10px]">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  מאתר...
-                </Badge>
-              ) : unitsSource ? (
-                (() => {
-                  const meta = SOURCE_META[unitsSource] ?? SOURCE_META.estimate;
-                  const Icon = meta.icon;
-                  const conf = unitsConfidence ? CONFIDENCE_META[unitsConfidence] : null;
-                  return (
-                    <>
-                      <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
-                        <Icon className="h-3 w-3" />
-                        {meta.label}
-                      </Badge>
-                      {conf && (
-                        <Badge variant="outline" className={`text-[10px] ${conf.tone}`}>
-                          {conf.label}
+        <Collapsible open={step2Open} onOpenChange={setStep2Open} className="md:col-span-2">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 border-r-2 border-primary/50 pr-3 py-2 text-right hover:bg-muted/30 rounded-md transition-colors"
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 2</span>
+              <span className="text-sm font-medium text-foreground">המצב הקיים על החלקה</span>
+              <span className="text-[11px] text-muted-foreground">· אומת אוטומטית — תקן ידנית במידת הצורך</span>
+              <ChevronDown className={`ms-auto h-4 w-4 text-muted-foreground transition-transform ${step2Open ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="grid gap-5 md:grid-cols-2 pt-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="builtArea">שטח בנוי קיים (מ"ר)</Label>
+                  {builtAreaSource && (() => {
+                    const meta = SOURCE_META[builtAreaSource] ?? SOURCE_META.estimate;
+                    const Icon = meta.icon;
+                    const conf = builtAreaConfidence ? CONFIDENCE_META[builtAreaConfidence] : null;
+                    return (
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
+                          <Icon className="h-3 w-3" />
+                          {meta.label}
                         </Badge>
-                      )}
-                    </>
-                  );
-                })()
-              ) : null}
-            </div>
-          </div>
-          <Input
-            id="units"
-            inputMode="numeric"
-            value={existingUnits}
-            onChange={(e) => {
-              setExistingUnits(e.target.value.replace(/\D/g, ""));
-              if (unitsSource && unitsSource !== "manual") setUnitsSource(null);
-              setExistingUnitsAuto(false);
-            }}
-          />
-        </div>
+                        {conf && (
+                          <Badge variant="outline" className={`text-[10px] ${conf.tone}`}>
+                            {conf.label}
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+                <Input
+                  id="builtArea"
+                  inputMode="numeric"
+                  placeholder='לדוגמה 720'
+                  value={existingBuiltArea}
+                  onChange={(e) => {
+                    setExistingBuiltArea(e.target.value.replace(/\D/g, ""));
+                    if (builtAreaSource && builtAreaSource !== "manual") setBuiltAreaSource(null);
+                  }}
+                />
+              </div>
 
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <Label htmlFor="floors">קומות קיימות</Label>
-              {tabuAnalysis && tabuAnalysis.floors > 0 ? (
-                <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
-                  <FileCheck2 className="h-3 w-3" />
-                  טאבו ✓
-                </span>
-              ) : existingFloorsAuto && (
-                <span
-                  title="נשלף אוטומטית מ-GovMap"
-                  className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
-                >
-                  <Sparkles className="h-3 w-3" />
-                  GovMap
-                </span>
-              )}
-            </div>
-            {floorsSource && (() => {
-              const meta = SOURCE_META[floorsSource] ?? SOURCE_META.estimate;
-              const Icon = meta.icon;
-              const conf = floorsConfidence ? CONFIDENCE_META[floorsConfidence] : null;
-              return (
-                <div className="flex items-center gap-1">
-                  <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
-                    <Icon className="h-3 w-3" />
-                    {meta.label}
-                  </Badge>
-                  {conf && (
-                    <Badge variant="outline" className={`text-[10px] ${conf.tone}`}>
-                      {conf.label}
-                    </Badge>
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="building-year">שנת בנייה</Label>
+                  {tabuAnalysis?.buildingYear ? (
+                    <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+                      <FileCheck2 className="h-3 w-3" />
+                      טאבו ✓
+                    </span>
+                  ) : yearAutoFilled && (
+                    <span
+                      title="נשלף אוטומטית מ-GovMap"
+                      className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      GovMap
+                    </span>
                   )}
                 </div>
-              );
-            })()}
-          </div>
-          <Input
-            id="floors"
-            inputMode="numeric"
-            value={existingFloors}
-            onChange={(e) => { setExistingFloors(e.target.value.replace(/\D/g, "")); setExistingFloorsAuto(false); }}
-          />
-        </div>
-
-
-        {selectedPlot && sources.length > 0 && (
-          <div className="md:col-span-2">
-            <Collapsible open={diagOpen} onOpenChange={setDiagOpen}>
-              <div className="flex items-center justify-between gap-2">
-                <CollapsibleTrigger asChild>
-                  <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs text-muted-foreground">
-                    <Activity className="h-3.5 w-3.5" />
-                    מקורות נתונים ({sources.filter((s) => s.status === "ok").length}/{sources.length} הצליחו)
-                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${diagOpen ? "rotate-180" : ""}`} />
-                  </Button>
-                </CollapsibleTrigger>
-                <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => runLookup(true)} disabled={unitsLoading}>
-                  <RefreshCw className={`h-3.5 w-3.5 ${unitsLoading ? "animate-spin" : ""}`} />
-                  רענן מהמקור
-                </Button>
+                <Input
+                  id="building-year"
+                  inputMode="numeric"
+                  placeholder="לדוגמה: 1965"
+                  value={buildingYear}
+                  onChange={(e) => { setBuildingYear(e.target.value.replace(/\D/g, "")); setYearAutoFilled(false); }}
+                  className="tabular-nums"
+                />
+                {selectedPlot && !buildingYear && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto px-0 py-0 text-xs"
+                        asChild
+                      >
+                        <a
+                          href={`https://www.nadlan.gov.il/?gush=${selectedPlot.gush}&helka=${selectedPlot.helka}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          בדוק שנת בנייה ב-נדל״ן.gov
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      פתח את אתר הנדל״ן הממשלתי לאיתור שנת הבנייה
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
-              <CollapsibleContent className="mt-2 overflow-hidden rounded-lg border bg-muted/20">
-                <table className="w-full text-xs">
-                  <thead className="bg-muted/40 text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-1.5 text-end font-medium">מקור</th>
-                      <th className="px-2 py-1.5 text-center font-medium">סטטוס</th>
-                      <th className="px-2 py-1.5 text-center font-medium">יח"ד</th>
-                      <th className="px-2 py-1.5 text-center font-medium">קומות</th>
-                      <th className="px-2 py-1.5 text-center font-medium">זמן</th>
-                      <th className="px-2 py-1.5"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sources.map((s, i) => {
-                      const { Icon, tone } = STATUS_ICON[s.status];
-                      return (
-                        <tr key={i} className="border-t">
-                          <td className="px-3 py-1.5">
-                            <div className="font-medium">{s.label}</div>
-                            <div className="text-[10px] text-muted-foreground">{s.detail}</div>
-                            {s.errorMsg && <div className="text-[10px] text-destructive">{s.errorMsg}</div>}
-                          </td>
-                          <td className="px-2 py-1.5 text-center">
-                            <Icon className={`mx-auto h-3.5 w-3.5 ${tone}`} />
-                          </td>
-                          <td className="px-2 py-1.5 text-center tabular-nums">{s.units ?? "—"}</td>
-                          <td className="px-2 py-1.5 text-center tabular-nums">{s.floors ?? "—"}</td>
-                          <td className="px-2 py-1.5 text-center tabular-nums text-muted-foreground">
-                            {s.durationMs > 0 ? `${s.durationMs}ms` : "—"}
-                          </td>
-                          <td className="px-2 py-1.5 text-center">
-                            {s.raw != null && (
-                              <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => setRawDialog(s)}>
-                                Raw
-                              </Button>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Label htmlFor="units">יח"ד קיימות</Label>
+                    {tabuAnalysis && tabuAnalysis.units > 0 ? (
+                      <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+                        <FileCheck2 className="h-3 w-3" />
+                        טאבו ✓
+                      </span>
+                    ) : existingUnitsAuto && (
+                      <span
+                        title="נשלף אוטומטית מ-GovMap"
+                        className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        GovMap
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {unitsLoading ? (
+                      <Badge variant="outline" className="gap-1 text-[10px]">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        מאתר...
+                      </Badge>
+                    ) : unitsSource ? (
+                      (() => {
+                        const meta = SOURCE_META[unitsSource] ?? SOURCE_META.estimate;
+                        const Icon = meta.icon;
+                        const conf = unitsConfidence ? CONFIDENCE_META[unitsConfidence] : null;
+                        return (
+                          <>
+                            <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
+                              <Icon className="h-3 w-3" />
+                              {meta.label}
+                            </Badge>
+                            {conf && (
+                              <Badge variant="outline" className={`text-[10px] ${conf.tone}`}>
+                                {conf.label}
+                              </Badge>
                             )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-        )}
-
-        {selectedPlot && unitsSource && unitsSource !== "manual" && (
-          <div className="md:col-span-2 flex items-center justify-between gap-3 rounded-lg border border-dashed bg-muted/20 px-4 py-2.5 text-xs">
-            <span className="text-muted-foreground">
-              הנתון אינו מאומת — אם ידוע לך הערך הנכון, תקן/י ושמור כדי לעדכן את הקאש לכל המשתמשים.
-            </span>
-            <Button type="button" size="sm" variant="outline" onClick={saveManualUnits} className="shrink-0">
-              <Database className="ms-1.5 h-3.5 w-3.5" />
-              שמור כמאומת
-            </Button>
-          </div>
-        )}
-
-
-
-
-        <div className="md:col-span-2 mt-2 flex items-center gap-2 border-r-2 border-primary/50 pr-3">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 3</span>
-          <span className="text-sm font-medium text-foreground">גיאומטריה ופרמטרים תכנוניים</span>
-          <span className="text-[11px] text-muted-foreground">· אופציונלי, משפר דיוק תכסית</span>
-        </div>
-
-        <div className="space-y-2 md:col-span-2">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5">
-                <Label htmlFor="plot-width" className="text-sm">רוחב מגרש (מ׳)</Label>
-                {geometryAutoFilled && (
-                  <span
-                    title="נשלף אוטומטית מ-GovMap"
-                    className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    GovMap
-                  </span>
-                )}
+                          </>
+                        );
+                      })()
+                    ) : null}
+                  </div>
+                </div>
+                <Input
+                  id="units"
+                  inputMode="numeric"
+                  value={existingUnits}
+                  onChange={(e) => {
+                    setExistingUnits(e.target.value.replace(/\D/g, ""));
+                    if (unitsSource && unitsSource !== "manual") setUnitsSource(null);
+                    setExistingUnitsAuto(false);
+                  }}
+                />
               </div>
-              <Input
-                id="plot-width"
-                inputMode="decimal"
-                placeholder="אופציונלי"
-                value={plotWidth}
-                onChange={(e) => { setPlotWidth(e.target.value.replace(/[^\d.]/g, "")); setGeometryAutoFilled(false); }}
-                className="h-9 text-center tabular-nums"
-              />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5">
-                <Label htmlFor="plot-depth" className="text-sm">עומק מגרש (מ׳)</Label>
-                {geometryAutoFilled && (
-                  <span
-                    title="נשלף אוטומטית מ-GovMap"
-                    className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    GovMap
-                  </span>
-                )}
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Label htmlFor="floors">קומות קיימות</Label>
+                    {tabuAnalysis && tabuAnalysis.floors > 0 ? (
+                      <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+                        <FileCheck2 className="h-3 w-3" />
+                        טאבו ✓
+                      </span>
+                    ) : existingFloorsAuto && (
+                      <span
+                        title="נשלף אוטומטית מ-GovMap"
+                        className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        GovMap
+                      </span>
+                    )}
+                  </div>
+                  {floorsSource && (() => {
+                    const meta = SOURCE_META[floorsSource] ?? SOURCE_META.estimate;
+                    const Icon = meta.icon;
+                    const conf = floorsConfidence ? CONFIDENCE_META[floorsConfidence] : null;
+                    return (
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline" className={`gap-1 text-[10px] ${meta.tone}`}>
+                          <Icon className="h-3 w-3" />
+                          {meta.label}
+                        </Badge>
+                        {conf && (
+                          <Badge variant="outline" className={`text-[10px] ${conf.tone}`}>
+                            {conf.label}
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+                <Input
+                  id="floors"
+                  inputMode="numeric"
+                  value={existingFloors}
+                  onChange={(e) => { setExistingFloors(e.target.value.replace(/\D/g, "")); setExistingFloorsAuto(false); }}
+                />
               </div>
-              <Input
-                id="plot-depth"
-                inputMode="decimal"
-                placeholder="אופציונלי"
-                value={plotDepth}
-                onChange={(e) => { setPlotDepth(e.target.value.replace(/[^\d.]/g, "")); setGeometryAutoFilled(false); }}
-                className="h-9 text-center tabular-nums"
-              />
+
+              {selectedPlot && sources.length > 0 && (
+                <div className="md:col-span-2">
+                  <Collapsible open={diagOpen} onOpenChange={setDiagOpen}>
+                    <div className="flex items-center justify-between gap-2">
+                      <CollapsibleTrigger asChild>
+                        <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs text-muted-foreground">
+                          <Activity className="h-3.5 w-3.5" />
+                          מקורות נתונים ({sources.filter((s) => s.status === "ok").length}/{sources.length} הצליחו)
+                          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${diagOpen ? "rotate-180" : ""}`} />
+                        </Button>
+                      </CollapsibleTrigger>
+                      <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => runLookup(true)} disabled={unitsLoading}>
+                        <RefreshCw className={`h-3.5 w-3.5 ${unitsLoading ? "animate-spin" : ""}`} />
+                        רענן מהמקור
+                      </Button>
+                    </div>
+                    <CollapsibleContent className="mt-2 overflow-hidden rounded-lg border bg-muted/20">
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted/40 text-muted-foreground">
+                          <tr>
+                            <th className="px-3 py-1.5 text-end font-medium">מקור</th>
+                            <th className="px-2 py-1.5 text-center font-medium">סטטוס</th>
+                            <th className="px-2 py-1.5 text-center font-medium">יח"ד</th>
+                            <th className="px-2 py-1.5 text-center font-medium">קומות</th>
+                            <th className="px-2 py-1.5 text-center font-medium">זמן</th>
+                            <th className="px-2 py-1.5"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sources.map((s, i) => {
+                            const { Icon, tone } = STATUS_ICON[s.status];
+                            return (
+                              <tr key={i} className="border-t">
+                                <td className="px-3 py-1.5">
+                                  <div className="font-medium">{s.label}</div>
+                                  <div className="text-[10px] text-muted-foreground">{s.detail}</div>
+                                  {s.errorMsg && <div className="text-[10px] text-destructive">{s.errorMsg}</div>}
+                                </td>
+                                <td className="px-2 py-1.5 text-center">
+                                  <Icon className={`mx-auto h-3.5 w-3.5 ${tone}`} />
+                                </td>
+                                <td className="px-2 py-1.5 text-center tabular-nums">{s.units ?? "—"}</td>
+                                <td className="px-2 py-1.5 text-center tabular-nums">{s.floors ?? "—"}</td>
+                                <td className="px-2 py-1.5 text-center tabular-nums text-muted-foreground">
+                                  {s.durationMs > 0 ? `${s.durationMs}ms` : "—"}
+                                </td>
+                                <td className="px-2 py-1.5 text-center">
+                                  {s.raw != null && (
+                                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => setRawDialog(s)}>
+                                      Raw
+                                    </Button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              )}
+
+              {selectedPlot && unitsSource && unitsSource !== "manual" && (
+                <div className="md:col-span-2 flex items-center justify-between gap-3 rounded-lg border border-dashed bg-muted/20 px-4 py-2.5 text-xs">
+                  <span className="text-muted-foreground">
+                    הנתון אינו מאומת — אם ידוע לך הערך הנכון, תקן/י ושמור כדי לעדכן את הקאש לכל המשתמשים.
+                  </span>
+                  <Button type="button" size="sm" variant="outline" onClick={saveManualUnits} className="shrink-0">
+                    <Database className="ms-1.5 h-3.5 w-3.5" />
+                    שמור כמאומת
+                  </Button>
+                </div>
+              )}
             </div>
-          </div>
+          </CollapsibleContent>
+        </Collapsible>
           <p className="text-[11px] text-muted-foreground">
             להגדלת דיוק חישוב התכסית — רוב המגרשים בת"א מלבניים צרים-ארוכים, ולכן הזנת הממדים הפיזיים מדויקת יותר מהקירוב של מגרש מרובע (√שטח).
           </p>
