@@ -770,6 +770,9 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             >
               <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 1</span>
               <span className="text-sm font-medium text-foreground">זיהוי החלקה</span>
+              {tabuStatus === "done" && !!selectedPlot && (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-label="הושלם" />
+              )}
               <ChevronDown className={`ms-auto h-4 w-4 text-muted-foreground transition-transform ${step1Open ? "rotate-180" : ""}`} />
             </button>
           </CollapsibleTrigger>
