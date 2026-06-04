@@ -329,13 +329,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     // ── שליפת זכויות הבנייה מהתקנון (lookup-zone-info) ──
     let zoneInfo: ZoneInfo | null = null;
