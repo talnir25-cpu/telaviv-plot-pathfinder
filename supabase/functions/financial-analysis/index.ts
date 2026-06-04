@@ -276,7 +276,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "claude-sonnet-4-20250514",
           messages: [
             { role: "system", content: SYSTEM_DEFAULTS },
             { role: "user", content: userPrompt },
