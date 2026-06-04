@@ -509,8 +509,18 @@ export const DashboardReport = ({
                     שימור
                   </p>
                   <p className="text-sm font-semibold leading-tight">
-                    {input.conservation ? "כן" : "לא"}
+                    {input.conservationDetails?.level
+                      ? `שימור ${input.conservationDetails.level}`
+                      : input.conservation
+                      ? "כן"
+                      : "לא"}
                   </p>
+                  {input.conservationDetails?.buildingName && (
+                    <p className="truncate text-[10px] text-muted-foreground" title={input.conservationDetails.buildingName}>
+                      {input.conservationDetails.buildingName}
+                      {input.conservationDetails.planRef ? ` · ${input.conservationDetails.planRef}` : ""}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
