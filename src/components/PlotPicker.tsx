@@ -725,25 +725,29 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                   className="pr-10"
                 />
               </div>
-              <Button
-                type="button"
-                onClick={lookupAddress}
-                disabled={geocoding || address.trim().length < 3}
-                variant="secondary"
-              >
-                {geocoding ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <Search className="ms-2 h-4 w-4" />
-                    אתר חלקה
-                  </>
-                )}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    onClick={lookupAddress}
+                    disabled={geocoding || address.trim().length < 3}
+                    variant="secondary"
+                  >
+                    {geocoding ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Search className="ms-2 h-4 w-4" />
+                        אתר חלקה
+                      </>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[260px] text-xs">
+                  החיפוש משתמש ב-GovMap הממשלתי. נתמך רק עבור חלקות ברובע 3 ורובע 4.
+                </TooltipContent>
+              </Tooltip>
             </div>
-            <p className="text-xs text-muted-foreground">
-              החיפוש משתמש ב-GovMap הממשלתי. נתמך רק עבור חלקות ברובע 3 ורובע 4.
-            </p>
           </div>
 
           {resolvedAddress && gushQuery && helka && (
