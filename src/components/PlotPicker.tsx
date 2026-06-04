@@ -649,6 +649,19 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       existingBuiltAreaSource: ba > 0 ? builtAreaSource ?? undefined : undefined,
       existingBuiltAreaConfidence: ba > 0 ? builtAreaConfidence ?? undefined : undefined,
       conservation,
+      conservationDetails:
+        conservationMeta && conservationMeta.isConservation && !conservationManual
+          ? {
+              level: conservationMeta.level,
+              buildingName: conservationMeta.buildingName,
+              planRef: conservationMeta.planRef,
+              strictRestrictions: conservationMeta.strictRestrictions,
+              inUnescoBuffer: conservationMeta.inUnescoBuffer,
+              source: conservationMeta.source,
+              confidence: conservationMeta.confidence,
+              description: conservationMeta.description,
+            }
+          : undefined,
       notes: notes.trim() || undefined,
       frontSetbackM: Number.isFinite(fs) && fs >= 0 ? fs : undefined,
       sideSetbackM: Number.isFinite(ss) && ss >= 0 ? ss : undefined,
