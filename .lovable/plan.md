@@ -1,43 +1,80 @@
 ## המטרה
-להחליף את ה-Switch הידני "מבנה לשימור / איזור הכרזת UNESCO" בבדיקה אוטומטית שמתבצעת מיד עם בחירת חלקה, ומציגה תוצאה ברורה (כן/לא/לא ודאי) עם מקור הנתון. המשתמש עדיין יוכל לדרוס ידנית.
+שדרוג בדיקת השימור מ"ניחוש" (CKAN שלא מחזיר תוצאות + פוליגון UNESCO גס) לבדיקה סמכותית מול שכבת ה-GIS הרשמית של עיריית ת"א, עם מידע מפורט: שם המבנה, תב״ע שימור, רמת ההגבלות, כתובות מוכרזות, ולינק חי למפת ה-GIS.
 
-## מקורות נתונים (Tel Aviv Open Data + GovMap)
-1. **רשימת בניינים לשימור של עיריית ת"א** — דאטהסט פתוח (`buildingsforpreservation` ב-opendata.tel-aviv.gov.il) הכולל כתובת, גוש, חלקה, רמת שימור (א/ב), והאם בתוך מתחם UNESCO.
-2. **שכבת מתחמי שימור / White City UNESCO buffer zone** — פוליגון ידוע (לב העיר, רוטשילד, ככר דיזנגוף וכו'); נשתמש ב-GovMap WMS/WFS או פוליגון מקודד.
-3. **תכניות שימור עירוניות** (תא/2650ב) — נציין כהפניה במידע.
+## מקור הנתון החדש (נמצא)
+**ArcGIS REST של עיריית ת"א, שכבה 682 — "מבנים ואתרים לשימור"**
+`https://gisn.tel-aviv.gov.il/arcgis/rest/services/WM/IView2WM/MapServer/682/query`
 
-## שינויים מוצעים
+- פוליגונים ב-EPSG:2039 (אותו CRS של ה-centroid שלנו מ-fetch-plot-geometry).
+- תומך ב-`spatialRel=esriSpatialRelIntersects` → שאילתת point-in-polygon מדויקת.
+- שדות שנוציא:
+  - `shem_mivne` — שם המבנה ההיסטורי
+  - `t_hatraa` — תיאור הסטטוס ("שימור מחמיר", "שימור רגיל", "אתר היסטורי")
+  - `st_taba` — מספר תב״ע השימור (לרוב תא/2650/ב או תכניות נקודתיות)
+  - `ktovot` — כל הכתובות המוכרזות תחת הפוליגון
+  - `hagbalot` — דגל מספרי: 1 = הגבלות מחמירות (גם פנים המבנה מוגן), 0 = שימור חיצוני בלבד
+  - `atraa_warn`, `tr_hatraot` — הערות והיסטוריית התראות
 
-### 1) Edge Function חדש: `lookup-conservation-status`
-קלט: `{ gush, helka, centroidX?, centroidY?, address? }`
-לוגיקה:
-- שאילתה ל-API של עיריית ת"א לפי גוש+חלקה.
-- אם נמצא → מחזיר `{ isConservation: true, level: "א"|"ב", inUnescoBuffer: bool, source, planRef }`.
-- אם לא — בדיקת point-in-polygon מול גבול UNESCO buffer (אם יש קואורדינטות).
-- אם שני המקורות ריקים → `{ isConservation: false, confidence: "medium" }`.
-- כשל רשת → `{ status: "unknown", reason }` (לא חוסם את הניתוח).
-- Cache בזיכרון פנימי לפי `gush-helka`.
+## שינויים
 
-### 2) `PlotPicker.tsx`
-- `useEffect` חדש שמופעל עם `selectedPlot` (במקביל ל-`runLookup`) וקורא לפונקציה החדשה.
-- State: `conservationStatus: "checking" | "yes" | "no" | "unknown"`, `conservationMeta` (רמה, מקור, UNESCO).
-- אם החזרה `yes` → `setConservation(true)` אוטומטית.
-- ה-Switch הופך לתצוגה משולבת:
-  - Badge עם תוצאה ("מבנה לשימור — דרגה א'" / "במתחם UNESCO" / "לא נמצא ברישומי שימור" / "לא ניתן לאמת").
-  - אייקון מקור (כמו שאר השדות ב-PlotPicker).
-  - כפתור "דריסה ידנית" שמאפשר לשנות את הערך.
-- בשלב 1 ("זיהוי החלקה") יתווסף וי ירוק כשנמצא סטטוס ודאי (משלים את המנגנון הקיים).
+### 1) `lookup-conservation-status` (rewrite)
+לוגיקה חדשה בסדר עדיפות:
 
-### 3) השפעה במורד הזרם
-- `analyze-plot` ימשיך לקבל `conservation: boolean` ללא שינוי חוזה.
-- ב-prompt ל-AI נוסיף שדה אופציונלי `conservationDetails` (רמה, UNESCO) כדי לשפר את הניתוח כאשר זמין.
-- ב-`DashboardReport` נציג את המקור והרמה במקום "כן/לא" יבש.
+1. **שאילתה מרחבית ל-ArcGIS 682** עם ה-centroid (כש-קיים).
+   - אם נמצא פוליגון → `isConservation=true, confidence="high"`, יחד עם כל השדות לעיל.
+   - אם לא נמצא → `isConservation=false, confidence="high"` (זו תשובה סמכותית).
+2. **אם אין centroid עדיין** או ArcGIS נכשל → שאילתה אטריבוטיבית באותה שכבה לפי `ktovot LIKE '%גוש <X> חלקה <Y>%'` (best-effort, חלק מהרשומות כוללות גוש/חלקה בכתובות).
+3. **fallback אחרון** — פוליגון UNESCO הקיים (`confidence="medium"`).
+4. כשל מלא → `status: "unknown"` (לא חוסם).
+
+תוספות:
+- timeout 6 שניות לכל קריאה, fallback רך.
+- מטמון בזיכרון לפי `gush-helka`.
+- תרגום `t_hatraa` ו-`hagbalot` ל-`level` ("מחמיר" / "רגיל") + הסבר אנושי.
+- שדה `mapLink` — דיפ-לינק ל-GIS הרשמי עם ה-OID להצגה למשתמש.
+
+תגובה חדשה:
+```jsonc
+{
+  "isConservation": true,
+  "level": "מחמיר" | "רגיל" | null,
+  "buildingName": "בית גולדמן",
+  "planRef": "תא/2650/ב",
+  "addresses": ["אחד העם 56"],
+  "strictRestrictions": true,
+  "inUnescoBuffer": true,
+  "source": "tlv_arcgis_682",
+  "confidence": "high",
+  "mapLink": "https://gisn.tel-aviv.gov.il/iview2js/...&oid=12345",
+  "reason": "..."
+}
+```
+
+### 2) `PlotPicker.tsx` — תצוגה עשירה
+מחליפים את ה-Badge הקצר בכרטיסיית פירוט (מוצגת רק כשנמצא שימור):
+- כותרת: שם המבנה (אם קיים) + תווית רמה ("שימור מחמיר — דרגה א'" / "שימור רגיל").
+- שורות פרטים: כתובות מוכרזות, מספר תב״ע, הערה רשמית.
+- כפתור "צפייה במפת GIS" → פותח tab עם ה-mapLink.
+- Badge קטן ליד ה-Switch: "אומת מ-GIS עיריית ת״א" (ירוק) / "במתחם UNESCO בלבד" (כתום) / "לא נמצא" (אפור).
+- שמירה על הדריסה הידנית כפי שיש היום.
+
+### 3) `analyze-plot/index.ts` (משדרג קל)
+- ה-prompt ל-AI יקבל אובייקט `conservationDetails` (אם קיים): שם המבנה, רמת השימור, planRef, restrictions.
+- האנליסט יידע להבחין בין "שימור חיצוני בלבד" (התחדשות אפשרית עם שימור חזיתות) ל"מחמיר" (כמעט חוסם).
+
+### 4) `DashboardReport.tsx`
+- במקום "שימור: כן/לא" — אם יש פרטים, להציג שורה משלימה: "שימור מחמיר — בית גולדמן (תא/2650/ב)".
 
 ## פרטים טכניים
-- ה-API של עיריית ת"א דורש לעיתים מפתח חינמי; נשתמש קודם בנקודות הציבוריות (CKAN datastore_search) ללא מפתח. במידת הצורך נוסיף סוד `TLV_OPENDATA_KEY`.
-- פוליגון UNESCO buffer יקודד כקבוע ב-`_shared/unesco-buffer.ts` (≈100 קואורדינטות, ITM/EPSG:2039) — חוסך תלות ב-WMS חיצוני.
-- כל הקריאות עם timeout של 6 שניות; כשל לא יחסום את ה-flow.
+- ArcGIS REST פתוח, ללא token; קריאות GET עם `f=json`.
+- שאילתה לדוגמה:
+  ```
+  /MapServer/682/query?geometry={"x":179500,"y":664500,"spatialReference":{"wkid":2039}}
+    &geometryType=esriGeometryPoint&inSR=2039&spatialRel=esriSpatialRelIntersects
+    &outFields=oid,shem_mivne,t_hatraa,st_taba,ktovot,hagbalot,atraa_warn&returnGeometry=false&f=json
+  ```
+- אין שינוי DB, אין סודות חדשים.
 
-## הערות
-- אין שינוי סכמה/DB.
-- בדיקה: cURL ל-edge function עם כמה גושים מוכרים (לב העיר vs. גבעת עמל) לאימות.
+## בדיקות
+- cURL לפונקציה עם centroid במרכז העיר הלבנה (ידוע כשימור) ועם centroid בגבעת עמל (לא שימור) — לאמת `confidence=high` בשני המקרים.
+- בדיקה ידנית ב-PlotPicker עם 2-3 חלקות מוכרות.
