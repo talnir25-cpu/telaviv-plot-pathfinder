@@ -777,52 +777,6 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                 className="h-9 text-center tabular-nums"
               />
             </div>
-            <div className="space-y-1 col-span-2">
-              <div className="flex items-center gap-1.5">
-                <Label htmlFor="building-year" className="text-sm">שנת בנייה</Label>
-                {yearAutoFilled && (
-                  <span
-                    title="נשלף אוטומטית מ-GovMap"
-                    className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    GovMap
-                  </span>
-                )}
-              </div>
-              <Input
-                id="building-year"
-                inputMode="numeric"
-                placeholder="לדוגמה: 1965"
-                value={buildingYear}
-                onChange={(e) => { setBuildingYear(e.target.value.replace(/\D/g, "")); setYearAutoFilled(false); }}
-                className="h-9 text-center tabular-nums"
-              />
-              {selectedPlot && !buildingYear && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="h-auto px-0 py-0 text-xs"
-                      asChild
-                    >
-                      <a
-                        href={`https://www.nadlan.gov.il/?gush=${selectedPlot.gush}&helka=${selectedPlot.helka}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        בדוק שנת בנייה ב-נדל״ן.gov
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    פתח את אתר הנדל״ן הממשלתי לאיתור שנת הבנייה
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
           </div>
           <p className="text-[11px] text-muted-foreground">
             להגדלת דיוק חישוב התכסית — רוב המגרשים בת"א מלבניים צרים-ארוכים, ולכן הזנת הממדים הפיזיים מדויקת יותר מהקירוב של מגרש מרובע (√שטח).
