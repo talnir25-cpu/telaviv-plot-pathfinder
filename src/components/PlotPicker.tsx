@@ -606,6 +606,10 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       </Tabs>
 
       <form onSubmit={submit} className="grid gap-5 md:grid-cols-2">
+        <div className="md:col-span-2 -mb-1 flex items-center gap-2 border-r-2 border-primary/50 pr-3">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 1</span>
+          <span className="text-sm font-medium text-foreground">זיהוי החלקה</span>
+        </div>
         <div className="space-y-2">
           <Label>רובע</Label>
           <Select
