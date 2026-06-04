@@ -31,6 +31,14 @@ const ResultSchema = z.object({
   })).max(50),
   hasActiveRenewal: z.boolean(),
   renewalParty: z.string().max(200).nullable(),
+  floorsDetected: z.object({
+    labels: z.array(z.string().max(40)).max(30),
+    hasGround: z.boolean(),
+    hasRoof: z.boolean(),
+    hasBasement: z.boolean(),
+    highestAboveGround: z.number().int().min(0).max(60),
+  }).optional(),
+  floorsExplain: z.string().max(300).optional(),
 });
 
 const EXTRACTION_TOOL = {
