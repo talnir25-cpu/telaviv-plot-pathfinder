@@ -728,23 +728,14 @@ function sourceHeuristic(plotArea: number | null): Omit<SourceResult, "durationM
 
 function pickBest(sources: SourceResult[]): SourceResult {
   // Priority by reliability:
-  // manual → TLV permits (built) → nadlan → TLV permits (approved/planned)
-  // → govmap_bldg → heuristic
+  // manual → nadlan → govmap_bldg → heuristic
+  // Note: tlv_permits is intentionally excluded from units selection
+  // (still runs for diagnostics and appears in sources_json).
   const manual = sources.find((s) => s.source === "manual" && s.status === "ok" && s.units !== null);
   if (manual) return manual;
 
-  const tlvHigh = sources.find(
-    (s) => s.source === "tlv_permits" && s.status === "ok" && s.units !== null && s.confidence === "high",
-  );
-  if (tlvHigh) return tlvHigh;
-
   const nadlan = sources.find((s) => s.source === "nadlan" && s.status === "ok" && s.units !== null);
   if (nadlan) return nadlan;
-
-  const tlvAny = sources.find(
-    (s) => s.source === "tlv_permits" && s.status === "ok" && s.units !== null,
-  );
-  if (tlvAny) return tlvAny;
 
   const bldg = sources.find((s) => s.source === "govmap_bldg" && s.status === "ok" && s.units !== null);
   if (bldg) return bldg;
