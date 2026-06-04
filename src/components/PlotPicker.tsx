@@ -685,6 +685,80 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       </Tabs>
 
       <form onSubmit={submit} className="grid gap-5 md:grid-cols-2">
+        <div className="md:col-span-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <FileCheck2 className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">ניתוח נסח טאבו (אופציונלי)</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                העלה נסח טאבו PDF — המערכת תזהה אוטומטית יחידות, קומות ושנת בנייה.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                ref={tabuInputRef}
+                type="file"
+                accept="application/pdf,.pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleTabuUpload(f);
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => tabuInputRef.current?.click()}
+                disabled={tabuStatus === "parsing"}
+              >
+                {tabuStatus === "parsing" ? (
+                  <>
+                    <Loader2 className="ms-1.5 h-3.5 w-3.5 animate-spin" />
+                    מנתח נסח...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="ms-1.5 h-3.5 w-3.5" />
+                    העלה נסח טאבו PDF
+                  </>
+                )}
+              </Button>
+              {tabuStatus === "done" && (
+                <Button type="button" variant="ghost" size="sm" onClick={clearTabu}>
+                  <XCircle className="ms-1.5 h-3.5 w-3.5" />
+                  נקה
+                </Button>
+              )}
+            </div>
+          </div>
+          {tabuStatus === "done" && tabuAnalysis && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md bg-background/60 px-3 py-2 text-xs">
+              <Badge variant="outline" className="gap-1 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="h-3 w-3" />
+                טאבו ✓
+              </Badge>
+              <span className="text-muted-foreground">{tabuFilename}</span>
+              <span className="text-foreground">
+                · {tabuAnalysis.units} יח״ד · {tabuAnalysis.floors} קומות
+                {tabuAnalysis.buildingYear ? ` · ${tabuAnalysis.buildingYear}` : ""}
+                {tabuAnalysis.plotArea > 0 ? ` · ${tabuAnalysis.plotArea.toLocaleString("he-IL")} מ"ר` : ""}
+              </span>
+              {tabuAnalysis.hasActiveRenewal && (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  התחדשות פעילה{tabuAnalysis.renewalParty ? ` · ${tabuAnalysis.renewalParty}` : ""}
+                </Badge>
+              )}
+            </div>
+          )}
+          {tabuStatus === "error" && tabuError && (
+            <p className="mt-2 text-xs text-destructive">{tabuError}</p>
+          )}
+        </div>
+
         <div className="md:col-span-2 -mb-1 flex items-center gap-2 border-r-2 border-primary/50 pr-3">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 1</span>
           <span className="text-sm font-medium text-foreground">זיהוי החלקה</span>
