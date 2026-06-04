@@ -491,7 +491,8 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
       });
     }
 
-    const report = toolCall.input as Record<string, unknown>;
+    // deno-lint-ignore no-explicit-any
+    const report: any = toolCall.input;
 
     // ── Post-validation: deterministic sanity checks on AI output ──
     try {
