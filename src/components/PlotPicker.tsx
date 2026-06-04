@@ -186,12 +186,19 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   // Conservation / UNESCO auto-check
   interface ConservationMeta {
     isConservation: boolean;
-    level: "א" | "ב" | null;
+    level: "מחמיר" | "רגיל" | null;
+    buildingName?: string | null;
+    planRef?: string | null;
+    addresses?: string[];
+    strictRestrictions?: boolean;
+    warning?: string | null;
+    description?: string | null;
     inUnescoBuffer: boolean;
     confidence: "high" | "medium" | "low" | "unknown";
     source: string;
     reason?: string;
-    details?: { address?: string; planRef?: string };
+    mapLink?: string;
+    matchesCount?: number;
   }
   const [conservationStatus, setConservationStatus] = useState<"idle" | "checking" | "done" | "error">("idle");
   const [conservationMeta, setConservationMeta] = useState<ConservationMeta | null>(null);
