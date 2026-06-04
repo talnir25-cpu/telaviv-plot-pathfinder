@@ -970,6 +970,11 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           );
         })()}
 
+        <div className="md:col-span-2 mt-2 flex items-center gap-2 border-r-2 border-primary/50 pr-3">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 3</span>
+          <span className="text-sm font-medium text-foreground">המצב הקיים על החלקה</span>
+          <span className="text-[11px] text-muted-foreground">· אומת אוטומטית — תקן ידנית במידת הצורך</span>
+        </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
