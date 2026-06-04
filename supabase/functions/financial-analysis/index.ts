@@ -276,7 +276,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "openai/gpt-5",
           messages: [
             { role: "system", content: SYSTEM_DEFAULTS },
             { role: "user", content: userPrompt },

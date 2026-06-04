@@ -1,5 +1,5 @@
 // Parse Israeli Tabu (land registry) PDF — extracts structured planning data.
-// Uses Lovable AI Gateway (claude-sonnet-4-20250514) for the extraction step.
+// Uses Lovable AI Gateway (openai/gpt-5) for the extraction step.
 
 
 import { extractText, getDocumentProxy } from "npm:unpdf@0.12.1";
@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "openai/gpt-5",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: `טקסט שחולץ מנסח הטאבו:\n\n${truncated}` },
