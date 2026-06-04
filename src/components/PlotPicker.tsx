@@ -519,6 +519,48 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlot]);
 
+  // Auto-check conservation / UNESCO status. Runs when a plot is selected, and
+  // re-runs once the centroid arrives (geometry fetch is async). The user can
+  // override via a manual toggle; once they do, we stop auto-syncing.
+  useEffect(() => {
+    if (!selectedPlot) {
+      setConservationStatus("idle");
+      setConservationMeta(null);
+      setConservationManual(false);
+      return;
+    }
+    if (conservationManual) return;
+    const reqId = ++consReqRef.current;
+    setConservationStatus("checking");
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "lookup-conservation-status",
+          {
+            body: {
+              gush: selectedPlot.gush,
+              helka: selectedPlot.helka,
+              centroidX: centroidX ?? undefined,
+              centroidY: centroidY ?? undefined,
+            },
+          },
+        );
+        if (reqId !== consReqRef.current) return;
+        if (error || !data) {
+          setConservationStatus("error");
+          return;
+        }
+        const meta = data as ConservationMeta;
+        setConservationMeta(meta);
+        setConservationStatus("done");
+        setConservation(!!meta.isConservation);
+      } catch {
+        if (reqId !== consReqRef.current) return;
+        setConservationStatus("error");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPlot, centroidX, centroidY]);
 
 
 
