@@ -725,6 +725,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           </div>
         </div>
 
+        <div className="md:col-span-2 mt-2 flex items-center gap-2 border-r-2 border-primary/50 pr-3">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 2</span>
+          <span className="text-sm font-medium text-foreground">גיאומטריה ופרמטרים תכנוניים</span>
+          <span className="text-[11px] text-muted-foreground">· אופציונלי, משפר דיוק תכסית</span>
+        </div>
+
         <div className="space-y-2 md:col-span-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
