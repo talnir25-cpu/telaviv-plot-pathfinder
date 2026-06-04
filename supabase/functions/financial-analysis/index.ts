@@ -258,9 +258,9 @@ Deno.serve(async (req) => {
       }
       const { quarter, gush, helka, plotArea, proposedUnits, proposedBuiltArea } = parsed.data;
 
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (!LOVABLE_API_KEY) {
-        return new Response(JSON.stringify({ error: "LOVABLE_API_KEY missing" }), {
+      const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+      if (!ANTHROPIC_API_KEY) {
+        return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY missing" }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -272,17 +272,24 @@ Deno.serve(async (req) => {
 שטח בנייה כולל: ${proposedBuiltArea} מ"ר
 החזר ערכים ריאליסטיים דרך הכלי suggest_financial_defaults.`;
 
-      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        headers: {
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          model: "openai/gpt-5",
-          messages: [
-            { role: "system", content: SYSTEM_DEFAULTS },
-            { role: "user", content: userPrompt },
-          ],
-          tools: [DEFAULTS_TOOL],
-          tool_choice: { type: "function", function: { name: DEFAULTS_TOOL.function.name } },
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2048,
+          system: SYSTEM_DEFAULTS,
+          tools: [{
+            name: DEFAULTS_TOOL.function.name,
+            description: DEFAULTS_TOOL.function.description,
+            input_schema: DEFAULTS_TOOL.function.parameters,
+          }],
+          tool_choice: { type: "tool", name: DEFAULTS_TOOL.function.name },
+          messages: [{ role: "user", content: userPrompt }],
         }),
       });
 
@@ -292,28 +299,25 @@ Deno.serve(async (req) => {
             status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        if (aiResp.status === 402) {
-          return new Response(JSON.stringify({ error: "אזל הקרדיט בחשבון Lovable AI" }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
         const t = await aiResp.text();
-        console.error("AI error", aiResp.status, t);
-        return new Response(JSON.stringify({ error: "AI gateway error" }), {
+        console.error("Anthropic error", aiResp.status, t);
+        return new Response(JSON.stringify({ error: "Anthropic error", details: t.slice(0, 300) }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
       const aiJson = await aiResp.json();
-      const args = aiJson?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-      if (!args) {
-        console.error("no tool call", JSON.stringify(aiJson));
+      const toolUse = Array.isArray(aiJson?.content)
+        ? aiJson.content.find((b: { type: string }) => b.type === "tool_use")
+        : null;
+      if (!toolUse?.input) {
+        console.error("no tool_use", JSON.stringify(aiJson));
         return new Response(JSON.stringify({ error: "AI did not return structured response" }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      return new Response(JSON.stringify({ defaults: JSON.parse(args) }), {
+      return new Response(JSON.stringify({ defaults: toolUse.input }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
