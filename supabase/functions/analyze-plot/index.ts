@@ -35,6 +35,17 @@ interface PlotInput {
   areaHint?: "declaration" | "market_street" | "rest";
   street?: string;
   address?: string;
+  tabuAnalysis?: {
+    units: number;
+    floors: number;
+    avgUnitSize: number;
+    plotArea: number;
+    coverageRatio: number;
+    buildingYear: number | null;
+    warnings: Array<{ text: string; party: string; year: number }>;
+    hasActiveRenewal: boolean;
+    renewalParty: string | null;
+  };
 }
 
 interface ZoneInfo {
@@ -291,6 +302,26 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Tabu override: when a parsed Tabu document is supplied, it takes
+    //    absolute priority over any other source for existing units/floors,
+    //    plot area, and building year. The original body fields are mutated
+    //    so that all downstream logic uses the authoritative values.
+    if (body.tabuAnalysis) {
+      const t = body.tabuAnalysis;
+      if (t.units > 0) body.existingUnits = t.units;
+      if (t.floors > 0) body.existingFloors = t.floors;
+      if (t.buildingYear && t.buildingYear >= 1900) body.buildingYear = t.buildingYear;
+      if (t.plotArea > 0) {
+        body.area = t.plotArea;
+        if (!body.shapeArea) body.shapeArea = t.plotArea;
+      }
+      if (t.avgUnitSize > 0 && t.units > 0 && !body.existingBuiltAreaSqm) {
+        body.existingBuiltAreaSqm = Math.round(t.avgUnitSize * t.units);
+        body.existingBuiltAreaSource = "tabu";
+        body.existingBuiltAreaConfidence = "high";
+      }
+    }
+
     if (!body.existingUnits || body.existingUnits < 1) {
       return new Response(
         JSON.stringify({ error: "לא ניתן לחשב מכפיל ללא נתון על יח\"ד קיימות (existingUnits ≥ 1)" }),
@@ -467,6 +498,31 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
     // ── Post-validation: deterministic sanity checks on AI output ──
     try {
       report.redFlags = Array.isArray(report.redFlags) ? report.redFlags : [];
+
+      // ── Tabu-derived active renewal warning (highest priority red flag) ──
+      if (body.tabuAnalysis?.hasActiveRenewal) {
+        const party = body.tabuAnalysis.renewalParty?.trim() || "יזם לא מזוהה";
+        report.redFlags.unshift({
+          level: "critical",
+          title: "⚠️ בניין בהליך התחדשות פעיל",
+          description: `בניין זה נמצא בהליך התחדשות פעיל עם ${party}. יש לבדוק את סטטוס ההליך לפני ניתוח היתכנות.`,
+          source: "נסח טאבו",
+        });
+        if (report.status === "high_potential") report.status = "high_risk";
+      }
+
+      // ── Tabu-derived cautionary notes (informational) ──
+      if (body.tabuAnalysis?.warnings && body.tabuAnalysis.warnings.length > 0) {
+        for (const w of body.tabuAnalysis.warnings.slice(0, 10)) {
+          if (body.tabuAnalysis.hasActiveRenewal && /התחדשות|תמ.?א|פינוי/.test(w.text)) continue;
+          report.redFlags.push({
+            level: "info",
+            title: `הערת אזהרה (${w.year})`,
+            description: `${w.text} — לטובת ${w.party}`,
+            source: "נסח טאבו",
+          });
+        }
+      }
 
       // אם המשתמש העביר שטח בנוי מדוד — דורסים את אומדן ה-AI
       if (body.existingBuiltAreaSqm && body.existingBuiltAreaSqm > 0) {

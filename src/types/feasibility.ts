@@ -137,6 +137,25 @@ export interface AnalysisInput {
   // שם רחוב — לזיהוי ייעוד אוטומטי לפי טבלת רחובות בתקנון
   street?: string;
   address?: string;
+  tabuAnalysis?: TabuAnalysis;
+}
+
+export interface TabuWarning {
+  text: string;
+  party: string;
+  year: number;
+}
+
+export interface TabuAnalysis {
+  units: number;
+  floors: number;
+  avgUnitSize: number;
+  plotArea: number;
+  coverageRatio: number;
+  buildingYear: number | null;
+  warnings: TabuWarning[];
+  hasActiveRenewal: boolean;
+  renewalParty: string | null;
 }
 
 

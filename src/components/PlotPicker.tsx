@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import plotsData from "@/data/plots.json";
-import type { Plot, AnalysisInput } from "@/types/feasibility";
+import type { Plot, AnalysisInput, TabuAnalysis } from "@/types/feasibility";
 import { analysisInputSchema, formatErrorList } from "@/lib/validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Loader2, Search, Sparkles, MapPin, CheckCircle2, Database, Building2,
   Calculator, Activity, RefreshCw, ChevronDown, XCircle, AlertCircle, MinusCircle,
-  ExternalLink,
+  ExternalLink, Upload, FileCheck2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
@@ -178,6 +178,84 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [geometryStatus, setGeometryStatus] = useState<"idle" | "loading" | "ok" | "fallback">("idle");
   const lookupReqRef = useRef(0);
   const geomReqRef = useRef(0);
+
+  // Tabu PDF analysis state
+  const [tabuAnalysis, setTabuAnalysis] = useState<TabuAnalysis | null>(null);
+  const [tabuStatus, setTabuStatus] = useState<"idle" | "parsing" | "done" | "error">("idle");
+  const [tabuError, setTabuError] = useState<string | null>(null);
+  const [tabuFilename, setTabuFilename] = useState<string | null>(null);
+  const tabuInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleTabuUpload = async (file: File) => {
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("יש להעלות קובץ PDF בלבד");
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("הקובץ גדול מדי (מקסימום 15MB)");
+      return;
+    }
+    setTabuStatus("parsing");
+    setTabuError(null);
+    setTabuFilename(file.name);
+    try {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      // Chunked base64 encoding to avoid stack-overflow on large files
+      let bin = "";
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
+      }
+      const base64 = btoa(bin);
+      const { data, error } = await supabase.functions.invoke("parse-tabu-pdf", {
+        body: { fileBase64: base64, filename: file.name },
+      });
+      if (error || !data || data.error) {
+        const msg = data?.error || error?.message || "שגיאה בניתוח הנסח";
+        setTabuError(msg);
+        setTabuStatus("error");
+        toast.error(msg);
+        return;
+      }
+      const analysis = data.analysis as TabuAnalysis;
+      setTabuAnalysis(analysis);
+      setTabuStatus("done");
+      if (analysis.units > 0) {
+        setExistingUnits(String(analysis.units));
+        setExistingUnitsAuto(false);
+        setUnitsSource(null);
+      }
+      if (analysis.floors > 0) {
+        setExistingFloors(String(analysis.floors));
+        setExistingFloorsAuto(false);
+        setFloorsSource(null);
+      }
+      if (analysis.buildingYear && analysis.buildingYear >= 1900) {
+        setBuildingYear(String(analysis.buildingYear));
+        setYearAutoFilled(false);
+      }
+      if (analysis.plotArea > 0 && analysis.avgUnitSize > 0 && analysis.units > 0) {
+        setExistingBuiltArea(String(Math.round(analysis.avgUnitSize * analysis.units)));
+        setBuiltAreaSource(null);
+      }
+      toast.success("נסח הטאבו נותח בהצלחה — השדות עודכנו");
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : "שגיאה בלתי צפויה";
+      setTabuError(msg);
+      setTabuStatus("error");
+      toast.error(msg);
+    }
+  };
+
+  const clearTabu = () => {
+    setTabuAnalysis(null);
+    setTabuStatus("idle");
+    setTabuError(null);
+    setTabuFilename(null);
+    if (tabuInputRef.current) tabuInputRef.current.value = "";
+  };
 
   const lookupAddress = async () => {
     const q = address.trim();
@@ -520,6 +598,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         : "manual") as AnalysisInput["setbackSource"],
       street,
       address: addressForStreet ?? undefined,
+      tabuAnalysis: tabuAnalysis ?? undefined,
     };
     const parsed = analysisInputSchema.safeParse(candidate);
     if (!parsed.success) {
@@ -606,6 +685,80 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       </Tabs>
 
       <form onSubmit={submit} className="grid gap-5 md:grid-cols-2">
+        <div className="md:col-span-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <FileCheck2 className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">ניתוח נסח טאבו (אופציונלי)</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                העלה נסח טאבו PDF — המערכת תזהה אוטומטית יחידות, קומות ושנת בנייה.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                ref={tabuInputRef}
+                type="file"
+                accept="application/pdf,.pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleTabuUpload(f);
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => tabuInputRef.current?.click()}
+                disabled={tabuStatus === "parsing"}
+              >
+                {tabuStatus === "parsing" ? (
+                  <>
+                    <Loader2 className="ms-1.5 h-3.5 w-3.5 animate-spin" />
+                    מנתח נסח...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="ms-1.5 h-3.5 w-3.5" />
+                    העלה נסח טאבו PDF
+                  </>
+                )}
+              </Button>
+              {tabuStatus === "done" && (
+                <Button type="button" variant="ghost" size="sm" onClick={clearTabu}>
+                  <XCircle className="ms-1.5 h-3.5 w-3.5" />
+                  נקה
+                </Button>
+              )}
+            </div>
+          </div>
+          {tabuStatus === "done" && tabuAnalysis && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md bg-background/60 px-3 py-2 text-xs">
+              <Badge variant="outline" className="gap-1 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="h-3 w-3" />
+                טאבו ✓
+              </Badge>
+              <span className="text-muted-foreground">{tabuFilename}</span>
+              <span className="text-foreground">
+                · {tabuAnalysis.units} יח״ד · {tabuAnalysis.floors} קומות
+                {tabuAnalysis.buildingYear ? ` · ${tabuAnalysis.buildingYear}` : ""}
+                {tabuAnalysis.plotArea > 0 ? ` · ${tabuAnalysis.plotArea.toLocaleString("he-IL")} מ"ר` : ""}
+              </span>
+              {tabuAnalysis.hasActiveRenewal && (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  התחדשות פעילה{tabuAnalysis.renewalParty ? ` · ${tabuAnalysis.renewalParty}` : ""}
+                </Badge>
+              )}
+            </div>
+          )}
+          {tabuStatus === "error" && tabuError && (
+            <p className="mt-2 text-xs text-destructive">{tabuError}</p>
+          )}
+        </div>
+
         <div className="md:col-span-2 -mb-1 flex items-center gap-2 border-r-2 border-primary/50 pr-3">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 1</span>
           <span className="text-sm font-medium text-foreground">זיהוי החלקה</span>
@@ -768,7 +921,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         <div className="space-y-2">
           <div className="flex items-center gap-1.5">
             <Label htmlFor="building-year">שנת בנייה</Label>
-            {yearAutoFilled && (
+            {tabuAnalysis?.buildingYear ? (
+              <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+                <FileCheck2 className="h-3 w-3" />
+                טאבו ✓
+              </span>
+            ) : yearAutoFilled && (
               <span
                 title="נשלף אוטומטית מ-GovMap"
                 className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
@@ -817,7 +975,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <Label htmlFor="units">יח"ד קיימות</Label>
-              {existingUnitsAuto && (
+              {tabuAnalysis && tabuAnalysis.units > 0 ? (
+                <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+                  <FileCheck2 className="h-3 w-3" />
+                  טאבו ✓
+                </span>
+              ) : existingUnitsAuto && (
                 <span
                   title="נשלף אוטומטית מ-GovMap"
                   className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
@@ -872,7 +1035,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <Label htmlFor="floors">קומות קיימות</Label>
-              {existingFloorsAuto && (
+              {tabuAnalysis && tabuAnalysis.floors > 0 ? (
+                <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+                  <FileCheck2 className="h-3 w-3" />
+                  טאבו ✓
+                </span>
+              ) : existingFloorsAuto && (
                 <span
                   title="נשלף אוטומטית מ-GovMap"
                   className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"
