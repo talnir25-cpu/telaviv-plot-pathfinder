@@ -1281,6 +1281,14 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                   value={existingFloors}
                   onChange={(e) => { setExistingFloors(e.target.value.replace(/\D/g, "")); setExistingFloorsAuto(false); }}
                 />
+                {tabuAnalysis?.floorsExplain && (
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    {tabuAnalysis.floorsExplain}
+                    {tabuAnalysis.floorsDetected?.labels?.length ? (
+                      <> · קומות שזוהו: {tabuAnalysis.floorsDetected.labels.join(", ")}</>
+                    ) : null}
+                  </p>
+                )}
               </div>
 
               {selectedPlot && sources.length > 0 && (
