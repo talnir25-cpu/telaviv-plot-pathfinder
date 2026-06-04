@@ -499,6 +499,31 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
     try {
       report.redFlags = Array.isArray(report.redFlags) ? report.redFlags : [];
 
+      // ── Tabu-derived active renewal warning (highest priority red flag) ──
+      if (body.tabuAnalysis?.hasActiveRenewal) {
+        const party = body.tabuAnalysis.renewalParty?.trim() || "יזם לא מזוהה";
+        report.redFlags.unshift({
+          level: "critical",
+          title: "⚠️ בניין בהליך התחדשות פעיל",
+          description: `בניין זה נמצא בהליך התחדשות פעיל עם ${party}. יש לבדוק את סטטוס ההליך לפני ניתוח היתכנות.`,
+          source: "נסח טאבו",
+        });
+        if (report.status === "high_potential") report.status = "high_risk";
+      }
+
+      // ── Tabu-derived cautionary notes (informational) ──
+      if (body.tabuAnalysis?.warnings && body.tabuAnalysis.warnings.length > 0) {
+        for (const w of body.tabuAnalysis.warnings.slice(0, 10)) {
+          if (body.tabuAnalysis.hasActiveRenewal && /התחדשות|תמ.?א|פינוי/.test(w.text)) continue;
+          report.redFlags.push({
+            level: "info",
+            title: `הערת אזהרה (${w.year})`,
+            description: `${w.text} — לטובת ${w.party}`,
+            source: "נסח טאבו",
+          });
+        }
+      }
+
       // אם המשתמש העביר שטח בנוי מדוד — דורסים את אומדן ה-AI
       if (body.existingBuiltAreaSqm && body.existingBuiltAreaSqm > 0) {
         if (!report.existing) report.existing = {};
