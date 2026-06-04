@@ -302,6 +302,26 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Tabu override: when a parsed Tabu document is supplied, it takes
+    //    absolute priority over any other source for existing units/floors,
+    //    plot area, and building year. The original body fields are mutated
+    //    so that all downstream logic uses the authoritative values.
+    if (body.tabuAnalysis) {
+      const t = body.tabuAnalysis;
+      if (t.units > 0) body.existingUnits = t.units;
+      if (t.floors > 0) body.existingFloors = t.floors;
+      if (t.buildingYear && t.buildingYear >= 1900) body.buildingYear = t.buildingYear;
+      if (t.plotArea > 0) {
+        body.area = t.plotArea;
+        if (!body.shapeArea) body.shapeArea = t.plotArea;
+      }
+      if (t.avgUnitSize > 0 && t.units > 0 && !body.existingBuiltAreaSqm) {
+        body.existingBuiltAreaSqm = Math.round(t.avgUnitSize * t.units);
+        body.existingBuiltAreaSource = "tabu";
+        body.existingBuiltAreaConfidence = "high";
+      }
+    }
+
     if (!body.existingUnits || body.existingUnits < 1) {
       return new Response(
         JSON.stringify({ error: "לא ניתן לחשב מכפיל ללא נתון על יח\"ד קיימות (existingUnits ≥ 1)" }),
