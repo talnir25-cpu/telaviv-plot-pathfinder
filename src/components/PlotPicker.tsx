@@ -944,6 +944,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               className="flex w-full items-center gap-2 border-r-2 border-primary/50 pr-3 py-2 text-right hover:bg-muted/30 rounded-md transition-colors"
             >
               <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 1</span>
+              <MapPin className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground">זיהוי החלקה</span>
               {tabuStatus === "done" && !!selectedPlot && (
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-label="הושלם" />
@@ -1077,6 +1078,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               className="flex w-full items-center gap-2 border-r-2 border-primary/50 pr-3 py-2 text-right hover:bg-muted/30 rounded-md transition-colors"
             >
               <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 2</span>
+              <Building2 className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground">נתוני בניין קיים</span>
               {tabuStatus === "done" && Number(existingUnits) > 0 && Number(existingFloors) > 0 && Number(existingBuiltArea) > 0 && (
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-label="הושלם" />
@@ -1362,6 +1364,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               className="flex w-full items-center gap-2 border-r-2 border-primary/50 pr-3 py-2 text-right hover:bg-muted/30 rounded-md transition-colors"
             >
               <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 3</span>
+              <Ruler className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground">גיאומטריה ופרמטרים תכנוניים</span>
               {tabuStatus === "done" && Number(plotWidth) > 0 && Number(plotDepth) > 0 && Number(buildingYear) > 0 && (
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-label="הושלם" />
