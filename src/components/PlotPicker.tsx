@@ -1573,11 +1573,11 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               )}
               {conservationStatus === "done" && conservationMeta && !conservationManual && (
                 conservationMeta.isConservation ? (
-                  <Badge variant="outline" className="gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+                  <Badge variant="outline" className={`gap-1 text-[10px] ${conservationMeta.strictRestrictions ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>
                     <CheckCircle2 className="h-3 w-3" />
                     {conservationMeta.level
-                      ? `שימור — דרגה ${conservationMeta.level}`
-                      : conservationMeta.inUnescoBuffer
+                      ? `שימור ${conservationMeta.level}`
+                      : conservationMeta.source === "unesco_buffer"
                       ? "במתחם UNESCO"
                       : "מבנה לשימור"}
                   </Badge>
@@ -1604,25 +1604,67 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               />
             </div>
           </div>
-          {conservationStatus === "done" && conservationMeta && !conservationManual && (
-            <div className="text-[11px] text-muted-foreground space-y-0.5">
-              {conservationMeta.reason && <p>{conservationMeta.reason}</p>}
-              {conservationMeta.details?.address && (
-                <p>כתובת ברישום: {conservationMeta.details.address}</p>
+          {conservationStatus === "done" && conservationMeta && !conservationManual && conservationMeta.isConservation && (
+            <div className="rounded-md border bg-background/60 p-3 text-[11px] space-y-1.5">
+              {conservationMeta.buildingName && (
+                <p className="text-sm font-medium text-foreground">
+                  {conservationMeta.buildingName}
+                </p>
               )}
-              {conservationMeta.details?.planRef && conservationMeta.isConservation && (
-                <p>תכנית רלוונטית: {conservationMeta.details.planRef}</p>
+              {conservationMeta.description && (
+                <p className="text-foreground/80">{conservationMeta.description}</p>
               )}
-              <p className="text-muted-foreground/80">
-                מקור: {conservationMeta.source === "tlv_opendata"
-                  ? 'עיריית ת"א — רשימת בניינים לשימור'
-                  : conservationMeta.source === "unesco_buffer"
-                  ? "פוליגון UNESCO (העיר הלבנה)"
-                  : conservationMeta.source}
-              </p>
+              {conservationMeta.strictRestrictions && (
+                <p className="text-destructive">
+                  ⚠ הגבלות שימור מחמירות — סביר שגם פנים המבנה מוגן
+                </p>
+              )}
+              {conservationMeta.addresses && conservationMeta.addresses.length > 0 && (
+                <p className="text-muted-foreground">
+                  כתובות מוכרזות: {conservationMeta.addresses.slice(0, 4).join(" · ")}
+                  {conservationMeta.addresses.length > 4 ? ` (+${conservationMeta.addresses.length - 4})` : ""}
+                </p>
+              )}
+              {conservationMeta.planRef && (
+                <p className="text-muted-foreground">
+                  תכנית שימור: <span className="font-medium text-foreground/80">{conservationMeta.planRef}</span>
+                </p>
+              )}
+              {conservationMeta.warning && (
+                <p className="text-muted-foreground">{conservationMeta.warning}</p>
+              )}
+              {conservationMeta.matchesCount && conservationMeta.matchesCount > 1 && (
+                <p className="text-muted-foreground">
+                  נמצאו {conservationMeta.matchesCount} פוליגוני שימור חופפים — מוצג העיקרי
+                </p>
+              )}
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <span className="text-muted-foreground/80">
+                  מקור: {conservationMeta.source === "tlv_arcgis_682"
+                    ? 'GIS עיריית ת״א — שכבה 682'
+                    : conservationMeta.source === "unesco_buffer"
+                    ? "פוליגון UNESCO (העיר הלבנה)"
+                    : conservationMeta.source}
+                </span>
+                {conservationMeta.mapLink && (
+                  <a
+                    href={conservationMeta.mapLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    צפייה במקור
+                  </a>
+                )}
+              </div>
             </div>
           )}
+          {conservationStatus === "done" && conservationMeta && !conservationManual && !conservationMeta.isConservation && conservationMeta.reason && (
+            <p className="text-[11px] text-muted-foreground">{conservationMeta.reason}</p>
+          )}
         </div>
+
 
 
 
