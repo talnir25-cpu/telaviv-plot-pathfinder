@@ -34,38 +34,34 @@ const ResultSchema = z.object({
 });
 
 const EXTRACTION_TOOL = {
-  type: "function",
-  function: {
-    name: "extract_tabu_data",
-    description: "Extracts structured planning data from an Israeli Tabu (Nesach) document.",
-    parameters: {
-      type: "object",
-      properties: {
-        units: { type: "number", description: "Number of dwelling units = number of sub-parcels (תת-חלקות)." },
-        floors: { type: "number", description: "Total floors = highest floor mentioned + 1 (ground=0, 1st=1, ...)." },
-        avgUnitSize: { type: "number", description: "Average unit size in sqm." },
-        plotArea: { type: "number", description: "Plot area in sqm (from common property section)." },
-        coverageRatio: { type: "number", description: "Coverage % = typical floor area / plot area * 100." },
-        buildingYear: { type: ["number", "null"], description: "Year of condominium registration deed, or null." },
-        warnings: {
-          type: "array",
-          description: "All cautionary notes (הערות אזהרה).",
-          items: {
-            type: "object",
-            properties: {
-              text: { type: "string" },
-              party: { type: "string", description: "Beneficiary party name." },
-              year: { type: "number" },
-            },
-            required: ["text", "party", "year"],
+  name: "extract_tabu_data",
+  description: "Extracts structured planning data from an Israeli Tabu (Nesach) document.",
+  input_schema: {
+    type: "object",
+    properties: {
+      units: { type: "number", description: "Number of dwelling units = number of sub-parcels (תת-חלקות)." },
+      floors: { type: "number", description: "Total floors = highest floor mentioned + 1 (ground=0, 1st=1, ...)." },
+      avgUnitSize: { type: "number", description: "Average unit size in sqm." },
+      plotArea: { type: "number", description: "Plot area in sqm (from common property section)." },
+      coverageRatio: { type: "number", description: "Coverage % = typical floor area / plot area * 100." },
+      buildingYear: { type: ["number", "null"], description: "Year of condominium registration deed, or null." },
+      warnings: {
+        type: "array",
+        description: "All cautionary notes (הערות אזהרה).",
+        items: {
+          type: "object",
+          properties: {
+            text: { type: "string" },
+            party: { type: "string", description: "Beneficiary party name." },
+            year: { type: "number" },
           },
+          required: ["text", "party", "year"],
         },
-        hasActiveRenewal: { type: "boolean", description: "True if a cautionary note relates to an active urban renewal (תמ\"א/פינוי-בינוי/התחדשות) process." },
-        renewalParty: { type: ["string", "null"], description: "Name of the renewal developer / party, if hasActiveRenewal." },
       },
-      required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty"],
-      additionalProperties: false,
+      hasActiveRenewal: { type: "boolean", description: "True if a cautionary note relates to an active urban renewal (תמ\"א/פינוי-בינוי/התחדשות) process." },
+      renewalParty: { type: ["string", "null"], description: "Name of the renewal developer / party, if hasActiveRenewal." },
     },
+    required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty"],
   },
 };
 
@@ -103,9 +99,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY missing" }), {
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
+      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY missing" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -130,54 +126,48 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. text → AI extraction
+    // 2. text → Claude extraction
     const truncated = pdfText.length > 60_000 ? pdfText.slice(0, 60_000) : pdfText;
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        model: "openai/gpt-5",
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        tools: [EXTRACTION_TOOL],
+        tool_choice: { type: "tool", name: EXTRACTION_TOOL.name },
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: `טקסט שחולץ מנסח הטאבו:\n\n${truncated}` },
         ],
-        tools: [EXTRACTION_TOOL],
-        tool_choice: { type: "function", function: { name: EXTRACTION_TOOL.function.name } },
       }),
     });
 
     if (!aiResp.ok) {
       if (aiResp.status === 429) {
-        return new Response(JSON.stringify({ error: "חרגת ממכסת בקשות AI — נסה שוב בעוד מספר דקות" }), {
+        return new Response(JSON.stringify({ error: "חרגת ממכסת בקשות Anthropic — נסה שוב בעוד מספר דקות" }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (aiResp.status === 402) {
-        return new Response(JSON.stringify({ error: "אזל הקרדיט בחשבון Lovable AI" }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
       const t = await aiResp.text();
-      console.error("AI error", aiResp.status, t);
-      return new Response(JSON.stringify({ error: "שגיאה בשירות ה-AI" }), {
+      console.error("Anthropic error", aiResp.status, t);
+      return new Response(JSON.stringify({ error: "שגיאה בשירות ה-AI", details: t.slice(0, 300) }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const aiJson = await aiResp.json();
-    const args = aiJson?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    if (!args) {
-      console.error("no tool call", JSON.stringify(aiJson).slice(0, 500));
+    const toolUse = Array.isArray(aiJson?.content)
+      ? aiJson.content.find((b: { type: string }) => b.type === "tool_use")
+      : null;
+    const raw = toolUse?.input;
+    if (!raw) {
+      console.error("no tool_use", JSON.stringify(aiJson).slice(0, 500));
       return new Response(JSON.stringify({ error: "ה-AI לא החזיר נתונים מובְנים" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    let raw: unknown;
-    try {
-      raw = JSON.parse(args);
-    } catch {
-      return new Response(JSON.stringify({ error: "תשובת AI לא תקינה" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
