@@ -903,6 +903,9 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             >
               <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 2</span>
               <span className="text-sm font-medium text-foreground">המצב הקיים על החלקה</span>
+              {tabuStatus === "done" && Number(existingUnits) > 0 && Number(existingFloors) > 0 && Number(existingBuiltArea) > 0 && (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-label="הושלם" />
+              )}
               <span className="text-[11px] text-muted-foreground">· אומת אוטומטית — תקן ידנית במידת הצורך</span>
               <ChevronDown className={`ms-auto h-4 w-4 text-muted-foreground transition-transform ${step2Open ? "rotate-180" : ""}`} />
             </button>
