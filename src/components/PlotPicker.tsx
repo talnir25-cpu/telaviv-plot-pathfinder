@@ -181,6 +181,21 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [step3Open, setStep3Open] = useState(true);
   const lookupReqRef = useRef(0);
   const geomReqRef = useRef(0);
+  const consReqRef = useRef(0);
+
+  // Conservation / UNESCO auto-check
+  interface ConservationMeta {
+    isConservation: boolean;
+    level: "א" | "ב" | null;
+    inUnescoBuffer: boolean;
+    confidence: "high" | "medium" | "low" | "unknown";
+    source: string;
+    reason?: string;
+    details?: { address?: string; planRef?: string };
+  }
+  const [conservationStatus, setConservationStatus] = useState<"idle" | "checking" | "done" | "error">("idle");
+  const [conservationMeta, setConservationMeta] = useState<ConservationMeta | null>(null);
+  const [conservationManual, setConservationManual] = useState(false);
 
   // Tabu PDF analysis state
   const [tabuAnalysis, setTabuAnalysis] = useState<TabuAnalysis | null>(null);
