@@ -598,6 +598,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         : "manual") as AnalysisInput["setbackSource"],
       street,
       address: addressForStreet ?? undefined,
+      tabuAnalysis: tabuAnalysis ?? undefined,
     };
     const parsed = analysisInputSchema.safeParse(candidate);
     if (!parsed.success) {
