@@ -491,16 +491,7 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
       });
     }
 
-    let report;
-    try {
-      report = JSON.parse(toolCall.function.arguments);
-    } catch (e) {
-      console.error("Failed to parse tool args", e, toolCall.function.arguments);
-      return new Response(JSON.stringify({ error: "Failed to parse AI response" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const report = toolCall.input as Record<string, unknown>;
 
     // ── Post-validation: deterministic sanity checks on AI output ──
     try {
