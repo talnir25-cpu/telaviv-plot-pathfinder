@@ -35,6 +35,17 @@ interface PlotInput {
   areaHint?: "declaration" | "market_street" | "rest";
   street?: string;
   address?: string;
+  tabuAnalysis?: {
+    units: number;
+    floors: number;
+    avgUnitSize: number;
+    plotArea: number;
+    coverageRatio: number;
+    buildingYear: number | null;
+    warnings: Array<{ text: string; party: string; year: number }>;
+    hasActiveRenewal: boolean;
+    renewalParty: string | null;
+  };
 }
 
 interface ZoneInfo {
