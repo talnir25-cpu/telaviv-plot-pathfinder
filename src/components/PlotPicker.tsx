@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import plotsData from "@/data/plots.json";
-import type { Plot, AnalysisInput } from "@/types/feasibility";
+import type { Plot, AnalysisInput, TabuAnalysis } from "@/types/feasibility";
 import { analysisInputSchema, formatErrorList } from "@/lib/validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Loader2, Search, Sparkles, MapPin, CheckCircle2, Database, Building2,
   Calculator, Activity, RefreshCw, ChevronDown, XCircle, AlertCircle, MinusCircle,
-  ExternalLink,
+  ExternalLink, Upload, FileCheck2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
