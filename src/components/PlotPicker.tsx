@@ -179,6 +179,84 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const lookupReqRef = useRef(0);
   const geomReqRef = useRef(0);
 
+  // Tabu PDF analysis state
+  const [tabuAnalysis, setTabuAnalysis] = useState<TabuAnalysis | null>(null);
+  const [tabuStatus, setTabuStatus] = useState<"idle" | "parsing" | "done" | "error">("idle");
+  const [tabuError, setTabuError] = useState<string | null>(null);
+  const [tabuFilename, setTabuFilename] = useState<string | null>(null);
+  const tabuInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleTabuUpload = async (file: File) => {
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("יש להעלות קובץ PDF בלבד");
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("הקובץ גדול מדי (מקסימום 15MB)");
+      return;
+    }
+    setTabuStatus("parsing");
+    setTabuError(null);
+    setTabuFilename(file.name);
+    try {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      // Chunked base64 encoding to avoid stack-overflow on large files
+      let bin = "";
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
+      }
+      const base64 = btoa(bin);
+      const { data, error } = await supabase.functions.invoke("parse-tabu-pdf", {
+        body: { fileBase64: base64, filename: file.name },
+      });
+      if (error || !data || data.error) {
+        const msg = data?.error || error?.message || "שגיאה בניתוח הנסח";
+        setTabuError(msg);
+        setTabuStatus("error");
+        toast.error(msg);
+        return;
+      }
+      const analysis = data.analysis as TabuAnalysis;
+      setTabuAnalysis(analysis);
+      setTabuStatus("done");
+      if (analysis.units > 0) {
+        setExistingUnits(String(analysis.units));
+        setExistingUnitsAuto(false);
+        setUnitsSource(null);
+      }
+      if (analysis.floors > 0) {
+        setExistingFloors(String(analysis.floors));
+        setExistingFloorsAuto(false);
+        setFloorsSource(null);
+      }
+      if (analysis.buildingYear && analysis.buildingYear >= 1900) {
+        setBuildingYear(String(analysis.buildingYear));
+        setYearAutoFilled(false);
+      }
+      if (analysis.plotArea > 0 && analysis.avgUnitSize > 0 && analysis.units > 0) {
+        setExistingBuiltArea(String(Math.round(analysis.avgUnitSize * analysis.units)));
+        setBuiltAreaSource(null);
+      }
+      toast.success("נסח הטאבו נותח בהצלחה — השדות עודכנו");
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : "שגיאה בלתי צפויה";
+      setTabuError(msg);
+      setTabuStatus("error");
+      toast.error(msg);
+    }
+  };
+
+  const clearTabu = () => {
+    setTabuAnalysis(null);
+    setTabuStatus("idle");
+    setTabuError(null);
+    setTabuFilename(null);
+    if (tabuInputRef.current) tabuInputRef.current.value = "";
+  };
+
   const lookupAddress = async () => {
     const q = address.trim();
     if (q.length < 3) {
