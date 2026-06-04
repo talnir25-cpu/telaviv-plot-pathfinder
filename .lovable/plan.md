@@ -1,79 +1,43 @@
-## הוספת "שלב 0 — נסח טאבו" כבסיס לבדיקה המקדימה
+## המטרה
+להחליף את ה-Switch הידני "מבנה לשימור / איזור הכרזת UNESCO" בבדיקה אוטומטית שמתבצעת מיד עם בחירת חלקה, ומציגה תוצאה ברורה (כן/לא/לא ודאי) עם מקור הנתון. המשתמש עדיין יוכל לדרוס ידנית.
 
-### מטרה
-לאפשר למשתמש להעלות נסח טאבו (PDF) כצעד פותח. הקובץ ייקרא ע"י AI ויחלץ נתונים מובְנים שיזינו אוטומטית את שלב 1 (זיהוי החלקה) ושלב 2 (המצב הקיים), עם רמת אמון של "מאומת מנסח טאבו" שתגבר על הערכות אוטומטיות (`nadlan`, `govmap_bldg`, `heuristic`) — אך תישאר ניתנת לעריכה ידנית.
+## מקורות נתונים (Tel Aviv Open Data + GovMap)
+1. **רשימת בניינים לשימור של עיריית ת"א** — דאטהסט פתוח (`buildingsforpreservation` ב-opendata.tel-aviv.gov.il) הכולל כתובת, גוש, חלקה, רמת שימור (א/ב), והאם בתוך מתחם UNESCO.
+2. **שכבת מתחמי שימור / White City UNESCO buffer zone** — פוליגון ידוע (לב העיר, רוטשילד, ככר דיזנגוף וכו'); נשתמש ב-GovMap WMS/WFS או פוליגון מקודד.
+3. **תכניות שימור עירוניות** (תא/2650ב) — נציין כהפניה במידע.
 
-### חוויית משתמש
-ב-`PlotPicker.tsx`, מעל "שלב 1", מתווסף בלוק חדש:
+## שינויים מוצעים
 
-```text
-┌─ שלב 0 · נסח טאבו (מומלץ) ────────────────────┐
-│  [⤴ העלה נסח טאבו PDF]   [או דלג להזנה ידנית] │
-│  סטטוס: מנתח… / נקראו N שדות / שגיאה          │
-│  סיכום שחולץ:                                   │
-│   • גוש 6953 · חלקה 120 · רובע 4 (זוהה)        │
-│   • שטח רשום: 720 מ"ר                           │
-│   • 6 בעלים רשומים · 2 משכנתאות · 1 הערת אזהרה │
-│   [ערוך נתונים]  [נקה]                          │
-└─────────────────────────────────────────────────┘
-```
+### 1) Edge Function חדש: `lookup-conservation-status`
+קלט: `{ gush, helka, centroidX?, centroidY?, address? }`
+לוגיקה:
+- שאילתה ל-API של עיריית ת"א לפי גוש+חלקה.
+- אם נמצא → מחזיר `{ isConservation: true, level: "א"|"ב", inUnescoBuffer: bool, source, planRef }`.
+- אם לא — בדיקת point-in-polygon מול גבול UNESCO buffer (אם יש קואורדינטות).
+- אם שני המקורות ריקים → `{ isConservation: false, confidence: "medium" }`.
+- כשל רשת → `{ status: "unknown", reason }` (לא חוסם את הניתוח).
+- Cache בזיכרון פנימי לפי `gush-helka`.
 
-לאחר פרסור מוצלח: שדות שלב 1 ו-2 ממולאים אוטומטית, ולצדם תג חדש "מנסח טאבו" (מקור `tabu` בעדיפות אחרי `manual` ולפני `nadlan`). ההערות המשפטיות (בעלים, משכנתאות, הערות אזהרה, עיקולים) זורמות לדוח כסקציה חדשה "מצב משפטי" עם דגלי סיכון.
+### 2) `PlotPicker.tsx`
+- `useEffect` חדש שמופעל עם `selectedPlot` (במקביל ל-`runLookup`) וקורא לפונקציה החדשה.
+- State: `conservationStatus: "checking" | "yes" | "no" | "unknown"`, `conservationMeta` (רמה, מקור, UNESCO).
+- אם החזרה `yes` → `setConservation(true)` אוטומטית.
+- ה-Switch הופך לתצוגה משולבת:
+  - Badge עם תוצאה ("מבנה לשימור — דרגה א'" / "במתחם UNESCO" / "לא נמצא ברישומי שימור" / "לא ניתן לאמת").
+  - אייקון מקור (כמו שאר השדות ב-PlotPicker).
+  - כפתור "דריסה ידנית" שמאפשר לשנות את הערך.
+- בשלב 1 ("זיהוי החלקה") יתווסף וי ירוק כשנמצא סטטוס ודאי (משלים את המנגנון הקיים).
 
-### זרימת עיבוד (Workflow)
+### 3) השפעה במורד הזרם
+- `analyze-plot` ימשיך לקבל `conservation: boolean` ללא שינוי חוזה.
+- ב-prompt ל-AI נוסיף שדה אופציונלי `conservationDetails` (רמה, UNESCO) כדי לשפר את הניתוח כאשר זמין.
+- ב-`DashboardReport` נציג את המקור והרמה במקום "כן/לא" יבש.
 
-```text
-PDF upload
-   │
-   ▼
-Storage bucket (tabu-extracts, private)  ──► חתימה זמנית
-   │
-   ▼
-Edge function: parse-tabu
-   │  1. document parse (OCR אם צריך) → טקסט גולמי + טבלאות
-   │  2. AI extraction (Lovable AI Gateway, google/gemini-2.5-pro, tool-call עם schema)
-   │  3. ולידציה (Zod) + נרמול שדות
-   │  4. כתיבת קאש ב-tabu_extracts (לפי hash של הקובץ)
-   ▼
-JSON מובנה חוזר ל-PlotPicker
-   │
-   ├─► prefill: quarter / gush / helka / area
-   ├─► prefill שלב 2: builtArea / units / floors / yearBuilt (כשקיים)
-   ├─► legal: owners[], mortgages[], cautionaryNotes[], liens[]
-   └─► שמירה ב-tabu_extracts כדי שלא יפורסר שוב באותו פרויקט
-```
+## פרטים טכניים
+- ה-API של עיריית ת"א דורש לעיתים מפתח חינמי; נשתמש קודם בנקודות הציבוריות (CKAN datastore_search) ללא מפתח. במידת הצורך נוסיף סוד `TLV_OPENDATA_KEY`.
+- פוליגון UNESCO buffer יקודד כקבוע ב-`_shared/unesco-buffer.ts` (≈100 קואורדינטות, ITM/EPSG:2039) — חוסך תלות ב-WMS חיצוני.
+- כל הקריאות עם timeout של 6 שניות; כשל לא יחסום את ה-flow.
 
-### שדות שמחולצים מהנסח
-- **זיהוי**: גוש, חלקה, תת-חלקה (אם יש), כתובת, רובע משוער.
-- **שטח**: שטח רשום של החלקה (מ"ר).
-- **בנייה רשומה**: שטח בנוי רשום, מס' יח"ד, מס' קומות, שנת רישום ראשונה (כשמופיע ברישום הבית המשותף).
-- **בעלות**: רשימת בעלים + שיעור חלק ברכוש המשותף → נגזר אחוז בעלים בעד פרויקט (קריטי לרף 67%/80% להתחדשות עירונית).
-- **שעבודים**: משכנתאות, עיקולים, הערות אזהרה, זיקות הנאה, הגבלות סחירות.
-- **בית משותף**: האם רשום כבית משותף + מספר תיק.
-
-### השפעה על הדוח
-- KPI חדש בכותרת: "כשירות לפינוי-בינוי" עם אחוז בעלים מאומת מהטאבו (במקום הערכה).
-- סקציית "מצב משפטי" חדשה ב-`DashboardReport` שמציגה דגלי סיכון (עיקול → אדום, הערת אזהרה לטובת צד ג' → כתום, משכנתא רגילה → ניטרלי).
-- במקור הנתונים בשלב 2 — שורה חדשה "נסח טאבו" עם אייקון מאומת ועדיפות 2 (אחרי manual).
-
-### שינויים בקוד
-
-**Frontend** (`src/components/PlotPicker.tsx`):
-- בלוק חדש מעל שלב 1 עם input file + מצב upload/parsing/done/error.
-- type `UnitsSource` מתרחב ל-`"tabu"`; `SOURCE_META.tabu = { label: "נסח טאבו", icon: FileCheck2, tone: "text-primary" }`.
-- פונקציית `handleTabuUpload` קוראת ל-edge `parse-tabu`, ועל הצלחה מבצעת `setQuarter/setGushQuery/setHelka` ושומרת את הנתונים החוקיים ב-state חדש `tabuData` שמועבר ל-`onAnalyze`.
-
-**Type** (`src/types/feasibility.ts`):
-- הרחבת `AnalysisInput` עם שדה אופציונלי `tabu?: TabuExtract` (סכמת בעלים/שעבודים/שטח רשום).
-
-**Backend**:
-- Storage bucket חדש `tabu-extracts` (private, RLS לפי owner).
-- טבלה חדשה `tabu_extracts` (`id, file_hash unique, gush, helka, raw_json, created_at`) + GRANT + RLS.
-- Edge function חדשה `supabase/functions/parse-tabu/index.ts`:
-  - מקבל `{ storagePath }` או `{ fileBase64 }`.
-  - מחשב SHA-256 → אם קיים בקאש, מחזיר מיד.
-  - מוריד מ-storage → `pdf-parse`/OCR לפי תוכן → שולח טקסט ל-Lovable AI עם tool-call schema קשיח (Zod) → מאמת → שומר → מחזיר JSON.
-- `supabase/functions/lookup-plot-units/index.ts`: הוספת `tabu` כמקור עם עדיפות 2 ב-`pickBest` (אחרי manual, לפני nadlan) — רק כשהקליינט מעביר את הערך כפרמטר.
-
-**Dashboard** (`src/components/DashboardReport.tsx`):
-- סקציית "מצב משפטי" חדשה שמוצגת ר
+## הערות
+- אין שינוי סכמה/DB.
+- בדיקה: cURL ל-edge function עם כמה גושים מוכרים (לב העיר vs. גבעת עמל) לאימות.
