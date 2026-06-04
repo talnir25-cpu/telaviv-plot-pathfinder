@@ -1545,15 +1545,79 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         </Dialog>
 
 
-        <div className="md:col-span-2 flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
-          <div>
-            <Label htmlFor="cons" className="cursor-pointer">
-              מבנה לשימור / איזור הכרזת UNESCO
-            </Label>
-            <p className="text-xs text-muted-foreground">סמן/י אם החלקה בתוך מתחם השימור</p>
+        <div className="md:col-span-2 rounded-lg border bg-muted/30 px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <Label htmlFor="cons" className="cursor-pointer">
+                מבנה לשימור / איזור הכרזת UNESCO
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {conservationManual
+                  ? "נדרס ידנית — שנה/י את המתג למטה"
+                  : "בדיקה אוטומטית מול רשימת בניינים לשימור של עיריית ת״א ופוליגון UNESCO"}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {conservationStatus === "checking" && (
+                <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  בודק…
+                </Badge>
+              )}
+              {conservationStatus === "done" && conservationMeta && !conservationManual && (
+                conservationMeta.isConservation ? (
+                  <Badge variant="outline" className="gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-3 w-3" />
+                    {conservationMeta.level
+                      ? `שימור — דרגה ${conservationMeta.level}`
+                      : conservationMeta.inUnescoBuffer
+                      ? "במתחם UNESCO"
+                      : "מבנה לשימור"}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+                    <MinusCircle className="h-3 w-3" />
+                    לא נמצא ברישומי שימור
+                  </Badge>
+                )
+              )}
+              {conservationStatus === "error" && (
+                <Badge variant="outline" className="gap-1 text-[10px] text-amber-600 dark:text-amber-400">
+                  <AlertCircle className="h-3 w-3" />
+                  לא ניתן לאמת
+                </Badge>
+              )}
+              <Switch
+                id="cons"
+                checked={conservation}
+                onCheckedChange={(v) => {
+                  setConservation(v);
+                  setConservationManual(true);
+                }}
+              />
+            </div>
           </div>
-          <Switch id="cons" checked={conservation} onCheckedChange={setConservation} />
+          {conservationStatus === "done" && conservationMeta && !conservationManual && (
+            <div className="text-[11px] text-muted-foreground space-y-0.5">
+              {conservationMeta.reason && <p>{conservationMeta.reason}</p>}
+              {conservationMeta.details?.address && (
+                <p>כתובת ברישום: {conservationMeta.details.address}</p>
+              )}
+              {conservationMeta.details?.planRef && conservationMeta.isConservation && (
+                <p>תכנית רלוונטית: {conservationMeta.details.planRef}</p>
+              )}
+              <p className="text-muted-foreground/80">
+                מקור: {conservationMeta.source === "tlv_opendata"
+                  ? 'עיריית ת"א — רשימת בניינים לשימור'
+                  : conservationMeta.source === "unesco_buffer"
+                  ? "פוליגון UNESCO (העיר הלבנה)"
+                  : conservationMeta.source}
+              </p>
+            </div>
+          )}
         </div>
+
+
 
         <div className="md:col-span-2">
           <Collapsible>
