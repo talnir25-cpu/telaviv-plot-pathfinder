@@ -436,20 +436,31 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
 החזר דוח היתכנות מלא ומובנה דרך הכלי render_feasibility_report.
 חשב את המכפיל, יח"ד חדשות, שטח מכירה משוער, וזהה דגלים אדומים רלוונטיים.`;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
+      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY missing" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-5",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [ANALYSIS_TOOL],
-        tool_choice: { type: "function", function: { name: "render_feasibility_report" } },
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 8192,
+        system: SYSTEM_PROMPT,
+        tools: [{
+          name: ANALYSIS_TOOL.function.name,
+          description: ANALYSIS_TOOL.function.description,
+          input_schema: ANALYSIS_TOOL.function.parameters,
+        }],
+        tool_choice: { type: "tool", name: "render_feasibility_report" },
+        messages: [{ role: "user", content: userPrompt }],
       }),
     });
 
@@ -460,24 +471,20 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (aiResp.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "אזל הקרדיט בחשבון Lovable AI — יש להוסיף קרדיט בהגדרות" }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
       const t = await aiResp.text();
-      console.error("AI gateway error:", aiResp.status, t);
-      return new Response(JSON.stringify({ error: "AI gateway error" }), {
+      console.error("Anthropic error:", aiResp.status, t);
+      return new Response(JSON.stringify({ error: "Anthropic error", details: t.slice(0, 300) }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const aiJson = await aiResp.json();
-    const toolCall = aiJson?.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) {
-      console.error("No tool call in response", JSON.stringify(aiJson));
+    const toolCall = Array.isArray(aiJson?.content)
+      ? aiJson.content.find((b: { type: string }) => b.type === "tool_use")
+      : null;
+    if (!toolCall?.input) {
+      console.error("No tool_use in response", JSON.stringify(aiJson));
       return new Response(JSON.stringify({ error: "AI did not return structured report" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
