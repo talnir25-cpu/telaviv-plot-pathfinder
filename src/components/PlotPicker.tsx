@@ -606,6 +606,10 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       </Tabs>
 
       <form onSubmit={submit} className="grid gap-5 md:grid-cols-2">
+        <div className="md:col-span-2 -mb-1 flex items-center gap-2 border-r-2 border-primary/50 pr-3">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 1</span>
+          <span className="text-sm font-medium text-foreground">זיהוי החלקה</span>
+        </div>
         <div className="space-y-2">
           <Label>רובע</Label>
           <Select
@@ -719,6 +723,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               "—"
             )}
           </div>
+        </div>
+
+        <div className="md:col-span-2 mt-2 flex items-center gap-2 border-r-2 border-primary/50 pr-3">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 2</span>
+          <span className="text-sm font-medium text-foreground">גיאומטריה ופרמטרים תכנוניים</span>
+          <span className="text-[11px] text-muted-foreground">· אופציונלי, משפר דיוק תכסית</span>
         </div>
 
         <div className="space-y-2 md:col-span-2">
@@ -960,6 +970,11 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           );
         })()}
 
+        <div className="md:col-span-2 mt-2 flex items-center gap-2 border-r-2 border-primary/50 pr-3">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 3</span>
+          <span className="text-sm font-medium text-foreground">המצב הקיים על החלקה</span>
+          <span className="text-[11px] text-muted-foreground">· אומת אוטומטית — תקן ידנית במידת הצורך</span>
+        </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
@@ -1276,18 +1291,35 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           <Switch id="cons" checked={conservation} onCheckedChange={setConservation} />
         </div>
 
-        <div className="md:col-span-2 space-y-2">
-          <Label htmlFor="notes">הערות נוספות (אופציונלי)</Label>
-          <Textarea
-            id="notes"
-            rows={2}
-            placeholder="לדוגמה: מגרש פינתי, חזית מסחרית, תב״ע נקודתית..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
+        <div className="md:col-span-2">
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button type="button" variant="ghost" size="sm" className="h-8 gap-1 px-2 text-xs text-muted-foreground">
+                <ChevronDown className="h-3.5 w-3.5 transition-transform data-[state=open]:rotate-180" />
+                הערות לאנליסט (אופציונלי){notes ? ` · ${notes.length} תווים` : ""}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <Textarea
+                id="notes"
+                rows={2}
+                placeholder="לדוגמה: מגרש פינתי, חזית מסחרית, תב״ע נקודתית..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 sticky bottom-0 -mx-6 -mb-6 mt-2 border-t bg-background/95 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          {selectedPlot && (
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              ינותח: רובע {quarter} · גוש {selectedPlot.gush} · חלקה {selectedPlot.helka}
+              {selectedPlot.effectiveArea > 0 && ` · ${selectedPlot.effectiveArea.toLocaleString("he-IL")} מ"ר`}
+              {existingUnits && ` · ${existingUnits} יח"ד`}
+              {existingFloors && ` · ${existingFloors} קומות`}
+            </p>
+          )}
           <Button
             type="submit"
             size="lg"
