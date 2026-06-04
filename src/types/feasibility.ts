@@ -166,6 +166,14 @@ export interface TabuAnalysis {
   warnings: TabuWarning[];
   hasActiveRenewal: boolean;
   renewalParty: string | null;
+  floorsDetected?: {
+    labels: string[];
+    hasGround: boolean;
+    hasRoof: boolean;
+    hasBasement: boolean;
+    highestAboveGround: number;
+  };
+  floorsExplain?: string;
 }
 
 
