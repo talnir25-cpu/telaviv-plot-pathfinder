@@ -770,6 +770,9 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               </TooltipContent>
             </Tooltip>
           )}
+        </div>
+
+
 
         <div className="md:col-span-2 mt-2 flex items-center gap-2 border-r-2 border-primary/50 pr-3">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">שלב 2</span>
