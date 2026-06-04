@@ -1239,7 +1239,10 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                   <div className="flex items-center gap-1.5">
                     <Label htmlFor="floors">קומות קיימות</Label>
                     {tabuAnalysis && tabuAnalysis.floors > 0 ? (
-                      <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+                      <span
+                        title={tabuAnalysis.floorsExplain || "נשלף מנסח טאבו"}
+                        className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 cursor-help"
+                      >
                         <FileCheck2 className="h-3 w-3" />
                         טאבו ✓
                       </span>
@@ -1278,6 +1281,14 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                   value={existingFloors}
                   onChange={(e) => { setExistingFloors(e.target.value.replace(/\D/g, "")); setExistingFloorsAuto(false); }}
                 />
+                {tabuAnalysis?.floorsExplain && (
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    {tabuAnalysis.floorsExplain}
+                    {tabuAnalysis.floorsDetected?.labels?.length ? (
+                      <> · קומות שזוהו: {tabuAnalysis.floorsDetected.labels.join(", ")}</>
+                    ) : null}
+                  </p>
+                )}
               </div>
 
               {selectedPlot && sources.length > 0 && (
