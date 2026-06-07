@@ -38,7 +38,7 @@ const ResultSchema = z.object({
     hasBasement: z.boolean(),
     highestAboveGround: z.number().int().min(0).max(60),
   }).optional(),
-  floorsExplain: z.string().max(300).optional(),
+  floorsExplain: z.string().max(2000).optional(),
 });
 
 const EXTRACTION_TOOL = {
