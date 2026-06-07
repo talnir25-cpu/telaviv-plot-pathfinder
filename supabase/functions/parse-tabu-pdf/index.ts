@@ -205,10 +205,20 @@ Deno.serve(async (req) => {
     if (typeof raw.floorsExplain === "string" && raw.floorsExplain.length > 2000) {
       raw.floorsExplain = raw.floorsExplain.slice(0, 2000);
     }
-    // Recompute floors authoritatively from floorsDetected to avoid AI arithmetic errors
-    if (raw.floorsDetected) {
+    // Recompute floors with priority: explicit > smart-derived from labels
+    if (typeof raw.floorsExplicit === "number" && raw.floorsExplicit > 0) {
+      raw.floors = raw.floorsExplicit;
+      raw.floorsExplain = `מצוין במפורש בנסח: ${raw.floorsExplicit} קומות`;
+    } else if (raw.floorsDetected) {
       const fd = raw.floorsDetected;
-      const computed = (fd.hasGround ? 1 : 0) + (Number(fd.highestAboveGround) || 0) + (fd.hasRoof ? 1 : 0);
+      const labels: string[] = Array.isArray(fd.labels) ? fd.labels : [];
+      const hasFirst = labels.some((l) => /ראשונה|^\s*א\s*'?\s*$/.test(String(l)));
+      const high = Number(fd.highestAboveGround) || 0;
+      const roof = fd.hasRoof ? 1 : 0;
+      // אם יש "ראשונה" — היא כבר מייצגת את הקומה הראשונה הפיזית (פעמים רבות = קרקע),
+      // ולכן לא מוסיפים +1 עבור קרקע. אחרת — מוסיפים את הקרקע אם קיימת.
+      const ground = (fd.hasGround && !hasFirst) ? 1 : 0;
+      const computed = high + roof + ground;
       if (computed > 0) raw.floors = computed;
     }
 
