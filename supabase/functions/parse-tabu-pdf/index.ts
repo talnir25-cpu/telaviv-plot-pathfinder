@@ -38,7 +38,7 @@ const ResultSchema = z.object({
     hasBasement: z.boolean(),
     highestAboveGround: z.number().int().min(0).max(60),
   }).optional(),
-  floorsExplain: z.string().max(300).optional(),
+  floorsExplain: z.string().max(2000).optional(),
 });
 
 const EXTRACTION_TOOL = {
@@ -200,6 +200,15 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "ה-AI לא החזיר נתונים מובְנים" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+    if (typeof raw.floorsExplain === "string" && raw.floorsExplain.length > 2000) {
+      raw.floorsExplain = raw.floorsExplain.slice(0, 2000);
+    }
+    // Recompute floors authoritatively from floorsDetected to avoid AI arithmetic errors
+    if (raw.floorsDetected) {
+      const fd = raw.floorsDetected;
+      const computed = (fd.hasGround ? 1 : 0) + (Number(fd.highestAboveGround) || 0) + (fd.hasRoof ? 1 : 0);
+      if (computed > 0) raw.floors = computed;
     }
 
     const result = ResultSchema.safeParse(raw);
