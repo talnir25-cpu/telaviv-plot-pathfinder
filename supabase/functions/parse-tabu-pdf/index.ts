@@ -217,26 +217,15 @@ Deno.serve(async (req) => {
     if (typeof raw.floorsExplain === "string" && raw.floorsExplain.length > 2000) {
       raw.floorsExplain = raw.floorsExplain.slice(0, 2000);
     }
-    // Recompute floors with priority: explicit > smart-derived from labels
-    if (typeof raw.floorsExplicit === "number" && raw.floorsExplicit > 0) {
-      raw.floors = raw.floorsExplicit;
-      raw.floorsExplain = `מצוין במפורש בנסח: ${raw.floorsExplicit} קומות`;
-    } else if (raw.floorsDetected) {
-      const fd = raw.floorsDetected;
-      const labels: string[] = Array.isArray(fd.labels) ? fd.labels : [];
-      const hasFirst = labels.some((l) => /ראשונה|ראשון|^\s*א\s*[׳']?\s*$/.test(String(l)));
-      const highestFromLabels = labels.reduce((max, label) => Math.max(max, floorNumberFromLabel(label) ?? 0), 0);
-      const high = Math.max(Number(fd.highestAboveGround) || 0, highestFromLabels);
-      const roof = fd.hasRoof ? 1 : 0;
-      // אם יש "ראשונה" — היא כבר מייצגת את הקומה הראשונה הפיזית (פעמים רבות = קרקע),
-      // ולכן לא מוסיפים +1 עבור קרקע. אחרת — מוסיפים את הקרקע אם קיימת.
-      const ground = (fd.hasGround && !hasFirst) ? 1 : 0;
-      const computed = high + roof + ground;
-      if (computed > 0) {
-        raw.floors = computed;
-        raw.floorsDetected.highestAboveGround = high;
-        raw.floorsExplain = `חושב לפי תוויות הקומות שזוהו: ${labels.join(", ")}. הקומה הגבוהה ביותר היא ${high}, ${hasFirst ? "קומת קרקע וראשונה אינן נספרות פעמיים" : "קומת קרקע נספרת בנפרד"}${roof ? ", כולל גג" : ""}. סה״כ ${computed} קומות.`;
-      }
+    // Deterministic recompute: floors = unique labels excluding ground/basement
+    const EXCLUDE_FROM_COUNT = new Set(['קרקע', 'מרתף', 'basement', 'ground']);
+    if (raw.floorsDetected && Array.isArray(raw.floorsDetected.labels)) {
+      const countableLabels = raw.floorsDetected.labels.filter(
+        (l: unknown) => !EXCLUDE_FROM_COUNT.has(String(l).trim().toLowerCase())
+      );
+      const uniqueCountable = new Set(countableLabels.map((l: unknown) => String(l).trim()));
+      raw.floors = uniqueCountable.size;
+      raw.floorsExplain = `${uniqueCountable.size} קומות (לא כולל קומת קרקע): ${[...uniqueCountable].join(', ')}`;
     }
 
     const result = ResultSchema.safeParse(raw);
