@@ -162,29 +162,52 @@ Deno.serve(async (req) => {
       );
     }
 
-    let query = address.trim();
-    if (!/תל[\s-]?אביב|tel\s*aviv|יפו|jaffa/i.test(query)) {
-      query = `${query} תל אביב`;
+    const rawQuery = address.trim();
+    const withCity = (q: string) =>
+      /תל[\s-]?אביב|tel\s*aviv|יפו|jaffa/i.test(q) ? q : `${q} תל אביב`;
+
+    // Build spelling/format variants. GovMap is finicky:
+    //  - Some streets are indexed with double-yod (ויצמן ↔ וייצמן, חיים ↔ ח.).
+    //  - Sometimes the city suffix actually *hurts* the match.
+    const variants = new Set<string>();
+    variants.add(withCity(rawQuery));
+    variants.add(rawQuery);
+    if (/ויצמן/.test(rawQuery)) {
+      variants.add(withCity(rawQuery.replace(/ויצמן/g, "וייצמן")));
+      variants.add(rawQuery.replace(/ויצמן/g, "וייצמן"));
+    }
+    if (/וייצמן/.test(rawQuery)) {
+      variants.add(withCity(rawQuery.replace(/וייצמן/g, "ויצמן")));
+      variants.add(rawQuery.replace(/וייצמן/g, "ויצמן"));
     }
 
-    // Step 1: FreeSearch → X/Y
-    const searchRes = await fetch("https://ags.govmap.gov.il/Search/FreeSearch", {
-      method: "POST",
-      headers: GOVMAP_HEADERS,
-      body: JSON.stringify({ keyword: query, LstResult: null }),
-    });
-    const searchText = await searchRes.text();
-    if (!searchRes.ok) {
-      throw new Error(`GovMap FreeSearch ${searchRes.status}: ${searchText.slice(0, 120)}`);
-    }
-    let searchJson: { data?: { Result?: Array<Record<string, unknown>> } };
-    try {
-      searchJson = JSON.parse(searchText);
-    } catch {
-      throw new Error(`FreeSearch לא תקין: ${searchText.slice(0, 120)}`);
+    // Step 1: FreeSearch → X/Y (try variants until one returns results)
+    let query = withCity(rawQuery);
+    let searchJson: { data?: { Result?: Array<Record<string, unknown>> } } = {};
+    let allResults: Array<Record<string, unknown>> = [];
+    for (const v of variants) {
+      const searchRes = await fetch("https://ags.govmap.gov.il/Search/FreeSearch", {
+        method: "POST",
+        headers: GOVMAP_HEADERS,
+        body: JSON.stringify({ keyword: v, LstResult: null }),
+      });
+      const searchText = await searchRes.text();
+      if (!searchRes.ok) continue;
+      try {
+        const parsed = JSON.parse(searchText);
+        const results = (parsed?.data?.Result ?? []) as Array<Record<string, unknown>>;
+        if (results.length > 0) {
+          searchJson = parsed;
+          allResults = results;
+          query = v;
+          break;
+        }
+      } catch {
+        // HTML error page — try next variant
+        continue;
+      }
     }
 
-    const allResults = (searchJson?.data?.Result ?? []) as Array<Record<string, unknown>>;
     if (allResults.length === 0) {
       return new Response(
         JSON.stringify({ error: "לא נמצאה כתובת תואמת. נסה/י כתובת מלאה כולל מספר בית." }),
