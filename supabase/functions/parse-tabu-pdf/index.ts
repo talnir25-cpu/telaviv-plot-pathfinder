@@ -90,15 +90,12 @@ const EXTRACTION_TOOL = {
 
 const SYSTEM_PROMPT = `אתה מומחה בניתוח נסחי טאבו ישראליים. נתח את הטקסט שחולץ מהנסח ושלוף בדיוק:
 1. מספר תת-חלקות של דירות = מספר יחידות דיור (אל תספור חניות/מחסנים נפרדים).
-2. **מספר קומות פיזיות** — לפי סדר העדיפויות הבא:
-   א. **floorsExplicit** — אם הנסח מציין במפורש בתיאור הנכס/רכוש משותף "בית בן X קומות" או "בניין בן X קומות" — החזר את X. זה הערך הסמכותי.
-   ב. אחרת — חשב מתוך תוויות הקומות בתת-חלקות:
-      - אסוף את תוויות הקומות הייחודיות: קרקע, ראשונה(=א), שניה(=ב), שלישית(=ג), רביעית(=ד), חמישית(=ה), שישית(=ו), גג, מרתף.
-      - **חשוב מאוד**: בנסחי טאבו ישראליים רבים "קומה ראשונה" היא **קומת הכניסה = קומת קרקע** (לא קומה מעליה). אם בנסח מופיעות הן "קרקע" והן "ראשונה" באותו בניין — סביר שאלה אותה קומה פיזית; אל תספור פעמיים. בדוק את ההקשר.
-      - highestAboveGround = מספר התווית הגבוהה ביותר שמופיעה: ראשונה/א=1, שניה/ב=2, שלישית/ג=3 וכו' — גם אם "ראשונה" חופפת לקרקע.
-      - floors = אם יש גם קרקע וגם ראשונה/א: highestAboveGround + גג; אחרת: highestAboveGround + (1 אם יש קרקע) + גג.
-      - מרתף אינו נספר.
-   ג. החזר גם floorsDetected מלא לאימות, וגם floorsExplain קצר (עד 200 תווים).
+2. **מספר קומות** = מספר תוויות הקומה הייחודיות בתת-חלקות, **לא כולל קרקע ולא כולל מרתף**.
+   דוגמאות:
+   - קרקע + ראשונה + שניה + שלישית → 3 קומות.
+   - קרקע + ראשונה + שניה → 2 קומות.
+   - רק קרקע → 0 קומות.
+   חובה להחזיר את כל תוויות הקומה הייחודיות שזוהו בשדה floorsDetected.labels (כולל "קרקע" ו"מרתף" אם הופיעו — הסינון נעשה בצד השרת).
 3. שטח ממוצע ליחידה במ"ר (סכום שטחי הדירות חלקי מספר היחידות).
 4. שטח החלקה במ"ר — מהרכוש המשותף.
 5. תכסית % = שטח קומה טיפוסית ÷ שטח חלקה × 100.
@@ -220,26 +217,15 @@ Deno.serve(async (req) => {
     if (typeof raw.floorsExplain === "string" && raw.floorsExplain.length > 2000) {
       raw.floorsExplain = raw.floorsExplain.slice(0, 2000);
     }
-    // Recompute floors with priority: explicit > smart-derived from labels
-    if (typeof raw.floorsExplicit === "number" && raw.floorsExplicit > 0) {
-      raw.floors = raw.floorsExplicit;
-      raw.floorsExplain = `מצוין במפורש בנסח: ${raw.floorsExplicit} קומות`;
-    } else if (raw.floorsDetected) {
-      const fd = raw.floorsDetected;
-      const labels: string[] = Array.isArray(fd.labels) ? fd.labels : [];
-      const hasFirst = labels.some((l) => /ראשונה|ראשון|^\s*א\s*[׳']?\s*$/.test(String(l)));
-      const highestFromLabels = labels.reduce((max, label) => Math.max(max, floorNumberFromLabel(label) ?? 0), 0);
-      const high = Math.max(Number(fd.highestAboveGround) || 0, highestFromLabels);
-      const roof = fd.hasRoof ? 1 : 0;
-      // אם יש "ראשונה" — היא כבר מייצגת את הקומה הראשונה הפיזית (פעמים רבות = קרקע),
-      // ולכן לא מוסיפים +1 עבור קרקע. אחרת — מוסיפים את הקרקע אם קיימת.
-      const ground = (fd.hasGround && !hasFirst) ? 1 : 0;
-      const computed = high + roof + ground;
-      if (computed > 0) {
-        raw.floors = computed;
-        raw.floorsDetected.highestAboveGround = high;
-        raw.floorsExplain = `חושב לפי תוויות הקומות שזוהו: ${labels.join(", ")}. הקומה הגבוהה ביותר היא ${high}, ${hasFirst ? "קומת קרקע וראשונה אינן נספרות פעמיים" : "קומת קרקע נספרת בנפרד"}${roof ? ", כולל גג" : ""}. סה״כ ${computed} קומות.`;
-      }
+    // Deterministic recompute: floors = unique labels excluding ground/basement
+    const EXCLUDE_FROM_COUNT = new Set(['קרקע', 'מרתף', 'basement', 'ground']);
+    if (raw.floorsDetected && Array.isArray(raw.floorsDetected.labels)) {
+      const countableLabels = raw.floorsDetected.labels.filter(
+        (l: unknown) => !EXCLUDE_FROM_COUNT.has(String(l).trim().toLowerCase())
+      );
+      const uniqueCountable = new Set(countableLabels.map((l: unknown) => String(l).trim()));
+      raw.floors = uniqueCountable.size;
+      raw.floorsExplain = `${uniqueCountable.size} קומות (לא כולל קומת קרקע): ${[...uniqueCountable].join(', ')}`;
     }
 
     const result = ResultSchema.safeParse(raw);
