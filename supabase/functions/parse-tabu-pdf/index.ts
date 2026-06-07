@@ -81,9 +81,10 @@ const EXTRACTION_TOOL = {
         },
         required: ["labels", "hasGround", "hasRoof", "hasBasement", "highestAboveGround"],
       },
-      floorsExplain: { type: "string", description: "הסבר קצר בעברית על אופן ספירת הקומות (למשל: 'קרקע + א-ג + גג = 5')." },
+      floorsExplain: { type: "string", description: "הסבר קצר בעברית על אופן ספירת הקומות." },
+      floorsExplicit: { type: ["number", "null"], description: "מספר הקומות אם מצוין במפורש בנסח (למשל 'בית בן X קומות' בתיאור הנכס/רכוש משותף). null אם לא מצוין." },
     },
-    required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty", "floorsDetected", "floorsExplain"],
+    required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty", "floorsDetected", "floorsExplain", "floorsExplicit"],
   },
 };
 
