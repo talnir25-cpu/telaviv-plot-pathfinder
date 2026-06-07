@@ -174,6 +174,7 @@ export interface TabuAnalysis {
     highestAboveGround: number;
   };
   floorsExplain?: string;
+  floorsExplicit?: number | null;
 }
 
 
