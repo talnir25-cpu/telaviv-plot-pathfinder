@@ -195,7 +195,15 @@ Deno.serve(async (req) => {
       ? aiJson.content.find((b: { type: string }) => b.type === "tool_use")
       : null;
     const raw = toolUse?.input;
-    if (!raw) {
+    if (raw && typeof raw.floorsExplain === "string" && raw.floorsExplain.length > 2000) {
+      raw.floorsExplain = raw.floorsExplain.slice(0, 2000);
+    }
+    // Recompute floors authoritatively from floorsDetected to avoid AI arithmetic errors
+    if (raw?.floorsDetected) {
+      const fd = raw.floorsDetected;
+      const computed = (fd.hasGround ? 1 : 0) + (Number(fd.highestAboveGround) || 0) + (fd.hasRoof ? 1 : 0);
+      if (computed > 0) raw.floors = computed;
+    }
       console.error("no tool_use", JSON.stringify(aiJson).slice(0, 500));
       return new Response(JSON.stringify({ error: "ה-AI לא החזיר נתונים מובְנים" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
