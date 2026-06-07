@@ -77,7 +77,7 @@ const EXTRACTION_TOOL = {
           hasGround: { type: "boolean", description: "האם מופיעה דירה/יחידה בקומת קרקע." },
           hasRoof: { type: "boolean", description: "האם מופיעה יחידה בקומת גג / חדר על הגג." },
           hasBasement: { type: "boolean", description: "האם מופיע מרתף." },
-          highestAboveGround: { type: "number", description: "מספר הקומה הגבוהה ביותר מעל הקרקע (א=1, ב=2, ...). אם רק קרקע — 0." },
+          highestAboveGround: { type: "number", description: "מספר תווית הקומה הגבוהה ביותר שמופיעה (ראשונה/א=1, שניה/ב=2, שלישית/ג=3, ...). אם רק קרקע — 0." },
         },
         required: ["labels", "hasGround", "hasRoof", "hasBasement", "highestAboveGround"],
       },
@@ -95,8 +95,8 @@ const SYSTEM_PROMPT = `אתה מומחה בניתוח נסחי טאבו ישרא
    ב. אחרת — חשב מתוך תוויות הקומות בתת-חלקות:
       - אסוף את תוויות הקומות הייחודיות: קרקע, ראשונה(=א), שניה(=ב), שלישית(=ג), רביעית(=ד), חמישית(=ה), שישית(=ו), גג, מרתף.
       - **חשוב מאוד**: בנסחי טאבו ישראליים רבים "קומה ראשונה" היא **קומת הכניסה = קומת קרקע** (לא קומה מעליה). אם בנסח מופיעות הן "קרקע" והן "ראשונה" באותו בניין — סביר שאלה אותה קומה פיזית; אל תספור פעמיים. בדוק את ההקשר.
-      - highestAboveGround = המספר של הקומה הגבוהה ביותר מעל הקרקע (ראשונה=1 או 0 לפי הפרשנות לעיל; שניה=2; וכו').
-      - floors = highestAboveGround + (1 אם יש קומת גג נפרדת) + (1 אם יש קרקע **ו**אין "ראשונה" באותו בניין).
+      - highestAboveGround = מספר התווית הגבוהה ביותר שמופיעה: ראשונה/א=1, שניה/ב=2, שלישית/ג=3 וכו' — גם אם "ראשונה" חופפת לקרקע.
+      - floors = אם יש גם קרקע וגם ראשונה/א: highestAboveGround + גג; אחרת: highestAboveGround + (1 אם יש קרקע) + גג.
       - מרתף אינו נספר.
    ג. החזר גם floorsDetected מלא לאימות, וגם floorsExplain קצר (עד 200 תווים).
 3. שטח ממוצע ליחידה במ"ר (סכום שטחי הדירות חלקי מספר היחידות).
@@ -115,6 +115,21 @@ function bytesFromBase64(b64: string): Uint8Array {
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
+}
+
+function floorNumberFromLabel(label: string): number | null {
+  const normalized = String(label).replace(/[׳'״"\s]/g, "");
+  if (/^(ראשונה|ראשון|א)$/.test(normalized)) return 1;
+  if (/^(שניה|שנייה|שני|ב)$/.test(normalized)) return 2;
+  if (/^(שלישית|שלישי|ג)$/.test(normalized)) return 3;
+  if (/^(רביעית|רביעי|ד)$/.test(normalized)) return 4;
+  if (/^(חמישית|חמישי|ה)$/.test(normalized)) return 5;
+  if (/^(שישית|שישי|ו)$/.test(normalized)) return 6;
+  if (/^(שביעית|שביעי|ז)$/.test(normalized)) return 7;
+  if (/^(שמינית|שמיני|ח)$/.test(normalized)) return 8;
+  if (/^(תשיעית|תשיעי|ט)$/.test(normalized)) return 9;
+  if (/^(עשירית|עשירי|י)$/.test(normalized)) return 10;
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -212,14 +227,19 @@ Deno.serve(async (req) => {
     } else if (raw.floorsDetected) {
       const fd = raw.floorsDetected;
       const labels: string[] = Array.isArray(fd.labels) ? fd.labels : [];
-      const hasFirst = labels.some((l) => /ראשונה|^\s*א\s*'?\s*$/.test(String(l)));
-      const high = Number(fd.highestAboveGround) || 0;
+      const hasFirst = labels.some((l) => /ראשונה|ראשון|^\s*א\s*[׳']?\s*$/.test(String(l)));
+      const highestFromLabels = labels.reduce((max, label) => Math.max(max, floorNumberFromLabel(label) ?? 0), 0);
+      const high = Math.max(Number(fd.highestAboveGround) || 0, highestFromLabels);
       const roof = fd.hasRoof ? 1 : 0;
       // אם יש "ראשונה" — היא כבר מייצגת את הקומה הראשונה הפיזית (פעמים רבות = קרקע),
       // ולכן לא מוסיפים +1 עבור קרקע. אחרת — מוסיפים את הקרקע אם קיימת.
       const ground = (fd.hasGround && !hasFirst) ? 1 : 0;
       const computed = high + roof + ground;
-      if (computed > 0) raw.floors = computed;
+      if (computed > 0) {
+        raw.floors = computed;
+        raw.floorsDetected.highestAboveGround = high;
+        raw.floorsExplain = `חושב לפי תוויות הקומות שזוהו: ${labels.join(", ")}. הקומה הגבוהה ביותר היא ${high}, ${hasFirst ? "קומת קרקע וראשונה אינן נספרות פעמיים" : "קומת קרקע נספרת בנפרד"}${roof ? ", כולל גג" : ""}. סה״כ ${computed} קומות.`;
+      }
     }
 
     const result = ResultSchema.safeParse(raw);
