@@ -779,7 +779,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
-                        <MinusCircle className="h-3 w-3" />
+                        <MinusCircle className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                         לא בשימור
                       </Badge>
                     )
