@@ -479,31 +479,53 @@ export const DashboardReport = ({
               <h3 className="text-base font-bold">נתוני חלקה</h3>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <StatTile icon={MapPin} label="גוש / חלקה" value={`${gush} / ${helka}`} />
+              <StatTile
+                icon={MapPin}
+                label="גוש / חלקה"
+                value={`${gush} / ${helka}`}
+                source="GovMap / נסח טאבו"
+              />
               <StatTile
                 icon={Ruler}
                 label="שטח מגרש"
                 value={plotArea > 0 ? fmt(plotArea) : "—"}
                 unit={plotArea > 0 ? 'מ"ר' : undefined}
+                source={input.shapeArea ? "GIS עיריית ת״א — שכבת חלקות" : "נסח טאבו / קלט משתמש"}
               />
-              <StatTile icon={Building2} label="יח״ד קיימות" value={fmt(report.existing.units)} />
-              <StatTile icon={Layers} label="קומות קיימות" value={fmt(report.existing.floors)} />
+              <StatTile
+                icon={Building2}
+                label="יח״ד קיימות"
+                value={fmt(report.existing.units)}
+                source="קלט משתמש / נסח טאבו"
+              />
+              <StatTile
+                icon={Layers}
+                label="קומות קיימות"
+                value={fmt(report.existing.floors)}
+                source="קלט משתמש / סקר שטח"
+              />
               <StatTile
                 icon={Layers}
                 label="שטח בנוי קיים"
                 value={fmt(report.existing.builtAreaSqm)}
                 unit='מ"ר'
+                source={
+                  input.existingBuiltAreaSource
+                    ? BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource
+                    : "אומדן"
+                }
               />
               <StatTile
                 icon={TrendingUp}
                 label="FAR קיים"
                 value={`${fmt(report.existing.far * 100)}%`}
+                source="חישוב: שטח בנוי ÷ שטח מגרש"
               />
-              <div className="flex items-center gap-3 rounded-xl border bg-card p-3">
+              <div className="flex items-start gap-3 rounded-xl border bg-card p-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Info className="h-5 w-5" />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                     מקור שטח בנוי
                   </p>
@@ -512,13 +534,16 @@ export const DashboardReport = ({
                       ? BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource
                       : "—"}
                   </p>
+                  <p className="mt-1 text-[10px] leading-tight text-muted-foreground/80">
+                    <span className="font-medium">מראה מקום:</span> שדה existingBuiltAreaSource בקלט הניתוח
+                  </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-xl border bg-card p-3">
+              <div className="flex items-start gap-3 rounded-xl border bg-card p-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <ShieldAlert className="h-5 w-5" />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                     שימור
                   </p>
@@ -535,6 +560,9 @@ export const DashboardReport = ({
                       {input.conservationDetails.planRef ? ` · ${input.conservationDetails.planRef}` : ""}
                     </p>
                   )}
+                  <p className="mt-1 text-[10px] leading-tight text-muted-foreground/80">
+                    <span className="font-medium">מקור:</span> רשימת שימור עיריית ת״א (תא/2650/ב)
+                  </p>
                 </div>
               </div>
             </div>
