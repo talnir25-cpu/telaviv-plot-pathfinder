@@ -40,6 +40,7 @@ const ResultSchema = z.object({
   }).optional(),
   floorsExplain: z.string().max(2000).optional(),
   floorsExplicit: z.number().int().min(0).max(60).nullable().optional(),
+  typicalFloorArea: z.number().min(0).max(20_000).nullable().optional(),
 });
 
 const EXTRACTION_TOOL = {
