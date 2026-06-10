@@ -91,8 +91,10 @@ const EXTRACTION_TOOL = {
       floorsExplain: { type: "string", description: "הסבר קצר בעברית על אופן ספירת הקומות." },
       floorsExplicit: { type: ["number", "null"], description: "מספר הקומות אם מצוין במפורש בנסח (למשל 'בית בן X קומות' בתיאור הנכס/רכוש משותף). null אם לא מצוין." },
       typicalFloorArea: { type: ["number", "null"], description: "שטח קומה טיפוסית במ\"ר — סכום שטחי הדירות בקומה אחת ייצוגית (לא כולל קרקע אם שונה). אם לא ניתן לחשב — null." },
+      commonPropertyShares: { type: "array", items: { type: "number" }, description: "מערך של המונים של החלקים ברכוש המשותף לכל תת-חלקה (למשל אם כתוב 'X/577' החזר X). כל היחידות מאותו נסח חייבות להופיע." },
+      commonPropertyDenominator: { type: ["number", "null"], description: "המכנה המשותף של החלקים ברכוש המשותף (למשל 577, 1000). אם לא ברור — null." },
     },
-    required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty", "floorsDetected", "floorsExplain", "floorsExplicit", "typicalFloorArea"],
+    required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty", "floorsDetected", "floorsExplain", "floorsExplicit", "typicalFloorArea", "commonPropertyShares", "commonPropertyDenominator"],
   },
 };
 
