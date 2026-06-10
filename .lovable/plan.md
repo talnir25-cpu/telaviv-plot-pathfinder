@@ -1,93 +1,48 @@
-# תמיכה בפוליגונים מרובי-טבעות (multi-rings עם חורים)
 
-## רקע
+## הבעיה
+ב-`DashboardReport` בלשונית "זכויות בנייה ותקנון", שדה "תכסית" מוצג כיום כערך אחד (`report.zoning.coveragePct`). כש-GIS מצליח, ה-edge דורס את הערך הזה ב-`coverageExact` (40.6%), אבל:
+- הכותרת המשנית עדיין כתובה "קירוב מלבני מקווי הבניין".
+- שטח הקומה הטיפוסי לידו עדיין מבוסס על קירוב מלבני מקווי הבניין — שני ערכים ממקורות שונים מוצגים יחד.
+- `buildingFootprint` הקיים ו-`coverageStatus` לא מוצגים בדוח כלל.
+- `renewalPotential.upliftPct` מחושב מול תכסית הבסיס שדרסנו, מה שמנפח את ה-uplift.
+- אין red-flag כש-תכסית קיימת > תכסית סטטוטורית (חריגה היסטורית).
 
-הקוד הנוכחי ב-`supabase/functions/fetch-plot-geometry/index.ts` משתמש רק ב-`rings[0]` של פוליגון החלקה ושל המבנים:
+## עקרון
+להפריד בין שני מושגים:
+- **תכסית קיימת (GIS)** — שטח המבנה הקיים בפועל. ערך עובדתי.
+- **תכסית תכנונית (קווי בניין)** — המעטפת המותרת. בסיס לחישוב `floorsNeededForFAR` ול-uplift.
 
-```ts
-const parcelRing = parcelFeature.geometry.rings[0];
-const ring = b?.geometry?.rings?.[0];
-```
+## שינויים
 
-ב-ArcGIS REST, השדה `rings` הוא מערך טבעות:
-- **טבעת חיצונית (outer)** — נקודות בכיוון השעון (CW), שטח חיובי בנוסחת Shoelace חתומה.
-- **טבעת פנימית/חור (hole)** — נקודות נגד כיוון השעון (CCW), שטח שלילי.
-- חלקה עם חצר פנימית, או מבנה בצורת U/O, מיוצגים כ-multi-rings.
+### 1) `supabase/functions/analyze-plot/index.ts`
+- להפסיק לדרוס את `report.zoning.coveragePct` ב-`coverageExact`.
+- להוסיף שדות חדשים ל-`report.zoning`:
+  - `coverageExistingPct` (= `coverageExact` כש-reliable)
+  - `buildingFootprintSqm` (= `buildingFootprint`)
+  - `coverageSource` (= `coverageStatus`)
+- להשאיר את `coveragePct` כקירוב מלבני (הוא הבסיס ל-`floorsNeededForFAR` ול-`renewalPotential.upliftPct` — לא לשנות חישובים אלו).
+- להוסיף red-flag חדש: אם `coverageExistingPct > coveragePct + 5` → "חריגה היסטורית מהמעטפת הסטטוטורית — בדיקה משפטית נדרשת".
+- להוסיף ל-`report.sources` את `coverageStatus` (קיים כבר).
 
-תוצאה של הקוד הנוכחי:
-1. **שטח footprint שגוי** — `polygonArea` רץ רק על `rings[0]` ומתעלם מטבעות נוספות (גם חורים וגם חלקים נפרדים של אותו מבנה).
-2. **סינון point-in-polygon לא מדויק** — מבנה שמרכזו בתוך חור בחלקה (חצר פנימית) ייכלל בטעות; חלקה מורכבת עם כמה טבעות חיצוניות תפסול מבנים לגיטימיים.
+### 2) `src/types/feasibility.ts`
+- להוסיף ל-`ZoningSummary`: `coverageExistingPct?`, `buildingFootprintSqm?`, `coverageSource?`.
 
-## מטרה
+### 3) `src/components/DashboardReport.tsx` (סביבות 556-608)
+- בכרטיס "שטח קומה טיפוסי":
+  - להציג `(תכסית תכנונית {coveragePct}%)` במקום `(תכסית {coveragePct}%)`.
+  - הכיתוב מתחת נשאר "קירוב מלבני מקווי הבניין" — נכון כעת.
+- להוסיף כרטיס חדש לידו (כש-`coverageExistingPct != null`):
+  - כותרת: "תכסית קיימת (GIS עירוני)" עם אייקון.
+  - ערך: `{coverageExistingPct}%`.
+  - שורה משנית: `שטח מבנה: {buildingFootprintSqm} מ"ר`.
+  - תגית מקור קטנה: `{coverageSource}`.
+  - אם יש חריגה (`coverageExistingPct > coveragePct + 5`): badge "חריגה היסטורית" בצבע אזהרה.
 
-לסנן מבנים נגד גיאומטריית חלקה נכונה (outer minus holes), ולחשב footprint של מבנים תוך כיבוד חורים.
+### 4) ללא שינוי
+- `kpi-calculations.ts`, `renewalPotential` — נשארים על בסיס המעטפת התכנונית.
+- `PlotPicker.tsx` — כבר מציג נכון את שני הערכים בשלב הקלט.
 
-## שינויים ב-`supabase/functions/fetch-plot-geometry/index.ts`
-
-### 1. עזרי גיאומטריה חדשים
-
-- `signedArea(ring)` — נוסחת Shoelace חתומה, ללא `Math.abs`. סימן מבדיל outer מ-hole.
-- `isOuterRing(ring)` — לפי סימן `signedArea` (ArcGIS: CW = שטח חתום שלילי במערכת מתמטית סטנדרטית = outer; נאמת מול דוגמה אמיתית בלוג).
-- `pointInPolygonWithHoles(pt, rings)` — מחזיר `true` רק אם הנקודה בתוך טבעת חיצונית אחת ומחוץ לכל החורים השייכים לה. גרסה פשוטה: בתוך מספר אי-זוגי של טבעות (rule odd-even על כל הטבעות יחד) — מספיק כשגיאומטריה תקנית.
-- `polygonAreaWithHoles(rings)` — סוכם `|signedArea|` של outers ומחסיר `|signedArea|` של holes.
-
-### 2. סינון מבנים — להחליף את הבלוק הקיים
-
-במקום:
-```ts
-const parcelRing = parcelFeature.geometry.rings[0];
-const matchedBuildings = buildings.filter((b) => {
-  const ring = b?.geometry?.rings?.[0];
-  if (!ring) return false;
-  return pointInPolygon(polygonCentroid(ring), parcelRing);
-});
-```
-
-החדש:
-```ts
-const parcelRings = parcelFeature.geometry.rings;
-const matchedBuildings = buildings.filter((b) => {
-  const rings = b?.geometry?.rings;
-  if (!rings?.length) return false;
-  // מרכז הטבעת החיצונית של המבנה (הגדולה ביותר)
-  const outer = rings.reduce((a, b) =>
-    Math.abs(signedArea(b)) > Math.abs(signedArea(a)) ? b : a);
-  return pointInPolygonWithHoles(polygonCentroid(outer), parcelRings);
-});
-```
-
-### 3. חישוב footprint עם חורים
-
-במקום:
-```ts
-for (const b of matchedBuildings) {
-  const ring = b?.geometry?.rings?.[0];
-  if (ring) buildingFootprint += polygonArea(ring);
-}
-```
-
-החדש:
-```ts
-for (const b of matchedBuildings) {
-  const rings = b?.geometry?.rings;
-  if (rings?.length) buildingFootprint += polygonAreaWithHoles(rings);
-}
-```
-
-### 4. Bounding box של החלקה
-
-ה-`allPts = rings.flat()` הקיים כבר כולל את כל הטבעות — נשאר כמו שהוא ועובד נכון.
-
-### 5. לוג
-
-הוספת `parcelRingCount` ו-`bldgRingCounts` ל-`TLV_GIS_BUILDINGS` כדי לאמת בייצור שטבעות מרובות אכן מתקבלות.
-
-## מה לא משתנה
-
-- `polygonArea` (חיובי) נשאר עבור שימושים אחרים.
-- `pointInPolygon` הישן (טבעת בודדת) נשאר כעזר ל-`pointInPolygonWithHoles`.
-- אין שינוי בחוזה הנתונים המוחזר ללקוח.
-
-## אימות
-
-לאחר deploy — בדיקה על חלקה ידועה (לדוגמה הנוכחית עם 87+ נקודות) שלוגי `TLV_GIS_BUILDINGS` מציגים את אותו `matchedCount`, ו-`footprint` קרוב/שווה לקודם (יורד מעט אם יש חורים אמיתיים).
+## קבצים נערכים
+- `supabase/functions/analyze-plot/index.ts`
+- `src/types/feasibility.ts`
+- `src/components/DashboardReport.tsx`
