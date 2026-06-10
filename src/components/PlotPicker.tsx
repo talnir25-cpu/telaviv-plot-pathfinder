@@ -1345,6 +1345,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
                     <Label htmlFor="floors">קומות קיימות</Label>
+                    <SourceBadge source="עדיפות: נסח טאבו (זיהוי תוויות קומה) → GIS עיריית ת״א (שכבת מבנים 513, ms_komot) → GovMap BLDG_FLOOR_USAGE" />
                     {tabuAnalysis && tabuAnalysis.floors > 0 ? (
                       <span
                         title={tabuAnalysis.floorsExplain || "נשלף מנסח טאבו"}
