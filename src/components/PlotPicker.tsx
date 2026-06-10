@@ -1121,7 +1121,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               </div>
 
               <div className="space-y-2">
-                <Label>שטח החלקה</Label>
+                <div className="flex items-center gap-1.5"><Label>שטח החלקה</Label><SourceBadge source="GIS עיריית ת״א — שכבת חלקות (524, שדה ms_shetach_rashum); בחוסר נתון רשום נעשה שימוש ב-Shape_Area" /></div>
                 <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
                   {selectedPlot ? (
                     <div className="space-y-1">
