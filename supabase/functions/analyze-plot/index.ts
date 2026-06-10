@@ -56,6 +56,11 @@ interface PlotInput {
     hasActiveRenewal: boolean;
     renewalParty: string | null;
   };
+  // ── תכסית מדויקת מ-GIS עיריית תל אביב ──
+  coverageExact?: number;
+  buildingFootprint?: number;
+  coverageReliable?: boolean;
+  coverageStatus?: string;
 }
 
 interface ZoneInfo {
