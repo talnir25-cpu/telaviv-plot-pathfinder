@@ -667,6 +667,7 @@ export const DashboardReport = ({
                         <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground/90">
                           <span className="font-semibold">לפי מעטפת תכנונית — קלט לחישוב מס׳ קומות:</span> סך שטח בנייה מותר ÷ שטח קומה.
                         </p>
+                        <SourceBadge source={`חישוב מקווי בניין · ${srcLabel}`} />
                       </div>
                     ) : (
                       <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
@@ -689,9 +690,7 @@ export const DashboardReport = ({
                             </span>
                           )}
                         </p>
-                        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                          {report.zoning.coverageSource ?? "GIS עיריית תל אביב — שכבות 524/513"}
-                        </p>
+                        <SourceBadge source={report.zoning.coverageSource ?? "GIS עיריית תל אביב — שכבות 524/513"} />
                       </div>
                     )}
                     <div className="rounded-lg border bg-muted/30 px-4 py-3">
@@ -706,6 +705,7 @@ export const DashboardReport = ({
                           ? "נדרשות יותר קומות לתמיכה בשטח המוצע"
                           : `חריגה ממקסימום ${fmt(maxFloorsVal)} קומות`}
                       </p>
+                      <SourceBadge source="חישוב: שטח מגרש × FAR ÷ שטח קומה טיפוסי" />
                     </div>
                   </div>
                   {report.zoning.coverageExistingPct != null && (() => {
