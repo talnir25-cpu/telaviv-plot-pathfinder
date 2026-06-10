@@ -548,9 +548,7 @@ export const DashboardReport = ({
                       ? BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource
                       : "—"}
                   </p>
-                  <p className="mt-1 text-[10px] leading-tight text-muted-foreground/80">
-                    <span className="font-medium">מראה מקום:</span> שדה existingBuiltAreaSource בקלט הניתוח
-                  </p>
+                  <SourceBadge source="שדה existingBuiltAreaSource בקלט הניתוח" />
                 </div>
               </div>
               <div className="flex items-start gap-3 rounded-xl border bg-card p-3">
