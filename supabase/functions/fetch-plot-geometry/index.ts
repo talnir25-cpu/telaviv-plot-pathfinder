@@ -329,21 +329,26 @@ Deno.serve(async (req) => {
         const bldgData = await fetchWithRetry(bldgUrl);
         const buildings = bldgData?.features ?? [];
 
-        // סנן: רק מבנים שמרכזם בתוך פוליגון החלקה (מסיר שכנים מה-envelope)
-        const parcelRing = parcelFeature.geometry.rings[0];
+        // סנן: רק מבנים שמרכזם בתוך פוליגון החלקה (תומך multi-rings + חורים)
+        const parcelRings = parcelFeature.geometry.rings as number[][][];
         const matchedBuildings = buildings.filter((b: { geometry?: { rings?: number[][][] } }) => {
-          const ring = b?.geometry?.rings?.[0];
-          if (!ring) return false;
-          return pointInPolygon(polygonCentroid(ring), parcelRing);
+          const rings = b?.geometry?.rings;
+          if (!rings?.length) return false;
+          // בחר את הטבעת הגדולה ביותר של המבנה כ-outer לחישוב מרכז
+          const outer = rings.reduce((a, c) =>
+            Math.abs(signedArea(c)) > Math.abs(signedArea(a)) ? c : a);
+          return pointInPolygonWithHoles(polygonCentroid(outer), parcelRings);
         });
 
         for (const b of matchedBuildings) {
-          const ring = b?.geometry?.rings?.[0];
-          if (ring) buildingFootprint += polygonArea(ring);
+          const rings = b?.geometry?.rings;
+          if (rings?.length) buildingFootprint += polygonAreaWithHoles(rings);
         }
         console.log("TLV_GIS_BUILDINGS", JSON.stringify({
           buildingCount: buildings.length,
           matchedCount: matchedBuildings.length,
+          parcelRingCount: parcelRings.length,
+          bldgRingCounts: matchedBuildings.map((b: { geometry?: { rings?: number[][][] } }) => b?.geometry?.rings?.length ?? 0),
           footprint: buildingFootprint,
           plotArea: plotAreaForCoverage,
         }));
