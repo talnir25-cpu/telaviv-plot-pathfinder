@@ -601,6 +601,9 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
         if (body.coverageReliable === true && typeof body.coverageExact === "number" && body.coverageExact > 0) {
           report.zoning.coveragePct = body.coverageExact;
           report.zoning.setbackSource = body.setbackSource ?? "regulation";
+          if (!Array.isArray(report.sources)) report.sources = [];
+          const srcLine = body.coverageStatus ?? "GIS עיריית תל אביב — שכבות 524/513";
+          if (!report.sources.includes(srcLine)) report.sources.push(srcLine);
         } else {
           report.zoning.coveragePct = coveragePctVal;
           report.zoning.setbackSource = body.setbackSource ?? "regulation";
