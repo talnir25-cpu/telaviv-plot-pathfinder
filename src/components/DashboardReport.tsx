@@ -100,14 +100,7 @@ const StatTile = ({
         {value}
         {unit && <span className="me-1 text-xs font-medium text-muted-foreground">{unit}</span>}
       </p>
-      {source && (
-        <p
-          className="mt-1 truncate text-[10px] leading-tight text-muted-foreground/80"
-          title={source}
-        >
-          <span className="font-medium">מקור:</span> {source}
-        </p>
-      )}
+      {source && <SourceBadge source={source} />}
     </div>
   </div>
 );
