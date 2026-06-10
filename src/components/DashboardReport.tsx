@@ -735,9 +735,7 @@ export const DashboardReport = ({
                                 </span>
                               )}
                             </p>
-                            <p className="mt-0.5 text-[10px] text-muted-foreground">
-                              {report.zoning.coverageSource ?? "GIS עיריית תל אביב — שכבות 524/513"}
-                            </p>
+                            <SourceBadge source={report.zoning.coverageSource ?? "GIS עיריית תל אביב — שכבות 524/513"} />
                           </div>
                         )}
                         <div className={`rounded-lg border bg-muted/30 px-4 py-3 ${coverageBasis === "existing" ? "sm:col-span-2" : ""}`}>
@@ -750,6 +748,7 @@ export const DashboardReport = ({
                               ? "המבנה הקיים חורג מקווי הבניין — בדיקה משפטית"
                               : "המבנה הקיים בתוך המעטפת הסטטוטורית"}
                           </p>
+                          <SourceBadge source="חישוב: תכסית קיימת − תכסית תכנונית" />
                         </div>
                       </div>
                     );
