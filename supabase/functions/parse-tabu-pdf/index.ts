@@ -231,6 +231,20 @@ Deno.serve(async (req) => {
       raw.floorsExplain = `${floorNumbers.size} קומות (לא כולל קרקע/מרתף): ${sorted.join(', ')}`;
     }
 
+    // Deterministic recompute: coverage % = typical floor area / plot area * 100
+    // אם typicalFloorArea זמין מ-Claude, השתמש בו; אחרת גזור מ-avgUnitSize × יחידות-לקומה (לא כולל קרקע)
+    {
+      let typical = typeof raw.typicalFloorArea === "number" ? raw.typicalFloorArea : 0;
+      if (!(typical > 0) && raw.avgUnitSize > 0 && raw.units > 0 && raw.floors > 0) {
+        const unitsPerFloor = raw.units / (raw.floors + 1); // +1 for ground floor
+        typical = raw.avgUnitSize * unitsPerFloor;
+        raw.typicalFloorArea = Math.round(typical * 10) / 10;
+      }
+      if (raw.plotArea > 0 && typical > 0) {
+        raw.coverageRatio = Math.round((typical / raw.plotArea) * 1000) / 10;
+      }
+    }
+
     const result = ResultSchema.safeParse(raw);
     if (!result.success) {
       console.error("validation failed", result.error.flatten());
