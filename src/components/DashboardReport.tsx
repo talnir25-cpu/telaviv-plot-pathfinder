@@ -778,6 +778,7 @@ export const DashboardReport = ({
                     <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
                       <p className="text-xs text-muted-foreground">מסלול</p>
                       <p className="mt-1 text-sm font-semibold">{rp.trackLabel}</p>
+                      <SourceBadge source={rp.source} />
                     </div>
                     <div className="rounded-lg border bg-muted/30 px-4 py-3">
                       <p className="text-xs text-muted-foreground">תכסית בהתחדשות</p>
@@ -787,6 +788,7 @@ export const DashboardReport = ({
                           ({fmt(rp.coveragePct)}%)
                         </span>
                       </p>
+                      <SourceBadge source={`חישוב מקווי בניין מוקלים · ${rp.source}`} />
                     </div>
                     <div className="rounded-lg border bg-muted/30 px-4 py-3">
                       <p className="text-xs text-muted-foreground">תוספת לקומה</p>
@@ -796,6 +798,7 @@ export const DashboardReport = ({
                           (+{fmt(rp.upliftPct)}%)
                         </span>
                       </p>
+                      <SourceBadge source="חישוב: תכסית התחדשות − תכסית סטטוטורית" />
                     </div>
                     <div className="rounded-lg border bg-muted/30 px-4 py-3">
                       <p className="text-xs text-muted-foreground">תוספת אפקטיבית סה״כ</p>
@@ -805,6 +808,7 @@ export const DashboardReport = ({
                       <p className="mt-0.5 text-[10px] text-muted-foreground">
                         מקדם מימוש {fmt(rp.realizationFactor * 100)}%
                       </p>
+                      <SourceBadge source={`תוספת לקומה × מס׳ קומות × מקדם מימוש (${fmt(rp.realizationFactor * 100)}%)`} />
                     </div>
                   </div>
                   <p className="mt-2 text-[11px] text-muted-foreground">
