@@ -572,9 +572,7 @@ export const DashboardReport = ({
                       {input.conservationDetails.planRef ? ` · ${input.conservationDetails.planRef}` : ""}
                     </p>
                   )}
-                  <p className="mt-1 text-[10px] leading-tight text-muted-foreground/80">
-                    <span className="font-medium">מקור:</span> רשימת שימור עיריית ת״א (תא/2650/ב)
-                  </p>
+                  <SourceBadge source="רשימת שימור עיריית ת״א (תא/2650/ב)" />
                 </div>
               </div>
             </div>
