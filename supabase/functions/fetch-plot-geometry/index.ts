@@ -40,6 +40,39 @@ function polygonArea(ring: number[][]): number {
   return Math.abs(area / 2);
 }
 
+// Ray-casting point-in-polygon (ITM coordinates)
+function pointInPolygon(pt: number[], ring: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if (((yi > pt[1]) !== (yj > pt[1])) &&
+        (pt[0] < (xj - xi) * (pt[1] - yi) / ((yj - yi) || 1e-9) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function polygonCentroid(ring: number[][]): number[] {
+  let cx = 0, cy = 0;
+  for (const p of ring) { cx += p[0]; cy += p[1]; }
+  return [cx / ring.length, cy / ring.length];
+}
+
+// fetch עם timeout ו-retry — מונע תקיעה על קריאות GIS איטיות
+async function fetchWithRetry(url: string, retries = 1): Promise<any> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) return await res.json();
+    } catch (_) { /* retry */ }
+  }
+  return null;
+}
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -245,7 +278,7 @@ Deno.serve(async (req) => {
         `https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/524/query` +
         `?where=ms_gush=${g}+AND+ms_chelka=${h}` +
         `&outFields=ms_shetach_rashum,Shape_Area&returnGeometry=true&outSR=2039&f=json`;
-      const parcelData = await (await fetch(parcelUrl)).json();
+      const parcelData = await fetchWithRetry(parcelUrl);
       const parcelFeature = parcelData?.features?.[0];
       const officialArea = Number(parcelFeature?.attributes?.ms_shetach_rashum) || 0;
       const shapeArea = Number(parcelFeature?.attributes?.Shape_Area) || 0;
@@ -253,33 +286,44 @@ Deno.serve(async (req) => {
       console.log("TLV_GIS_PARCEL", JSON.stringify({ found: !!parcelFeature, officialArea, shapeArea }));
 
       if (parcelFeature?.geometry?.rings) {
-        const geomParam = encodeURIComponent(JSON.stringify({
-          rings: parcelFeature.geometry.rings,
-          spatialReference: { wkid: 2039 },
-        }));
+        // שלח bounding box במקום פוליגון מלא — מונע timeout בחלקות מורכבות
+        const allPts = parcelFeature.geometry.rings.flat();
+        const xs = allPts.map((p: number[]) => p[0]);
+        const ys = allPts.map((p: number[]) => p[1]);
+        const envelope = `${Math.min(...xs)},${Math.min(...ys)},${Math.max(...xs)},${Math.max(...ys)}`;
         const bldgUrl =
           `https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/513/query` +
-          `?geometry=${geomParam}&geometryType=esriGeometryPolygon` +
+          `?geometry=${envelope}&geometryType=esriGeometryEnvelope` +
           `&inSR=2039&spatialRel=esriSpatialRelIntersects` +
           `&outFields=ms_komot,max_height,year&returnGeometry=true&outSR=2039&f=json`;
-        const bldgData = await (await fetch(bldgUrl)).json();
+        const bldgData = await fetchWithRetry(bldgUrl);
         const buildings = bldgData?.features ?? [];
-        for (const b of buildings) {
+
+        // סנן: רק מבנים שמרכזם בתוך פוליגון החלקה (מסיר שכנים מה-envelope)
+        const parcelRing = parcelFeature.geometry.rings[0];
+        const matchedBuildings = buildings.filter((b: { geometry?: { rings?: number[][][] } }) => {
+          const ring = b?.geometry?.rings?.[0];
+          if (!ring) return false;
+          return pointInPolygon(polygonCentroid(ring), parcelRing);
+        });
+
+        for (const b of matchedBuildings) {
           const ring = b?.geometry?.rings?.[0];
           if (ring) buildingFootprint += polygonArea(ring);
         }
         console.log("TLV_GIS_BUILDINGS", JSON.stringify({
           buildingCount: buildings.length,
+          matchedCount: matchedBuildings.length,
           footprint: buildingFootprint,
           plotArea: plotAreaForCoverage,
         }));
-        const komot = buildings
+        const komot = matchedBuildings
           .map((b: { attributes?: { ms_komot?: number } }) => b.attributes?.ms_komot)
           .filter((n: unknown): n is number => typeof n === "number" && n > 0);
-        const years = buildings
+        const years = matchedBuildings
           .map((b: { attributes?: { year?: number } }) => b.attributes?.year)
           .filter((n: unknown): n is number => typeof n === "number" && n > 1900);
-        const heights = buildings
+        const heights = matchedBuildings
           .map((b: { attributes?: { max_height?: number } }) => b.attributes?.max_height)
           .filter((n: unknown): n is number => typeof n === "number" && n > 0);
         if (komot.length) floorsFromGis = Math.max(...komot);
