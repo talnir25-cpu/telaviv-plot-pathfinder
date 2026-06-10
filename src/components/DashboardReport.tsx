@@ -881,10 +881,10 @@ export const DashboardReport = ({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatTile icon={TrendingUp} label="מכפיל יח״ד" value={`${fmt(report.metrics.multiplier, 2)}x`} accent />
-            <StatTile icon={Building2} label="יח״ד נטו" value={fmt(report.metrics.newUnits)} />
-            <StatTile icon={Layers} label="שטח מכירה" value={fmt(report.metrics.estimatedSellableArea)} unit='מ"ר' />
-            <StatTile icon={Ruler} label="דירה ממוצעת" value={fmt(report.metrics.avgUnitSize)} unit='מ"ר' />
+            <StatTile icon={TrendingUp} label="מכפיל יח״ד" value={`${fmt(report.metrics.multiplier, 2)}x`} accent source="יח״ד מוצעות ÷ יח״ד קיימות" />
+            <StatTile icon={Building2} label="יח״ד נטו" value={fmt(report.metrics.newUnits)} source="יח״ד מוצעות − יח״ד קיימות" />
+            <StatTile icon={Layers} label="שטח מכירה" value={fmt(report.metrics.estimatedSellableArea)} unit='מ"ר' source="שטח עיקרי מוצע × מקדם מכירה (~0.85)" />
+            <StatTile icon={Ruler} label="דירה ממוצעת" value={fmt(report.metrics.avgUnitSize)} unit='מ"ר' source="מקדם צפיפות לפי תקנון הרובע" />
           </div>
         </TabsContent>
 
