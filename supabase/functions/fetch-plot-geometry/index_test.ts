@@ -136,9 +136,9 @@ Deno.test("pointInPolygonWithHoles: on hole boundary is inside (ray-casting edge
 });
 
 Deno.test("pointInPolygonWithHoles: two holes — excluded if in either hole", () => {
-  // hole5CCW excludes (5,5); hole3CW excludes (2,2)
-  assertEquals(pointInPolygonWithHoles([5, 5], [outer10CW, hole5CCW, hole3CW]), false);
-  assertEquals(pointInPolygonWithHoles([2, 2], [outer10CW, hole5CCW, hole3CW]), false);
+  // hole5CCW excludes (5,5); hole3CCW excludes (2,2)
+  assertEquals(pointInPolygonWithHoles([5, 5], [outer10CW, hole5CCW, hole3CCW]), false);
+  assertEquals(pointInPolygonWithHoles([2, 2], [outer10CW, hole5CCW, hole3CCW]), false);
   // (8,8) inside outer, outside both holes
-  assertEquals(pointInPolygonWithHoles([8, 8], [outer10CW, hole5CCW, hole3CW]), true);
+  assertEquals(pointInPolygonWithHoles([8, 8], [outer10CW, hole5CCW, hole3CCW]), true);
 });
