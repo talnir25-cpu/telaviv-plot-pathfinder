@@ -99,6 +99,27 @@ const STATUS_ICON = {
   skipped: { Icon: AlertCircle, tone: "text-muted-foreground" },
 } as const;
 
+// תג קטן עם אייקון BookOpen ו-tooltip לציון מראה מקום של הנתון בתא.
+const SourceBadge = ({ source }: { source: string }) => (
+  <TooltipProvider delayDuration={150}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={`מראה מקום: ${source}`}
+          className="inline-flex h-4 w-4 items-center justify-center rounded text-muted-foreground/70 hover:text-primary transition-colors"
+        >
+          <BookOpen className="h-3 w-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[260px] text-[11px] leading-snug">
+        מראה מקום: {source}
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
+
 const MIN_PLOT_AREA_SQM = 100;
 const PUBLIC_LAND_THRESHOLD_SQM = 50_000;
 const AREA_DISCREPANCY_THRESHOLD = 0.2;
