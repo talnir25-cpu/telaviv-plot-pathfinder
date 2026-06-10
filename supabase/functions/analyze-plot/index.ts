@@ -597,8 +597,14 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
         report.zoning.sideSetbackM = body.sideSetbackM;
         report.zoning.rearSetbackM = body.rearSetbackM;
         report.zoning.typicalFloorAreaSqm = typicalFloorArea;
-        report.zoning.coveragePct = coveragePctVal;
-        report.zoning.setbackSource = body.setbackSource ?? "regulation";
+        // עדיפות עליונה: תכסית מ-GIS עיריית תל אביב כאשר אמינה
+        if (body.coverageReliable === true && typeof body.coverageExact === "number" && body.coverageExact > 0) {
+          report.zoning.coveragePct = body.coverageExact;
+          report.zoning.setbackSource = body.setbackSource ?? "regulation";
+        } else {
+          report.zoning.coveragePct = coveragePctVal;
+          report.zoning.setbackSource = body.setbackSource ?? "regulation";
+        }
 
         const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
         const proposedFloorsVal = report.proposed?.floors ?? 0;
