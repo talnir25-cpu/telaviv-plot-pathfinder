@@ -576,28 +576,75 @@ export const DashboardReport = ({
                 : "תקנון רובע";
               return (
                 <div className="mt-5 border-t pt-4">
-                  <div className="mb-3 flex items-center justify-between">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       תכסית וניצול
                     </p>
-                    <span className="text-[10px] text-muted-foreground">מקור קווי בניין: {srcLabel}</span>
+                    <div className="flex items-center gap-2">
+                      <ToggleGroup
+                        type="single"
+                        size="sm"
+                        value={coverageBasis}
+                        onValueChange={(v) => v && setCoverageBasis(v as "planning" | "existing")}
+                        className="h-7"
+                      >
+                        <ToggleGroupItem value="planning" className="h-7 px-2 text-[11px]">
+                          מעטפת תכנונית
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="existing"
+                          disabled={!hasExistingCoverage}
+                          className="h-7 px-2 text-[11px]"
+                        >
+                          תכסית קיימת
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                      <span className="text-[10px] text-muted-foreground">מקור קווי בניין: {srcLabel}</span>
+                    </div>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                      <p className="text-xs text-muted-foreground">שטח קומה טיפוסי</p>
-                      <p className="mt-1 text-base font-semibold">
-                        {fmt(report.zoning.typicalFloorAreaSqm)} מ״ר
-                        <span className="me-2 text-xs font-normal text-muted-foreground">
-                          (תכסית תכנונית {fmt(report.zoning.coveragePct ?? 0)}%)
-                        </span>
-                      </p>
-                      <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                        קירוב מלבני המבוסס על קווי הבניין (חזית/צד/אחור).
-                      </p>
-                      <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground/90">
-                        <span className="font-semibold">נחוץ לחישוב מס׳ הקומות הנדרשות:</span> סך שטח בנייה מותר ÷ שטח קומה. לא ניתן להסתמך על תכסית קיימת לחישוב זה — היא משקפת את המבנה הקיים בלבד, לא את המעטפת המותרת.
-                      </p>
-                    </div>
+                    {coverageBasis === "planning" ? (
+                      <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                        <p className="text-xs text-muted-foreground">שטח קומה טיפוסי</p>
+                        <p className="mt-1 text-base font-semibold">
+                          {fmt(report.zoning.typicalFloorAreaSqm)} מ״ר
+                          <span className="me-2 text-xs font-normal text-muted-foreground">
+                            (תכסית תכנונית {fmt(report.zoning.coveragePct ?? 0)}%)
+                          </span>
+                        </p>
+                        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                          קירוב מלבני המבוסס על קווי הבניין (חזית/צד/אחור).
+                        </p>
+                        <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground/90">
+                          <span className="font-semibold">נחוץ לחישוב מס׳ הקומות הנדרשות:</span> סך שטח בנייה מותר ÷ שטח קומה.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+                        <div className="mb-1 flex items-center justify-between">
+                          <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                            <Database className="h-3.5 w-3.5" />
+                            תכסית קיימת (GIS עירוני)
+                          </p>
+                          {(report.zoning.coverageExistingPct ?? 0) > (report.zoning.coveragePct ?? 0) + 5 && (
+                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                              חריגה היסטורית
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-base font-semibold text-primary">
+                          {fmt(report.zoning.coverageExistingPct ?? 0)}%
+                          {report.zoning.buildingFootprintSqm != null && (
+                            <span className="me-2 text-xs font-normal text-muted-foreground">
+                              · שטח מבנה: {fmt(report.zoning.buildingFootprintSqm)} מ״ר
+                            </span>
+                          )}
+                        </p>
+                        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                          {report.zoning.coverageSource ?? "GIS עיריית תל אביב — שכבות 524/513"}
+                        </p>
+                      </div>
+                    )}
                     <div className="rounded-lg border bg-muted/30 px-4 py-3">
                       <p className="text-xs text-muted-foreground">קומות נדרשות / מוצע</p>
                       <p className={`mt-1 text-base font-semibold ${statusColor}`}>
@@ -618,31 +665,33 @@ export const DashboardReport = ({
                     const overshoot = exist > planning + 5;
                     return (
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
-                          <div className="mb-1 flex items-center justify-between">
-                            <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
-                              <Database className="h-3.5 w-3.5" />
-                              תכסית קיימת (GIS עירוני)
+                        {coverageBasis === "planning" && (
+                          <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+                            <div className="mb-1 flex items-center justify-between">
+                              <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                                <Database className="h-3.5 w-3.5" />
+                                תכסית קיימת (GIS עירוני)
+                              </p>
+                              {overshoot && (
+                                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                                  חריגה היסטורית
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-base font-semibold text-primary">
+                              {fmt(exist)}%
+                              {report.zoning.buildingFootprintSqm != null && (
+                                <span className="me-2 text-xs font-normal text-muted-foreground">
+                                  · שטח מבנה: {fmt(report.zoning.buildingFootprintSqm)} מ״ר
+                                </span>
+                              )}
                             </p>
-                            {overshoot && (
-                              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                                חריגה היסטורית
-                              </span>
-                            )}
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">
+                              {report.zoning.coverageSource ?? "GIS עיריית תל אביב — שכבות 524/513"}
+                            </p>
                           </div>
-                          <p className="mt-1 text-base font-semibold text-primary">
-                            {fmt(exist)}%
-                            {report.zoning.buildingFootprintSqm != null && (
-                              <span className="me-2 text-xs font-normal text-muted-foreground">
-                                · שטח מבנה: {fmt(report.zoning.buildingFootprintSqm)} מ״ר
-                              </span>
-                            )}
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-muted-foreground">
-                            {report.zoning.coverageSource ?? "GIS עיריית תל אביב — שכבות 524/513"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                        )}
+                        <div className={`rounded-lg border bg-muted/30 px-4 py-3 ${coverageBasis === "existing" ? "sm:col-span-2" : ""}`}>
                           <p className="text-xs text-muted-foreground">פער מול המעטפת התכנונית</p>
                           <p className={`mt-1 text-base font-semibold ${overshoot ? "text-amber-600 dark:text-amber-500" : "text-emerald-600 dark:text-emerald-500"}`}>
                             {exist > planning ? "+" : ""}{fmt(exist - planning, 1)}%
@@ -656,6 +705,12 @@ export const DashboardReport = ({
                       </div>
                     );
                   })()}
+                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      <span className="font-semibold text-foreground">חישוב מספר הקומות הנדרשות מסתמך תמיד על המעטפת התכנונית</span> (קווי הבניין), ללא קשר למצב המתג. תכסית קיימת משמשת להשוואה ולזיהוי חריגות בלבד.
+                    </p>
+                  </div>
                 </div>
               );
             })()}
