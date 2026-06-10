@@ -591,16 +591,17 @@ export const DashboardReport = ({
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                { label: "גובה מקס׳", value: `${fmt(report.zoning.maxHeightMeters, 1)} מ׳` },
-                { label: "קומות מקס׳", value: fmt(report.zoning.maxFloors) },
-                { label: "FAR מקס׳", value: `${fmt(report.zoning.maxFAR * 100)}%` },
-                { label: "קו בניין קדמי", value: `${fmt(report.zoning.frontSetbackM, 1)} מ׳` },
-                { label: "קו בניין צדדי", value: `${fmt(report.zoning.sideSetbackM, 1)} מ׳` },
-                { label: "קו בניין אחורי", value: `${fmt(report.zoning.rearSetbackM, 1)} מ׳` },
+                { label: "גובה מקס׳", value: `${fmt(report.zoning.maxHeightMeters, 1)} מ׳`, source: `תקנון רובע ${input.quarter} · ${report.zoning.source}` },
+                { label: "קומות מקס׳", value: fmt(report.zoning.maxFloors), source: `תקנון רובע ${input.quarter} · ${report.zoning.source}` },
+                { label: "FAR מקס׳", value: `${fmt(report.zoning.maxFAR * 100)}%`, source: `תקנון רובע ${input.quarter} · ${report.zoning.source}` },
+                { label: "קו בניין קדמי", value: `${fmt(report.zoning.frontSetbackM, 1)} מ׳`, source: report.zoning.setbackSource === "manual" || report.zoning.setbackSource === "manual_override" ? "הזנת משתמש" : `תקנון רובע ${input.quarter} (תא/${input.quarter === 3 ? "3616/א" : "3729/א"})` },
+                { label: "קו בניין צדדי", value: `${fmt(report.zoning.sideSetbackM, 1)} מ׳`, source: report.zoning.setbackSource === "manual" || report.zoning.setbackSource === "manual_override" ? "הזנת משתמש" : `תקנון רובע ${input.quarter} (תא/${input.quarter === 3 ? "3616/א" : "3729/א"})` },
+                { label: "קו בניין אחורי", value: `${fmt(report.zoning.rearSetbackM, 1)} מ׳`, source: report.zoning.setbackSource === "manual" || report.zoning.setbackSource === "manual_override" ? "הזנת משתמש" : `תקנון רובע ${input.quarter} (תא/${input.quarter === 3 ? "3616/א" : "3729/א"})` },
               ].map((it) => (
                 <div key={it.label} className="rounded-lg border bg-muted/30 px-4 py-3">
                   <p className="text-xs text-muted-foreground">{it.label}</p>
                   <p className="mt-1 text-base font-semibold">{it.value}</p>
+                  <SourceBadge source={it.source} />
                 </div>
               ))}
             </div>
@@ -666,6 +667,7 @@ export const DashboardReport = ({
                         <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground/90">
                           <span className="font-semibold">לפי מעטפת תכנונית — קלט לחישוב מס׳ קומות:</span> סך שטח בנייה מותר ÷ שטח קומה.
                         </p>
+                        <SourceBadge source={`חישוב מקווי בניין · ${srcLabel}`} />
                       </div>
                     ) : (
                       <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
@@ -688,9 +690,7 @@ export const DashboardReport = ({
                             </span>
                           )}
                         </p>
-                        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                          {report.zoning.coverageSource ?? "GIS עיריית תל אביב — שכבות 524/513"}
-                        </p>
+                        <SourceBadge source={report.zoning.coverageSource ?? "GIS עיריית תל אביב — שכבות 524/513"} />
                       </div>
                     )}
                     <div className="rounded-lg border bg-muted/30 px-4 py-3">
@@ -705,6 +705,7 @@ export const DashboardReport = ({
                           ? "נדרשות יותר קומות לתמיכה בשטח המוצע"
                           : `חריגה ממקסימום ${fmt(maxFloorsVal)} קומות`}
                       </p>
+                      <SourceBadge source="חישוב: שטח מגרש × FAR ÷ שטח קומה טיפוסי" />
                     </div>
                   </div>
                   {report.zoning.coverageExistingPct != null && (() => {
@@ -734,9 +735,7 @@ export const DashboardReport = ({
                                 </span>
                               )}
                             </p>
-                            <p className="mt-0.5 text-[10px] text-muted-foreground">
-                              {report.zoning.coverageSource ?? "GIS עיריית תל אביב — שכבות 524/513"}
-                            </p>
+                            <SourceBadge source={report.zoning.coverageSource ?? "GIS עיריית תל אביב — שכבות 524/513"} />
                           </div>
                         )}
                         <div className={`rounded-lg border bg-muted/30 px-4 py-3 ${coverageBasis === "existing" ? "sm:col-span-2" : ""}`}>
@@ -749,6 +748,7 @@ export const DashboardReport = ({
                               ? "המבנה הקיים חורג מקווי הבניין — בדיקה משפטית"
                               : "המבנה הקיים בתוך המעטפת הסטטוטורית"}
                           </p>
+                          <SourceBadge source="חישוב: תכסית קיימת − תכסית תכנונית" />
                         </div>
                       </div>
                     );
@@ -778,6 +778,7 @@ export const DashboardReport = ({
                     <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
                       <p className="text-xs text-muted-foreground">מסלול</p>
                       <p className="mt-1 text-sm font-semibold">{rp.trackLabel}</p>
+                      <SourceBadge source={rp.source} />
                     </div>
                     <div className="rounded-lg border bg-muted/30 px-4 py-3">
                       <p className="text-xs text-muted-foreground">תכסית בהתחדשות</p>
@@ -787,6 +788,7 @@ export const DashboardReport = ({
                           ({fmt(rp.coveragePct)}%)
                         </span>
                       </p>
+                      <SourceBadge source={`חישוב מקווי בניין מוקלים · ${rp.source}`} />
                     </div>
                     <div className="rounded-lg border bg-muted/30 px-4 py-3">
                       <p className="text-xs text-muted-foreground">תוספת לקומה</p>
@@ -796,6 +798,7 @@ export const DashboardReport = ({
                           (+{fmt(rp.upliftPct)}%)
                         </span>
                       </p>
+                      <SourceBadge source="חישוב: תכסית התחדשות − תכסית סטטוטורית" />
                     </div>
                     <div className="rounded-lg border bg-muted/30 px-4 py-3">
                       <p className="text-xs text-muted-foreground">תוספת אפקטיבית סה״כ</p>
@@ -805,6 +808,7 @@ export const DashboardReport = ({
                       <p className="mt-0.5 text-[10px] text-muted-foreground">
                         מקדם מימוש {fmt(rp.realizationFactor * 100)}%
                       </p>
+                      <SourceBadge source={`תוספת לקומה × מס׳ קומות × מקדם מימוש (${fmt(rp.realizationFactor * 100)}%)`} />
                     </div>
                   </div>
                   <p className="mt-2 text-[11px] text-muted-foreground">
@@ -877,10 +881,10 @@ export const DashboardReport = ({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatTile icon={TrendingUp} label="מכפיל יח״ד" value={`${fmt(report.metrics.multiplier, 2)}x`} accent />
-            <StatTile icon={Building2} label="יח״ד נטו" value={fmt(report.metrics.newUnits)} />
-            <StatTile icon={Layers} label="שטח מכירה" value={fmt(report.metrics.estimatedSellableArea)} unit='מ"ר' />
-            <StatTile icon={Ruler} label="דירה ממוצעת" value={fmt(report.metrics.avgUnitSize)} unit='מ"ר' />
+            <StatTile icon={TrendingUp} label="מכפיל יח״ד" value={`${fmt(report.metrics.multiplier, 2)}x`} accent source="יח״ד מוצעות ÷ יח״ד קיימות" />
+            <StatTile icon={Building2} label="יח״ד נטו" value={fmt(report.metrics.newUnits)} source="יח״ד מוצעות − יח״ד קיימות" />
+            <StatTile icon={Layers} label="שטח מכירה" value={fmt(report.metrics.estimatedSellableArea)} unit='מ"ר' source="שטח עיקרי מוצע × מקדם מכירה (~0.85)" />
+            <StatTile icon={Ruler} label="דירה ממוצעת" value={fmt(report.metrics.avgUnitSize)} unit='מ"ר' source="מקדם צפיפות לפי תקנון הרובע" />
           </div>
         </TabsContent>
 
