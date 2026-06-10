@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PlotMap } from "@/components/PlotMap";
 import { FinancialAnalysis } from "@/components/FinancialAnalysis";
 import {
