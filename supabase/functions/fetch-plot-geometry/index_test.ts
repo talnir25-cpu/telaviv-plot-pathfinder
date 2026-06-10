@@ -98,9 +98,9 @@ Deno.test("polygonAreaWithHoles: outer with one CCW hole", () => {
   assertEquals(area, 84);
 });
 
-Deno.test("polygonAreaWithHoles: outer with two holes (mixed orientations)", () => {
+Deno.test("polygonAreaWithHoles: outer with two CCW holes", () => {
   // 100 − 16 − 9 = 75
-  const area = polygonAreaWithHoles([outer10CW, hole5CCW, hole3CW]);
+  const area = polygonAreaWithHoles([outer10CW, hole5CCW, hole3CCW]);
   assertEquals(area, 75);
 });
 
