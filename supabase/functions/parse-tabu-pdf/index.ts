@@ -217,15 +217,16 @@ Deno.serve(async (req) => {
     if (typeof raw.floorsExplain === "string" && raw.floorsExplain.length > 2000) {
       raw.floorsExplain = raw.floorsExplain.slice(0, 2000);
     }
-    // Deterministic recompute: floors = unique labels excluding ground/basement
-    const EXCLUDE_FROM_COUNT = new Set(['קרקע', 'מרתף', 'basement', 'ground']);
+    // Deterministic recompute: count unique floor numbers >= 1 (excludes ground/basement)
     if (raw.floorsDetected && Array.isArray(raw.floorsDetected.labels)) {
-      const countableLabels = raw.floorsDetected.labels.filter(
-        (l: unknown) => !EXCLUDE_FROM_COUNT.has(String(l).trim().toLowerCase())
-      );
-      const uniqueCountable = new Set(countableLabels.map((l: unknown) => String(l).trim()));
-      raw.floors = uniqueCountable.size;
-      raw.floorsExplain = `${uniqueCountable.size} קומות (לא כולל קומת קרקע): ${[...uniqueCountable].join(', ')}`;
+      const floorNumbers = new Set<number>();
+      for (const label of raw.floorsDetected.labels) {
+        const n = floorNumberFromLabel(String(label));
+        if (n !== null && n >= 1) floorNumbers.add(n);
+      }
+      raw.floors = floorNumbers.size;
+      const sorted = [...floorNumbers].sort((a, b) => a - b);
+      raw.floorsExplain = `${floorNumbers.size} קומות (לא כולל קרקע/מרתף): ${sorted.join(', ')}`;
     }
 
     const result = ResultSchema.safeParse(raw);
