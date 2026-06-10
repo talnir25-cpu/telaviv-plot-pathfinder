@@ -253,6 +253,28 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Deterministic validation: sum of common-property shares ≈ denominator → all units extracted
+    if (Array.isArray(raw.commonPropertyShares) && raw.commonPropertyShares.length > 0) {
+      const sumShares = raw.commonPropertyShares.reduce((a: number, b: number) => a + b, 0);
+      const denominator = typeof raw.commonPropertyDenominator === "number" && raw.commonPropertyDenominator > 0
+        ? raw.commonPropertyDenominator
+        : 0;
+      if (denominator > 0) {
+        const sharesValid = Math.abs(sumShares - denominator) / denominator < 0.05;
+        raw.validation = {
+          sharesValid,
+          sharesMessage: sharesValid
+            ? `כל היחידות זוהו (סך החלקים ${sumShares}/${denominator} תקין)`
+            : `אזהרה: סך החלקים ${sumShares}/${denominator} — ייתכן שחלק מהיחידות חסרות בנסח`,
+        };
+      } else {
+        raw.validation = {
+          sharesValid: false,
+          sharesMessage: `לא זוהה מכנה משותף לחלקים ברכוש המשותף — לא ניתן לאמת שלמות (סכום החלקים: ${sumShares})`,
+        };
+      }
+    }
+
     const result = ResultSchema.safeParse(raw);
     if (!result.success) {
       console.error("validation failed", result.error.flatten());
