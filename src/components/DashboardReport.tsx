@@ -587,7 +587,12 @@ export const DashboardReport = ({
                           (תכסית תכנונית {fmt(report.zoning.coveragePct ?? 0)}%)
                         </span>
                       </p>
-                      <p className="mt-0.5 text-[10px] text-muted-foreground">קירוב מלבני מקווי הבניין</p>
+                      <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                        קירוב מלבני המבוסס על קווי הבניין (חזית/צד/אחור).
+                      </p>
+                      <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground/90">
+                        <span className="font-semibold">נחוץ לחישוב מס׳ הקומות הנדרשות:</span> סך שטח בנייה מותר ÷ שטח קומה. לא ניתן להסתמך על תכסית קיימת לחישוב זה — היא משקפת את המבנה הקיים בלבד, לא את המעטפת המותרת.
+                      </p>
                     </div>
                     <div className="rounded-lg border bg-muted/30 px-4 py-3">
                       <p className="text-xs text-muted-foreground">קומות נדרשות / מוצע</p>
