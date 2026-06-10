@@ -84,8 +84,9 @@ const EXTRACTION_TOOL = {
       },
       floorsExplain: { type: "string", description: "הסבר קצר בעברית על אופן ספירת הקומות." },
       floorsExplicit: { type: ["number", "null"], description: "מספר הקומות אם מצוין במפורש בנסח (למשל 'בית בן X קומות' בתיאור הנכס/רכוש משותף). null אם לא מצוין." },
+      typicalFloorArea: { type: ["number", "null"], description: "שטח קומה טיפוסית במ\"ר — סכום שטחי הדירות בקומה אחת ייצוגית (לא כולל קרקע אם שונה). אם לא ניתן לחשב — null." },
     },
-    required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty", "floorsDetected", "floorsExplain", "floorsExplicit"],
+    required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty", "floorsDetected", "floorsExplain", "floorsExplicit", "typicalFloorArea"],
   },
 };
 
