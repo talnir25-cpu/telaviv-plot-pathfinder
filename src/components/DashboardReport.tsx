@@ -63,6 +63,26 @@ const FLAG_STYLES = {
 const fmt = (n: number, d = 0) =>
   Number.isFinite(n) ? n.toLocaleString("he-IL", { minimumFractionDigits: d, maximumFractionDigits: d }) : "—";
 
+const SourceBadge = ({ source }: { source: string }) => (
+  <TooltipProvider delayDuration={150}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={`מקור: ${source}`}
+          className="mt-1 inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-[10px] font-medium text-primary/80 hover:bg-primary/10 hover:text-primary transition-colors"
+        >
+          <BookOpen className="h-3 w-3" />
+          <span className="max-w-[140px] truncate">{source}</span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-xs text-right" dir="rtl">
+        <p className="text-xs"><span className="font-semibold">מראה מקום: </span>{source}</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
+
 const StatTile = ({
   icon: Icon,
   label,
