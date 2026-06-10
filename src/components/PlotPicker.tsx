@@ -1522,6 +1522,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5">
                       <Label htmlFor="plot-depth" className="text-sm">עומק מגרש (מ׳)</Label>
+                      <SourceBadge source="GovMap — IdentifyByXY על שכבת PARCEL_ALL; חישוב ymax−ymin של ה-extent בקואורדינטות ITM (wkid 2039). ניתן לעדכון ידני." />
                       {geometryAutoFilled && (
                         <span
                           title="נשלף אוטומטית מ-GovMap"
