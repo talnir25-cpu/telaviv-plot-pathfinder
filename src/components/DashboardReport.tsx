@@ -604,8 +604,8 @@ export const DashboardReport = ({
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {coverageBasis === "planning" ? (
-                      <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                        <p className="text-xs text-muted-foreground">שטח קומה טיפוסי</p>
+                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                        <p className="text-xs text-muted-foreground">שטח עיקרי מרבי לקומה</p>
                         <p className="mt-1 text-base font-semibold">
                           {fmt(report.zoning.typicalFloorAreaSqm)} מ״ר
                           <span className="me-2 text-xs font-normal text-muted-foreground">
@@ -616,7 +616,7 @@ export const DashboardReport = ({
                           קירוב מלבני המבוסס על קווי הבניין (חזית/צד/אחור).
                         </p>
                         <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground/90">
-                          <span className="font-semibold">נחוץ לחישוב מס׳ הקומות הנדרשות:</span> סך שטח בנייה מותר ÷ שטח קומה.
+                          <span className="font-semibold">לפי מעטפת תכנונית — קלט לחישוב מס׳ קומות:</span> סך שטח בנייה מותר ÷ שטח קומה.
                         </p>
                       </div>
                     ) : (
