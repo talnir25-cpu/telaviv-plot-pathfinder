@@ -1,5 +1,7 @@
 
+import { useState } from "react";
 import type { FeasibilityReport, AnalysisInput } from "@/types/feasibility";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { KpiHeader } from "@/components/KpiHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
