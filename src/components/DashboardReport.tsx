@@ -584,7 +584,7 @@ export const DashboardReport = ({
                       <p className="mt-1 text-base font-semibold">
                         {fmt(report.zoning.typicalFloorAreaSqm)} מ״ר
                         <span className="me-2 text-xs font-normal text-muted-foreground">
-                          (תכסית {fmt(report.zoning.coveragePct ?? 0)}%)
+                          (תכסית תכנונית {fmt(report.zoning.coveragePct ?? 0)}%)
                         </span>
                       </p>
                       <p className="mt-0.5 text-[10px] text-muted-foreground">קירוב מלבני מקווי הבניין</p>
@@ -603,6 +603,50 @@ export const DashboardReport = ({
                       </p>
                     </div>
                   </div>
+                  {report.zoning.coverageExistingPct != null && (() => {
+                    const exist = report.zoning.coverageExistingPct;
+                    const planning = report.zoning.coveragePct ?? 0;
+                    const overshoot = exist > planning + 5;
+                    return (
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+                          <div className="mb-1 flex items-center justify-between">
+                            <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                              <Database className="h-3.5 w-3.5" />
+                              תכסית קיימת (GIS עירוני)
+                            </p>
+                            {overshoot && (
+                              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                                חריגה היסטורית
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-base font-semibold text-primary">
+                            {fmt(exist)}%
+                            {report.zoning.buildingFootprintSqm != null && (
+                              <span className="me-2 text-xs font-normal text-muted-foreground">
+                                · שטח מבנה: {fmt(report.zoning.buildingFootprintSqm)} מ״ר
+                              </span>
+                            )}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">
+                            {report.zoning.coverageSource ?? "GIS עיריית תל אביב — שכבות 524/513"}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                          <p className="text-xs text-muted-foreground">פער מול המעטפת התכנונית</p>
+                          <p className={`mt-1 text-base font-semibold ${overshoot ? "text-amber-600 dark:text-amber-500" : "text-emerald-600 dark:text-emerald-500"}`}>
+                            {exist > planning ? "+" : ""}{fmt(exist - planning, 1)}%
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">
+                            {overshoot
+                              ? "המבנה הקיים חורג מקווי הבניין — בדיקה משפטית"
+                              : "המבנה הקיים בתוך המעטפת הסטטוטורית"}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}
