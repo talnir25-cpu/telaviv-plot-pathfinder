@@ -64,12 +64,12 @@ const hole5CCW: number[][] = [
   [3, 3],
 ];
 
-/** 3×3 square, clockwise (second hole) */
-const hole3CW: number[][] = [
+/** 3×3 square, counter-clockwise (ArcGIS hole) */
+const hole3CCW: number[][] = [
   [1, 1],
-  [1, 4],
-  [4, 4],
   [4, 1],
+  [4, 4],
+  [1, 4],
   [1, 1],
 ];
 
