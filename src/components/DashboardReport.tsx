@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PlotMap } from "@/components/PlotMap";
 import { FinancialAnalysis } from "@/components/FinancialAnalysis";
 import {
@@ -62,6 +63,26 @@ const FLAG_STYLES = {
 const fmt = (n: number, d = 0) =>
   Number.isFinite(n) ? n.toLocaleString("he-IL", { minimumFractionDigits: d, maximumFractionDigits: d }) : "—";
 
+const SourceBadge = ({ source }: { source: string }) => (
+  <TooltipProvider delayDuration={150}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={`מקור: ${source}`}
+          className="mt-1 inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-[10px] font-medium text-primary/80 hover:bg-primary/10 hover:text-primary transition-colors"
+        >
+          <BookOpen className="h-3 w-3" />
+          <span className="max-w-[140px] truncate">{source}</span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-xs text-right" dir="rtl">
+        <p className="text-xs"><span className="font-semibold">מראה מקום: </span>{source}</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
+
 const StatTile = ({
   icon: Icon,
   label,
@@ -99,14 +120,7 @@ const StatTile = ({
         {value}
         {unit && <span className="me-1 text-xs font-medium text-muted-foreground">{unit}</span>}
       </p>
-      {source && (
-        <p
-          className="mt-1 truncate text-[10px] leading-tight text-muted-foreground/80"
-          title={source}
-        >
-          <span className="font-medium">מקור:</span> {source}
-        </p>
-      )}
+      {source && <SourceBadge source={source} />}
     </div>
   </div>
 );
@@ -534,9 +548,7 @@ export const DashboardReport = ({
                       ? BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource
                       : "—"}
                   </p>
-                  <p className="mt-1 text-[10px] leading-tight text-muted-foreground/80">
-                    <span className="font-medium">מראה מקום:</span> שדה existingBuiltAreaSource בקלט הניתוח
-                  </p>
+                  <SourceBadge source="שדה existingBuiltAreaSource בקלט הניתוח" />
                 </div>
               </div>
               <div className="flex items-start gap-3 rounded-xl border bg-card p-3">
@@ -560,9 +572,7 @@ export const DashboardReport = ({
                       {input.conservationDetails.planRef ? ` · ${input.conservationDetails.planRef}` : ""}
                     </p>
                   )}
-                  <p className="mt-1 text-[10px] leading-tight text-muted-foreground/80">
-                    <span className="font-medium">מקור:</span> רשימת שימור עיריית ת״א (תא/2650/ב)
-                  </p>
+                  <SourceBadge source="רשימת שימור עיריית ת״א (תא/2650/ב)" />
                 </div>
               </div>
             </div>
