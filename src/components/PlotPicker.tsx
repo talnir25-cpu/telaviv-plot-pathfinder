@@ -1094,7 +1094,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="helka">חלקה</Label>
+                <div className="flex items-center gap-1.5"><Label htmlFor="helka">חלקה</Label><SourceBadge source="GIS עיריית ת״א — שכבת חלקות (524) · אימות מול GovMap ונסח טאבו" /></div>
                 <Select
                   key={`${quarter}-${gushQuery}`}
                   value={helka}
