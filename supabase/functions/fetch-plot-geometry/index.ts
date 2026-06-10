@@ -40,6 +40,39 @@ function polygonArea(ring: number[][]): number {
   return Math.abs(area / 2);
 }
 
+// Ray-casting point-in-polygon (ITM coordinates)
+function pointInPolygon(pt: number[], ring: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if (((yi > pt[1]) !== (yj > pt[1])) &&
+        (pt[0] < (xj - xi) * (pt[1] - yi) / ((yj - yi) || 1e-9) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function polygonCentroid(ring: number[][]): number[] {
+  let cx = 0, cy = 0;
+  for (const p of ring) { cx += p[0]; cy += p[1]; }
+  return [cx / ring.length, cy / ring.length];
+}
+
+// fetch עם timeout ו-retry — מונע תקיעה על קריאות GIS איטיות
+async function fetchWithRetry(url: string, retries = 1): Promise<any> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) return await res.json();
+    } catch (_) { /* retry */ }
+  }
+  return null;
+}
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
