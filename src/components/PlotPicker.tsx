@@ -1185,7 +1185,26 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                     if (builtAreaSource && builtAreaSource !== "manual") setBuiltAreaSource(null);
                   }}
                 />
+                {coverageReliable && coverageExact != null ? (
+                  <div className="flex items-start gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-2.5 py-2 text-[11px]">
+                    <Ruler className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <div className="space-y-0.5">
+                      <div className="font-medium text-foreground">
+                        תכסית קיימת: {coverageExact}%
+                        {buildingFootprint != null && (
+                          <span className="text-muted-foreground"> · טביעת מבנה ~{buildingFootprint.toLocaleString("he-IL")} מ"ר</span>
+                        )}
+                      </div>
+                      <div className="text-muted-foreground">{coverageStatus ?? "GIS עיריית תל אביב"}</div>
+                    </div>
+                  </div>
+                ) : coverageStatus && !coverageReliable && geometryStatus === "ok" ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    נתוני מבנה לא זמינים מ-GIS — ניתן להזין ידנית או להעלות נסח טאבו.
+                  </p>
+                ) : null}
               </div>
+
 
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5">
