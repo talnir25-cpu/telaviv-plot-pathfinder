@@ -41,6 +41,12 @@ const ResultSchema = z.object({
   floorsExplain: z.string().max(2000).optional(),
   floorsExplicit: z.number().int().min(0).max(60).nullable().optional(),
   typicalFloorArea: z.number().min(0).max(20_000).nullable().optional(),
+  commonPropertyShares: z.array(z.number().min(0).max(100_000)).max(500).optional(),
+  commonPropertyDenominator: z.number().min(0).max(1_000_000).nullable().optional(),
+  validation: z.object({
+    sharesValid: z.boolean(),
+    sharesMessage: z.string().max(500),
+  }).optional(),
 });
 
 const EXTRACTION_TOOL = {
