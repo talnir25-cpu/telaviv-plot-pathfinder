@@ -88,6 +88,11 @@ export const analysisInputSchema = z
         renewalParty: z.string().max(200).nullable(),
       })
       .optional(),
+    // ── תכסית מדויקת מ-GIS עיריית תל אביב ──
+    coverageExact: z.number().min(0).max(100).optional(),
+    buildingFootprint: z.number().min(0).max(200_000).optional(),
+    coverageReliable: z.boolean().optional(),
+    coverageStatus: z.string().max(200).optional(),
   })
   .superRefine((v, ctx) => {
     // עקביות שטח: שטח בנוי לא יכול לעלות על שטח מגרש × קומות × 2 (חוצן בטיחות)

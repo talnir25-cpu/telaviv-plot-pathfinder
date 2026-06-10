@@ -43,7 +43,21 @@ type UnitsSource = "manual" | "tlv_permits" | "govmap_bldg" | "nadlan" | "heuris
 // Module-level cache for fetched GovMap geometry, keyed by `${gush}-${helka}`.
 // Persists across PlotPicker mounts within a session to avoid repeated calls
 // (reduces 403/502 risk and latency). `null` value = known-fallback result.
-type GeomCacheEntry = { width: number; depth: number; yearBuilt: number | null; centroidX: number | null; centroidY: number | null; floorsCount: number | null; unitsCount: number | null } | null;
+type GeomCacheEntry = {
+  width: number;
+  depth: number;
+  yearBuilt: number | null;
+  centroidX: number | null;
+  centroidY: number | null;
+  floorsCount: number | null;
+  unitsCount: number | null;
+  coverageExact: number | null;
+  buildingFootprint: number | null;
+  coverageReliable: boolean;
+  coverageStatus: string | null;
+  floorsFromGis: number | null;
+  yearFromGis: number | null;
+} | null;
 const geometryCache = new Map<string, GeomCacheEntry>();
 const geomKey = (gush: number | string, helka: number | string) => `${gush}-${helka}`;
 
@@ -176,6 +190,11 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [existingFloorsAuto, setExistingFloorsAuto] = useState(false);
   const [existingUnitsAuto, setExistingUnitsAuto] = useState(false);
   const [geometryStatus, setGeometryStatus] = useState<"idle" | "loading" | "ok" | "fallback">("idle");
+  // ── תכסית מדויקת מ-GIS עיריית תל אביב ──
+  const [coverageExact, setCoverageExact] = useState<number | null>(null);
+  const [buildingFootprint, setBuildingFootprint] = useState<number | null>(null);
+  const [coverageReliable, setCoverageReliable] = useState<boolean>(false);
+  const [coverageStatus, setCoverageStatus] = useState<string | null>(null);
   const [step1Open, setStep1Open] = useState(false);
   const [step2Open, setStep2Open] = useState(false);
   const [step3Open, setStep3Open] = useState(false);
@@ -440,6 +459,10 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     setCentroidY(null);
     setExistingFloorsAuto(false);
     setExistingUnitsAuto(false);
+    setCoverageExact(null);
+    setBuildingFootprint(null);
+    setCoverageReliable(false);
+    setCoverageStatus(null);
 
     const applyYear = (yb: number | null) => {
       if (yb != null) {
@@ -464,6 +487,13 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       }
     };
 
+    const applyCoverage = (entry: NonNullable<GeomCacheEntry>) => {
+      setCoverageExact(entry.coverageExact);
+      setBuildingFootprint(entry.buildingFootprint);
+      setCoverageReliable(entry.coverageReliable);
+      setCoverageStatus(entry.coverageStatus);
+    };
+
     const key = geomKey(selectedPlot.gush, selectedPlot.helka);
     if (geometryCache.has(key)) {
       const cached = geometryCache.get(key);
@@ -475,6 +505,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         applyYear(cached.yearBuilt);
         applyCentroid(cached.centroidX, cached.centroidY);
         applyFloorsUnits(cached.floorsCount, cached.unitsCount);
+        applyCoverage(cached);
       } else {
         setGeometryStatus("fallback");
       }
@@ -509,14 +540,43 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           ? data.floorsCount : null;
         const uc = typeof data.unitsCount === "number" && data.unitsCount >= 1 && data.unitsCount <= 500
           ? data.unitsCount : null;
-        geometryCache.set(key, { width: w, depth: d, yearBuilt: yb, centroidX: cx, centroidY: cy, floorsCount: fc, unitsCount: uc });
+        // ── שדות GIS עיריית ת"א ──
+        const reliable = data.coverageReliable === true;
+        const covExact = typeof data.coverageExact === "number" && data.coverageExact > 0 && data.coverageExact <= 95
+          ? data.coverageExact : null;
+        const bldgFoot = typeof data.buildingFootprint === "number" && data.buildingFootprint > 0
+          ? data.buildingFootprint : null;
+        const covStatus = typeof data.coverageStatus === "string" ? data.coverageStatus : null;
+        const floorsGis = typeof data.floorsFromGis === "number" && data.floorsFromGis >= 1 && data.floorsFromGis <= 50
+          ? data.floorsFromGis : null;
+        const yearGis = typeof data.yearFromGis === "number" && data.yearFromGis >= 1900 && data.yearFromGis <= 2024
+          ? data.yearFromGis : null;
+
+        const entry: NonNullable<GeomCacheEntry> = {
+          width: w, depth: d, yearBuilt: yb, centroidX: cx, centroidY: cy,
+          floorsCount: fc, unitsCount: uc,
+          coverageExact: covExact, buildingFootprint: bldgFoot,
+          coverageReliable: reliable, coverageStatus: covStatus,
+          floorsFromGis: floorsGis, yearFromGis: yearGis,
+        };
+        geometryCache.set(key, entry);
         setPlotWidth(String(w));
         setPlotDepth(String(d));
         setGeometryAutoFilled(true);
         setGeometryStatus("ok");
-        applyYear(yb);
+        // ── עדיפות לנתוני GIS עירוני כאשר אמינים ──
+        if (reliable && yearGis !== null) {
+          applyYear(yearGis);
+        } else {
+          applyYear(yb);
+        }
         applyCentroid(cx, cy);
-        applyFloorsUnits(fc, uc);
+        if (reliable && floorsGis !== null) {
+          applyFloorsUnits(floorsGis, uc);
+        } else {
+          applyFloorsUnits(fc, uc);
+        }
+        applyCoverage(entry);
       } catch {
         if (reqId !== geomReqRef.current) return;
         // Transient error — do NOT cache as fallback, allow retry on re-select.
@@ -679,6 +739,10 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       street,
       address: addressForStreet ?? undefined,
       tabuAnalysis: tabuAnalysis ?? undefined,
+      coverageExact: coverageReliable && coverageExact != null ? coverageExact : undefined,
+      buildingFootprint: coverageReliable && buildingFootprint != null ? buildingFootprint : undefined,
+      coverageReliable: coverageReliable || undefined,
+      coverageStatus: coverageStatus ?? undefined,
     };
     const parsed = analysisInputSchema.safeParse(candidate);
     if (!parsed.success) {
@@ -1121,7 +1185,26 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                     if (builtAreaSource && builtAreaSource !== "manual") setBuiltAreaSource(null);
                   }}
                 />
+                {coverageReliable && coverageExact != null ? (
+                  <div className="flex items-start gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-2.5 py-2 text-[11px]">
+                    <Ruler className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <div className="space-y-0.5">
+                      <div className="font-medium text-foreground">
+                        תכסית קיימת: {coverageExact}%
+                        {buildingFootprint != null && (
+                          <span className="text-muted-foreground"> · טביעת מבנה ~{buildingFootprint.toLocaleString("he-IL")} מ"ר</span>
+                        )}
+                      </div>
+                      <div className="text-muted-foreground">{coverageStatus ?? "GIS עיריית תל אביב"}</div>
+                    </div>
+                  </div>
+                ) : coverageStatus && !coverageReliable && geometryStatus === "ok" ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    נתוני מבנה לא זמינים מ-GIS — ניתן להזין ידנית או להעלות נסח טאבו.
+                  </p>
+                ) : null}
               </div>
+
 
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5">
