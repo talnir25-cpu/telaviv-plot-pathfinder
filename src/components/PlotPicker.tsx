@@ -1231,6 +1231,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5">
                   <Label htmlFor="building-year">שנת בנייה</Label>
+                  <SourceBadge source="עדיפות: נסח טאבו → GIS עיריית ת״א (שכבת מבנים 513, שדה year) → GovMap BLDG_FLOOR_USAGE → API נדל״ן הממשלתי" />
                   {tabuAnalysis?.buildingYear ? (
                     <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
                       <FileCheck2 className="h-3 w-3" />
