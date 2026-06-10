@@ -190,6 +190,11 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [existingFloorsAuto, setExistingFloorsAuto] = useState(false);
   const [existingUnitsAuto, setExistingUnitsAuto] = useState(false);
   const [geometryStatus, setGeometryStatus] = useState<"idle" | "loading" | "ok" | "fallback">("idle");
+  // ── תכסית מדויקת מ-GIS עיריית תל אביב ──
+  const [coverageExact, setCoverageExact] = useState<number | null>(null);
+  const [buildingFootprint, setBuildingFootprint] = useState<number | null>(null);
+  const [coverageReliable, setCoverageReliable] = useState<boolean>(false);
+  const [coverageStatus, setCoverageStatus] = useState<string | null>(null);
   const [step1Open, setStep1Open] = useState(false);
   const [step2Open, setStep2Open] = useState(false);
   const [step3Open, setStep3Open] = useState(false);
