@@ -54,9 +54,13 @@ export interface FeasibilityReport {
     dewateringRequired?: boolean | null;    // נדרשת השפלת מי תהום
     // תכסית מחושבת דטרמיניסטית מקווי הבניין (אופציונלי — מאוכלס ב-edge)
     typicalFloorAreaSqm?: number;           // שטח קומה טיפוסי מירבי (מ"ר)
-    coveragePct?: number;                   // אחוז תכסית אפקטיבי
+    coveragePct?: number;                   // אחוז תכסית תכנונית (מעטפת קווי בניין)
     floorsNeededForFAR?: number;            // קומות נדרשות לתמיכה ב-proposed.builtAreaSqm
     setbackSource?: "regulation" | "manual" | "manual_override";
+    // תכסית קיימת מ-GIS עיריית תל אביב (אופציונלי — ערך עובדתי על המבנה הקיים)
+    coverageExistingPct?: number;           // אחוז תכסית קיימת מ-Shoelace על שכבת מבנים 513
+    buildingFootprintSqm?: number;          // שטח טביעת מבנה קיים במ"ר
+    coverageSource?: string;                // תיאור מקור/אמינות
     // פוטנציאל הגדלת תכסית בהליך התחדשות עירונית (אופציונלי)
     renewalPotential?: {
       track: "tama38_2" | "pinui_binui" | "rova_plan";
