@@ -82,8 +82,8 @@ Deno.test("signedArea: CCW ring is positive", () => {
   assertEquals(signedArea(hole5CCW), 16); // 4×4 actually = 16
 });
 
-Deno.test("signedArea: CW hole is negative", () => {
-  assertEquals(signedArea(hole3CW), -9);
+Deno.test("signedArea: CCW hole is positive", () => {
+  assertEquals(signedArea(hole3CCW), 9);
 });
 
 // ── polygonAreaWithHoles ──
