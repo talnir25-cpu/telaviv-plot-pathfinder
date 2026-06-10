@@ -1067,7 +1067,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="gush">מספר גוש</Label>
+                <div className="flex items-center gap-1.5"><Label htmlFor="gush">מספר גוש</Label><SourceBadge source="רשימת גושים של עיריית ת״א (plots.json) · מבוסס GIS עירוני (שכבה 524) ונסח טאבו" /></div>
                 <div className="relative">
                   <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
