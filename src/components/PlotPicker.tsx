@@ -1177,7 +1177,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             <div className="grid gap-5 md:grid-cols-2 pt-3">
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <Label htmlFor="builtArea">שטח בנוי קיים (מ"ר)</Label>
+                  <div className="flex items-center gap-1.5"><Label htmlFor="builtArea">שטח בנוי קיים (מ"ר)</Label><SourceBadge source="עדיפות: נסח טאבו → היתרי בנייה (עיריית ת״א) → GovMap BLDG_FLOOR_USAGE → הערכה (תכסית קיימת × קומות). ניתן לעריכה ידנית." /></div>
                   {builtAreaSource && (() => {
                     const meta = SOURCE_META[builtAreaSource] ?? SOURCE_META.estimate;
                     const Icon = meta.icon;
