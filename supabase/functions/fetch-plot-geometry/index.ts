@@ -30,6 +30,17 @@ const json = (body: unknown, status = 200) =>
 const fallback = (error: string, extra: Record<string, unknown> = {}) =>
   json({ fallback: true, error, ...extra }, 200);
 
+// Shoelace formula — שטח פוליגון סגור בקואורדינטות מטריות (ITM/wkid 2039)
+function polygonArea(ring: number[][]): number {
+  if (!Array.isArray(ring) || ring.length < 3) return 0;
+  let area = 0;
+  for (let i = 0; i < ring.length - 1; i++) {
+    area += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+  }
+  return Math.abs(area / 2);
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
