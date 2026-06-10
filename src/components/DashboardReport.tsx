@@ -68,16 +68,18 @@ const StatTile = ({
   value,
   unit,
   accent,
+  source,
 }: {
   icon: typeof Building2;
   label: string;
   value: string;
   unit?: string;
   accent?: boolean;
+  source?: string;
 }) => (
   <div
     className={cn(
-      "flex items-center gap-3 rounded-xl border bg-card p-3",
+      "flex items-start gap-3 rounded-xl border bg-card p-3",
       accent && "border-primary/30 bg-primary/5"
     )}
   >
@@ -89,7 +91,7 @@ const StatTile = ({
     >
       <Icon className="h-5 w-5" />
     </div>
-    <div className="min-w-0">
+    <div className="min-w-0 flex-1">
       <p className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </p>
@@ -97,6 +99,14 @@ const StatTile = ({
         {value}
         {unit && <span className="me-1 text-xs font-medium text-muted-foreground">{unit}</span>}
       </p>
+      {source && (
+        <p
+          className="mt-1 truncate text-[10px] leading-tight text-muted-foreground/80"
+          title={source}
+        >
+          <span className="font-medium">מקור:</span> {source}
+        </p>
+      )}
     </div>
   </div>
 );
