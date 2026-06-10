@@ -1625,7 +1625,16 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
                     {/* תכסית מחושבת */}
                     <div className="space-y-2 rounded-lg border bg-muted/20 p-4">
-                      <Label className="text-sm font-medium">תכסית מחושבת</Label>
+                      <Label className="text-sm font-medium flex items-center gap-1.5">
+                        {coverageReliable && coverageExact != null ? (
+                          <>
+                            <MapPin className="h-3.5 w-3.5 text-primary" />
+                            תכסית קיימת (GIS עירוני)
+                          </>
+                        ) : (
+                          "תכסית משוערת"
+                        )}
+                      </Label>
                       <div className="space-y-1.5 text-sm">
                         <div className="flex items-center justify-between">
                           <span className="text-muted-foreground">שטח מגרש</span>
@@ -1633,27 +1642,50 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                             {plotArea > 0 ? `${plotArea.toLocaleString("he-IL")} מ״ר` : "—"}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">שטח קומה טיפוסית</span>
-                          <span className="tabular-nums font-medium">
-                            {floorArea > 0 ? `~${floorArea.toLocaleString("he-IL")} מ״ר` : "—"}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between border-t pt-1.5">
-                          <span className="text-muted-foreground">תכסית אפקטיבית</span>
-                          <span
-                            className={`tabular-nums font-semibold ${
-                              covWarn ? "text-amber-600 dark:text-amber-400" : "text-primary"
-                            }`}
-                          >
-                            {floorArea > 0 ? `${cov}%` : "—"}
-                          </span>
-                        </div>
+                        {coverageReliable && coverageExact != null ? (
+                          <>
+                            {buildingFootprint != null && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">שטח מבנה</span>
+                                <span className="tabular-nums font-medium">
+                                  {buildingFootprint.toLocaleString("he-IL")} מ״ר
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between border-t pt-1.5">
+                              <span className="text-muted-foreground">תכסית קיימת</span>
+                              <span className="tabular-nums font-semibold text-primary">
+                                {coverageExact}%
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">שטח קומה טיפוסית</span>
+                              <span className="tabular-nums font-medium">
+                                {floorArea > 0 ? `~${floorArea.toLocaleString("he-IL")} מ״ר` : "—"}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between border-t pt-1.5">
+                              <span className="text-muted-foreground">תכסית אפקטיבית</span>
+                              <span
+                                className={`tabular-nums font-semibold ${
+                                  covWarn ? "text-amber-600 dark:text-amber-400" : "text-primary"
+                                }`}
+                              >
+                                {floorArea > 0 ? `${cov}%` : "—"}
+                              </span>
+                            </div>
+                          </>
+                        )}
                       </div>
                       <p className="pt-1 text-[11px] text-muted-foreground">
-                        {covWarn
-                          ? "⚠ התוצאה חורגת מתחום סביר (15%–70%) — ודא קווי בניין"
-                          : "⚠ קירוב למגרש מלבני — צורת המגרש בפועל עשויה לתת ±15%"}
+                        {coverageReliable && coverageExact != null
+                          ? (coverageStatus ?? "מדויק — מקור: GIS עיריית תל אביב")
+                          : covWarn
+                            ? "⚠ התוצאה חורגת מתחום סביר (15%–70%) — ודא קווי בניין"
+                            : "⚠ קירוב למגרש מלבני — צורת המגרש בפועל עשויה לתת ±15%"}
                       </p>
                     </div>
                   </div>
