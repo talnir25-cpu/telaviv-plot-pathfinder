@@ -240,6 +240,7 @@ Deno.serve(async (req) => {
     let buildingHeight: number | null = null;
     let coverageStatus = "אין מבנה ב-GIS — נדרש קלט ידני או נסח טאבו";
     try {
+      console.log("TLV_GIS_START", JSON.stringify({ gush: g, helka: h }));
       const parcelUrl =
         `https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/524/query` +
         `?where=ms_gush=${g}+AND+ms_chelka=${h}` +
@@ -249,6 +250,7 @@ Deno.serve(async (req) => {
       const officialArea = Number(parcelFeature?.attributes?.ms_shetach_rashum) || 0;
       const shapeArea = Number(parcelFeature?.attributes?.Shape_Area) || 0;
       const plotAreaForCoverage = officialArea > 0 ? officialArea : shapeArea;
+      console.log("TLV_GIS_PARCEL", JSON.stringify({ found: !!parcelFeature, officialArea, shapeArea }));
 
       if (parcelFeature?.geometry?.rings) {
         const geomParam = encodeURIComponent(JSON.stringify({
