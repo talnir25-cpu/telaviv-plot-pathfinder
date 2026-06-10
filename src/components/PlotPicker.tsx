@@ -739,6 +739,10 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       street,
       address: addressForStreet ?? undefined,
       tabuAnalysis: tabuAnalysis ?? undefined,
+      coverageExact: coverageReliable && coverageExact != null ? coverageExact : undefined,
+      buildingFootprint: coverageReliable && buildingFootprint != null ? buildingFootprint : undefined,
+      coverageReliable: coverageReliable || undefined,
+      coverageStatus: coverageStatus ?? undefined,
     };
     const parsed = analysisInputSchema.safeParse(candidate);
     if (!parsed.success) {
