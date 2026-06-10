@@ -1041,7 +1041,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           <CollapsibleContent>
             <div className="grid gap-5 md:grid-cols-2 pt-3">
               <div className="space-y-2">
-                <Label>רובע</Label>
+                <div className="flex items-center gap-1.5"><Label>רובע</Label><SourceBadge source="קלט משתמש · תקנון רובע 3 (תא/3616/א) או רובע 4 (תא/3729/א)" /></div>
                 <Select
                   value={String(quarter)}
                   onValueChange={(v) => {
