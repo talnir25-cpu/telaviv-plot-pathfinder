@@ -584,7 +584,7 @@ export const DashboardReport = ({
                       <p className="mt-1 text-base font-semibold">
                         {fmt(report.zoning.typicalFloorAreaSqm)} מ״ר
                         <span className="me-2 text-xs font-normal text-muted-foreground">
-                          (תכסית {fmt(report.zoning.coveragePct ?? 0)}%)
+                          (תכסית תכנונית {fmt(report.zoning.coveragePct ?? 0)}%)
                         </span>
                       </p>
                       <p className="mt-0.5 text-[10px] text-muted-foreground">קירוב מלבני מקווי הבניין</p>
