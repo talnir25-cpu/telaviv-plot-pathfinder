@@ -41,6 +41,12 @@ const ResultSchema = z.object({
   floorsExplain: z.string().max(2000).optional(),
   floorsExplicit: z.number().int().min(0).max(60).nullable().optional(),
   typicalFloorArea: z.number().min(0).max(20_000).nullable().optional(),
+  commonPropertyShares: z.array(z.number().min(0).max(100_000)).max(500).optional(),
+  commonPropertyDenominator: z.number().min(0).max(1_000_000).nullable().optional(),
+  validation: z.object({
+    sharesValid: z.boolean(),
+    sharesMessage: z.string().max(500),
+  }).optional(),
 });
 
 const EXTRACTION_TOOL = {
@@ -85,8 +91,10 @@ const EXTRACTION_TOOL = {
       floorsExplain: { type: "string", description: "הסבר קצר בעברית על אופן ספירת הקומות." },
       floorsExplicit: { type: ["number", "null"], description: "מספר הקומות אם מצוין במפורש בנסח (למשל 'בית בן X קומות' בתיאור הנכס/רכוש משותף). null אם לא מצוין." },
       typicalFloorArea: { type: ["number", "null"], description: "שטח קומה טיפוסית במ\"ר — סכום שטחי הדירות בקומה אחת ייצוגית (לא כולל קרקע אם שונה). אם לא ניתן לחשב — null." },
+      commonPropertyShares: { type: "array", items: { type: "number" }, description: "מערך של המונים של החלקים ברכוש המשותף לכל תת-חלקה (למשל אם כתוב 'X/577' החזר X). כל היחידות מאותו נסח חייבות להופיע." },
+      commonPropertyDenominator: { type: ["number", "null"], description: "המכנה המשותף של החלקים ברכוש המשותף (למשל 577, 1000). אם לא ברור — null." },
     },
-    required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty", "floorsDetected", "floorsExplain", "floorsExplicit", "typicalFloorArea"],
+    required: ["units", "floors", "avgUnitSize", "plotArea", "coverageRatio", "buildingYear", "warnings", "hasActiveRenewal", "renewalParty", "floorsDetected", "floorsExplain", "floorsExplicit", "typicalFloorArea", "commonPropertyShares", "commonPropertyDenominator"],
   },
 };
 
@@ -242,6 +250,28 @@ Deno.serve(async (req) => {
       }
       if (raw.plotArea > 0 && typical > 0) {
         raw.coverageRatio = Math.round((typical / raw.plotArea) * 1000) / 10;
+      }
+    }
+
+    // Deterministic validation: sum of common-property shares ≈ denominator → all units extracted
+    if (Array.isArray(raw.commonPropertyShares) && raw.commonPropertyShares.length > 0) {
+      const sumShares = raw.commonPropertyShares.reduce((a: number, b: number) => a + b, 0);
+      const denominator = typeof raw.commonPropertyDenominator === "number" && raw.commonPropertyDenominator > 0
+        ? raw.commonPropertyDenominator
+        : 0;
+      if (denominator > 0) {
+        const sharesValid = Math.abs(sumShares - denominator) / denominator < 0.05;
+        raw.validation = {
+          sharesValid,
+          sharesMessage: sharesValid
+            ? `כל היחידות זוהו (סך החלקים ${sumShares}/${denominator} תקין)`
+            : `אזהרה: סך החלקים ${sumShares}/${denominator} — ייתכן שחלק מהיחידות חסרות בנסח`,
+        };
+      } else {
+        raw.validation = {
+          sharesValid: false,
+          sharesMessage: `לא זוהה מכנה משותף לחלקים ברכוש המשותף — לא ניתן לאמת שלמות (סכום החלקים: ${sumShares})`,
+        };
       }
     }
 
