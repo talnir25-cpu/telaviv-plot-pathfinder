@@ -148,6 +148,11 @@ export interface AnalysisInput {
   street?: string;
   address?: string;
   tabuAnalysis?: TabuAnalysis;
+  // ── תכסית מדויקת מ-GIS עיריית תל אביב (אופציונלי) ──
+  coverageExact?: number;          // אחוז תכסית מ-Shoelace על שכבת מבנים 513
+  buildingFootprint?: number;      // שטח טביעת מבנה במ"ר
+  coverageReliable?: boolean;      // true רק אם בדיקת היגיון עברה (≤95%)
+  coverageStatus?: string;         // תיאור מקור/אמינות לתצוגה
 }
 
 export interface TabuWarning {
