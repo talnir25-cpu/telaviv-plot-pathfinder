@@ -597,16 +597,30 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
         report.zoning.sideSetbackM = body.sideSetbackM;
         report.zoning.rearSetbackM = body.rearSetbackM;
         report.zoning.typicalFloorAreaSqm = typicalFloorArea;
-        // עדיפות עליונה: תכסית מ-GIS עיריית תל אביב כאשר אמינה
+        // תכסית תכנונית (מעטפת קווי בניין) — בסיס לחישוב floorsNeededForFAR ו-uplift
+        report.zoning.coveragePct = coveragePctVal;
+        report.zoning.setbackSource = body.setbackSource ?? "regulation";
+
+        // תכסית קיימת מ-GIS עיריית תל אביב — ערך עובדתי נפרד (לא דורס את התכנונית)
         if (body.coverageReliable === true && typeof body.coverageExact === "number" && body.coverageExact > 0) {
-          report.zoning.coveragePct = body.coverageExact;
-          report.zoning.setbackSource = body.setbackSource ?? "regulation";
+          report.zoning.coverageExistingPct = body.coverageExact;
+          if (typeof body.buildingFootprint === "number" && body.buildingFootprint > 0) {
+            report.zoning.buildingFootprintSqm = body.buildingFootprint;
+          }
+          report.zoning.coverageSource = body.coverageStatus ?? "GIS עיריית תל אביב — שכבות 524/513";
           if (!Array.isArray(report.sources)) report.sources = [];
           const srcLine = body.coverageStatus ?? "GIS עיריית תל אביב — שכבות 524/513";
           if (!report.sources.includes(srcLine)) report.sources.push(srcLine);
-        } else {
-          report.zoning.coveragePct = coveragePctVal;
-          report.zoning.setbackSource = body.setbackSource ?? "regulation";
+
+          // red-flag: חריגה היסטורית של המבנה הקיים מעבר למעטפת הסטטוטורית
+          if (body.coverageExact > coveragePctVal + 5) {
+            report.redFlags.push({
+              level: "warning",
+              title: "חריגה היסטורית מהמעטפת הסטטוטורית",
+              description: `תכסית קיימת ${body.coverageExact}% גבוהה מהתכסית התכנונית ${coveragePctVal}% (קווי בניין). ייתכן שהמבנה הקיים נבנה בהיתר חורג או לפני התקנון הנוכחי — נדרשת בדיקה משפטית/תכנונית לפני שימוש בזכויות.`,
+              source: "השוואת GIS מול תקנון",
+            });
+          }
         }
 
         const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
