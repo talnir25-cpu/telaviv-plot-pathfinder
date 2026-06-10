@@ -219,7 +219,97 @@ Deno.serve(async (req) => {
 
     console.log("BLDG_DEBUG", JSON.stringify({ yearBuilt, floorsCount, unitsCount }));
 
-    return json({ width, depth, yearBuilt, floorsCount, unitsCount, centroidX: x, centroidY: y, extent: ext, source: "govmap" });
+    // ── TLV GIS (עיריית תל אביב) — מקור עדיפות עליונה לתכסית/קומות/שנת בנייה ──
+    // Layer 524 = חלקות, Layer 513 = מבנים. שניהם ב-ITM (wkid 2039).
+    let buildingFootprint = 0;
+    let coverageExact: number | null = null;
+    let coverageReliable = false;
+    let floorsFromGis: number | null = null;
+    let yearFromGis: number | null = null;
+    let buildingHeight: number | null = null;
+    let coverageStatus = "אין מבנה ב-GIS — נדרש קלט ידני או נסח טאבו";
+    try {
+      const parcelUrl =
+        `https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/524/query` +
+        `?where=ms_gush=${g}+AND+ms_chelka=${h}` +
+        `&outFields=ms_shetach_rashum,Shape_Area&returnGeometry=true&outSR=2039&f=json`;
+      const parcelData = await (await fetch(parcelUrl)).json();
+      const parcelFeature = parcelData?.features?.[0];
+      const officialArea = Number(parcelFeature?.attributes?.ms_shetach_rashum) || 0;
+      const shapeArea = Number(parcelFeature?.attributes?.Shape_Area) || 0;
+      const plotAreaForCoverage = officialArea > 0 ? officialArea : shapeArea;
+
+      if (parcelFeature?.geometry?.rings) {
+        const geomParam = encodeURIComponent(JSON.stringify({
+          rings: parcelFeature.geometry.rings,
+          spatialReference: { wkid: 2039 },
+        }));
+        const bldgUrl =
+          `https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/513/query` +
+          `?geometry=${geomParam}&geometryType=esriGeometryPolygon` +
+          `&inSR=2039&spatialRel=esriSpatialRelIntersects` +
+          `&outFields=ms_komot,max_height,year&returnGeometry=true&outSR=2039&f=json`;
+        const bldgData = await (await fetch(bldgUrl)).json();
+        const buildings = bldgData?.features ?? [];
+        for (const b of buildings) {
+          const ring = b?.geometry?.rings?.[0];
+          if (ring) buildingFootprint += polygonArea(ring);
+        }
+        const komot = buildings
+          .map((b: { attributes?: { ms_komot?: number } }) => b.attributes?.ms_komot)
+          .filter((n: unknown): n is number => typeof n === "number" && n > 0);
+        const years = buildings
+          .map((b: { attributes?: { year?: number } }) => b.attributes?.year)
+          .filter((n: unknown): n is number => typeof n === "number" && n > 1900);
+        const heights = buildings
+          .map((b: { attributes?: { max_height?: number } }) => b.attributes?.max_height)
+          .filter((n: unknown): n is number => typeof n === "number" && n > 0);
+        if (komot.length) floorsFromGis = Math.max(...komot);
+        if (years.length) yearFromGis = Math.min(...years);
+        if (heights.length) buildingHeight = Math.max(...heights);
+      }
+
+      if (plotAreaForCoverage > 0 && buildingFootprint > 0) {
+        const rawCoverage = Math.round((buildingFootprint / plotAreaForCoverage) * 1000) / 10;
+        // בדיקת היגיון: תכסית >95% בדרך כלל מצביעה על היסט שתפס מבנה שכן
+        if (rawCoverage <= 95) {
+          coverageExact = rawCoverage;
+          coverageReliable = true;
+          coverageStatus = "מדויק — מקור: GIS עיריית תל אביב";
+        } else {
+          coverageStatus = "לא אמין (חריגה בנתוני GIS) — נדרש אימות ידני";
+        }
+      }
+
+      // אם ה-GIS העירוני מספק נתונים אמינים — קדם אותם על פני GovMap
+      if (coverageReliable) {
+        if (floorsFromGis !== null) floorsCount = floorsFromGis;
+        if (yearFromGis !== null) yearBuilt = yearFromGis;
+      }
+    } catch (e) {
+      console.warn("TLV_GIS_FAILED", String(e));
+      coverageStatus = "נתוני GIS עירוני לא זמינים — נדרש אימות ידני";
+    }
+
+    console.log("TLV_GIS", JSON.stringify({
+      buildingFootprint, coverageExact, coverageReliable,
+      floorsFromGis, yearFromGis, buildingHeight,
+    }));
+
+    return json({
+      width, depth, yearBuilt, floorsCount, unitsCount,
+      centroidX: x, centroidY: y, extent: ext,
+      // ── שדות GIS עירוני ──
+      buildingFootprint: Math.round(buildingFootprint * 10) / 10,
+      coverageExact,
+      coverageReliable,
+      floorsFromGis: coverageReliable ? floorsFromGis : null,
+      yearFromGis: coverageReliable ? yearFromGis : null,
+      buildingHeight: coverageReliable ? buildingHeight : null,
+      coverageStatus,
+      source: "govmap+tlv_gis",
+    });
+
   } catch (err) {
     return fallback("UNEXPECTED", { detail: err instanceof Error ? err.message : "unknown" });
   }
