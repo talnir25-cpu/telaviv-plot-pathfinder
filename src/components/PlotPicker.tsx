@@ -28,6 +28,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  TooltipProvider,
 } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -97,6 +98,27 @@ const STATUS_ICON = {
   error: { Icon: XCircle, tone: "text-destructive" },
   skipped: { Icon: AlertCircle, tone: "text-muted-foreground" },
 } as const;
+
+// תג קטן עם אייקון BookOpen ו-tooltip לציון מראה מקום של הנתון בתא.
+const SourceBadge = ({ source }: { source: string }) => (
+  <TooltipProvider delayDuration={150}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={`מראה מקום: ${source}`}
+          className="inline-flex h-4 w-4 items-center justify-center rounded text-muted-foreground/70 hover:text-primary transition-colors"
+        >
+          <BookOpen className="h-3 w-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[260px] text-[11px] leading-snug">
+        מראה מקום: {source}
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
 
 const MIN_PLOT_AREA_SQM = 100;
 const PUBLIC_LAND_THRESHOLD_SQM = 50_000;
@@ -1019,7 +1041,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           <CollapsibleContent>
             <div className="grid gap-5 md:grid-cols-2 pt-3">
               <div className="space-y-2">
-                <Label>רובע</Label>
+                <div className="flex items-center gap-1.5"><Label>רובע</Label><SourceBadge source="קלט משתמש · תקנון רובע 3 (תא/3616/א) או רובע 4 (תא/3729/א)" /></div>
                 <Select
                   value={String(quarter)}
                   onValueChange={(v) => {
@@ -1045,7 +1067,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="gush">מספר גוש</Label>
+                <div className="flex items-center gap-1.5"><Label htmlFor="gush">מספר גוש</Label><SourceBadge source="רשימת גושים של עיריית ת״א (plots.json) · מבוסס GIS עירוני (שכבה 524) ונסח טאבו" /></div>
                 <div className="relative">
                   <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -1072,7 +1094,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="helka">חלקה</Label>
+                <div className="flex items-center gap-1.5"><Label htmlFor="helka">חלקה</Label><SourceBadge source="GIS עיריית ת״א — שכבת חלקות (524) · אימות מול GovMap ונסח טאבו" /></div>
                 <Select
                   key={`${quarter}-${gushQuery}`}
                   value={helka}
@@ -1099,7 +1121,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               </div>
 
               <div className="space-y-2">
-                <Label>שטח החלקה</Label>
+                <div className="flex items-center gap-1.5"><Label>שטח החלקה</Label><SourceBadge source="GIS עיריית ת״א — שכבת חלקות (524, שדה ms_shetach_rashum); בחוסר נתון רשום נעשה שימוש ב-Shape_Area" /></div>
                 <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
                   {selectedPlot ? (
                     <div className="space-y-1">
@@ -1155,7 +1177,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             <div className="grid gap-5 md:grid-cols-2 pt-3">
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <Label htmlFor="builtArea">שטח בנוי קיים (מ"ר)</Label>
+                  <div className="flex items-center gap-1.5"><Label htmlFor="builtArea">שטח בנוי קיים (מ"ר)</Label><SourceBadge source="עדיפות: נסח טאבו → היתרי בנייה (עיריית ת״א) → GovMap BLDG_FLOOR_USAGE → הערכה (תכסית קיימת × קומות). ניתן לעריכה ידנית." /></div>
                   {builtAreaSource && (() => {
                     const meta = SOURCE_META[builtAreaSource] ?? SOURCE_META.estimate;
                     const Icon = meta.icon;
@@ -1209,6 +1231,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5">
                   <Label htmlFor="building-year">שנת בנייה</Label>
+                  <SourceBadge source="עדיפות: נסח טאבו → GIS עיריית ת״א (שכבת מבנים 513, שדה year) → GovMap BLDG_FLOOR_USAGE → API נדל״ן הממשלתי" />
                   {tabuAnalysis?.buildingYear ? (
                     <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
                       <FileCheck2 className="h-3 w-3" />
@@ -1262,6 +1285,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
                     <Label htmlFor="units">יח"ד קיימות</Label>
+                    <SourceBadge source="עדיפות: נסח טאבו → היתרי בנייה עיריית ת״א (yechidot_diyur) → GovMap BLDG_FLOOR_USAGE → נדל״ן הממשלתי. ניתן לעריכה ידנית ולשמירה כמאומת." />
                     {tabuAnalysis && tabuAnalysis.units > 0 ? (
                       <span title="נשלף מנסח טאבו" className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
                         <FileCheck2 className="h-3 w-3" />
@@ -1321,6 +1345,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
                     <Label htmlFor="floors">קומות קיימות</Label>
+                    <SourceBadge source="עדיפות: נסח טאבו (זיהוי תוויות קומה) → GIS עיריית ת״א (שכבת מבנים 513, ms_komot) → GovMap BLDG_FLOOR_USAGE" />
                     {tabuAnalysis && tabuAnalysis.floors > 0 ? (
                       <span
                         title={tabuAnalysis.floorsExplain || "נשלף מנסח טאבו"}
@@ -1474,6 +1499,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5">
                       <Label htmlFor="plot-width" className="text-sm">רוחב מגרש (מ׳)</Label>
+                      <SourceBadge source="GovMap — IdentifyByXY על שכבת PARCEL_ALL; חישוב xmax−xmin של ה-extent בקואורדינטות ITM (wkid 2039). ניתן לעדכון ידני." />
                       {geometryAutoFilled && (
                         <span
                           title="נשלף אוטומטית מ-GovMap"
@@ -1496,6 +1522,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5">
                       <Label htmlFor="plot-depth" className="text-sm">עומק מגרש (מ׳)</Label>
+                      <SourceBadge source="GovMap — IdentifyByXY על שכבת PARCEL_ALL; חישוב ymax−ymin של ה-extent בקואורדינטות ITM (wkid 2039). ניתן לעדכון ידני." />
                       {geometryAutoFilled && (
                         <span
                           title="נשלף אוטומטית מ-GovMap"
