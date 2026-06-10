@@ -268,6 +268,11 @@ Deno.serve(async (req) => {
           const ring = b?.geometry?.rings?.[0];
           if (ring) buildingFootprint += polygonArea(ring);
         }
+        console.log("TLV_GIS_BUILDINGS", JSON.stringify({
+          buildingCount: buildings.length,
+          footprint: buildingFootprint,
+          plotArea: plotAreaForCoverage,
+        }));
         const komot = buildings
           .map((b: { attributes?: { ms_komot?: number } }) => b.attributes?.ms_komot)
           .filter((n: unknown): n is number => typeof n === "number" && n > 0);
