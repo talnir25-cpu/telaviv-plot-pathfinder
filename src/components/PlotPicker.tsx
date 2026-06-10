@@ -459,6 +459,10 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
     setCentroidY(null);
     setExistingFloorsAuto(false);
     setExistingUnitsAuto(false);
+    setCoverageExact(null);
+    setBuildingFootprint(null);
+    setCoverageReliable(false);
+    setCoverageStatus(null);
 
     const applyYear = (yb: number | null) => {
       if (yb != null) {
@@ -483,6 +487,13 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       }
     };
 
+    const applyCoverage = (entry: NonNullable<GeomCacheEntry>) => {
+      setCoverageExact(entry.coverageExact);
+      setBuildingFootprint(entry.buildingFootprint);
+      setCoverageReliable(entry.coverageReliable);
+      setCoverageStatus(entry.coverageStatus);
+    };
+
     const key = geomKey(selectedPlot.gush, selectedPlot.helka);
     if (geometryCache.has(key)) {
       const cached = geometryCache.get(key);
@@ -494,6 +505,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
         applyYear(cached.yearBuilt);
         applyCentroid(cached.centroidX, cached.centroidY);
         applyFloorsUnits(cached.floorsCount, cached.unitsCount);
+        applyCoverage(cached);
       } else {
         setGeometryStatus("fallback");
       }
@@ -528,14 +540,43 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
           ? data.floorsCount : null;
         const uc = typeof data.unitsCount === "number" && data.unitsCount >= 1 && data.unitsCount <= 500
           ? data.unitsCount : null;
-        geometryCache.set(key, { width: w, depth: d, yearBuilt: yb, centroidX: cx, centroidY: cy, floorsCount: fc, unitsCount: uc });
+        // ── שדות GIS עיריית ת"א ──
+        const reliable = data.coverageReliable === true;
+        const covExact = typeof data.coverageExact === "number" && data.coverageExact > 0 && data.coverageExact <= 95
+          ? data.coverageExact : null;
+        const bldgFoot = typeof data.buildingFootprint === "number" && data.buildingFootprint > 0
+          ? data.buildingFootprint : null;
+        const covStatus = typeof data.coverageStatus === "string" ? data.coverageStatus : null;
+        const floorsGis = typeof data.floorsFromGis === "number" && data.floorsFromGis >= 1 && data.floorsFromGis <= 50
+          ? data.floorsFromGis : null;
+        const yearGis = typeof data.yearFromGis === "number" && data.yearFromGis >= 1900 && data.yearFromGis <= 2024
+          ? data.yearFromGis : null;
+
+        const entry: NonNullable<GeomCacheEntry> = {
+          width: w, depth: d, yearBuilt: yb, centroidX: cx, centroidY: cy,
+          floorsCount: fc, unitsCount: uc,
+          coverageExact: covExact, buildingFootprint: bldgFoot,
+          coverageReliable: reliable, coverageStatus: covStatus,
+          floorsFromGis: floorsGis, yearFromGis: yearGis,
+        };
+        geometryCache.set(key, entry);
         setPlotWidth(String(w));
         setPlotDepth(String(d));
         setGeometryAutoFilled(true);
         setGeometryStatus("ok");
-        applyYear(yb);
+        // ── עדיפות לנתוני GIS עירוני כאשר אמינים ──
+        if (reliable && yearGis !== null) {
+          applyYear(yearGis);
+        } else {
+          applyYear(yb);
+        }
         applyCentroid(cx, cy);
-        applyFloorsUnits(fc, uc);
+        if (reliable && floorsGis !== null) {
+          applyFloorsUnits(floorsGis, uc);
+        } else {
+          applyFloorsUnits(fc, uc);
+        }
+        applyCoverage(entry);
       } catch {
         if (reqId !== geomReqRef.current) return;
         // Transient error — do NOT cache as fallback, allow retry on re-select.
