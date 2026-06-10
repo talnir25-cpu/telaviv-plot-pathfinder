@@ -59,6 +59,36 @@ function polygonCentroid(ring: number[][]): number[] {
   return [cx / ring.length, cy / ring.length];
 }
 
+// Shoelace חתום — סימן מבדיל outer (CW) מ-hole (CCW) במוסכמת ArcGIS
+function signedArea(ring: number[][]): number {
+  if (!Array.isArray(ring) || ring.length < 3) return 0;
+  let area = 0;
+  for (let i = 0; i < ring.length - 1; i++) {
+    area += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+  }
+  return area / 2;
+}
+
+// נקודה בתוך פוליגון מרובה-טבעות (כולל חורים) — odd-even על כל הטבעות
+function pointInPolygonWithHoles(pt: number[], rings: number[][][]): boolean {
+  let inside = false;
+  for (const ring of rings) {
+    if (pointInPolygon(pt, ring)) inside = !inside;
+  }
+  return inside;
+}
+
+// שטח פוליגון מרובה-טבעות: outers פחות holes (לפי סימן)
+function polygonAreaWithHoles(rings: number[][][]): number {
+  let total = 0;
+  for (const ring of rings) {
+    const a = signedArea(ring);
+    // ArcGIS: outer = CW = signedArea שלילי; hole = CCW = חיובי
+    total += a < 0 ? Math.abs(a) : -Math.abs(a);
+  }
+  return Math.max(0, total);
+}
+
 // fetch עם timeout ו-retry — מונע תקיעה על קריאות GIS איטיות
 async function fetchWithRetry(url: string, retries = 1): Promise<any> {
   for (let attempt = 0; attempt <= retries; attempt++) {
