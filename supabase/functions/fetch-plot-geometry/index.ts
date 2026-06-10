@@ -59,6 +59,36 @@ function polygonCentroid(ring: number[][]): number[] {
   return [cx / ring.length, cy / ring.length];
 }
 
+// Shoelace חתום — סימן מבדיל outer (CW) מ-hole (CCW) במוסכמת ArcGIS
+function signedArea(ring: number[][]): number {
+  if (!Array.isArray(ring) || ring.length < 3) return 0;
+  let area = 0;
+  for (let i = 0; i < ring.length - 1; i++) {
+    area += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+  }
+  return area / 2;
+}
+
+// נקודה בתוך פוליגון מרובה-טבעות (כולל חורים) — odd-even על כל הטבעות
+function pointInPolygonWithHoles(pt: number[], rings: number[][][]): boolean {
+  let inside = false;
+  for (const ring of rings) {
+    if (pointInPolygon(pt, ring)) inside = !inside;
+  }
+  return inside;
+}
+
+// שטח פוליגון מרובה-טבעות: outers פחות holes (לפי סימן)
+function polygonAreaWithHoles(rings: number[][][]): number {
+  let total = 0;
+  for (const ring of rings) {
+    const a = signedArea(ring);
+    // ArcGIS: outer = CW = signedArea שלילי; hole = CCW = חיובי
+    total += a < 0 ? Math.abs(a) : -Math.abs(a);
+  }
+  return Math.max(0, total);
+}
+
 // fetch עם timeout ו-retry — מונע תקיעה על קריאות GIS איטיות
 async function fetchWithRetry(url: string, retries = 1): Promise<any> {
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -299,21 +329,26 @@ Deno.serve(async (req) => {
         const bldgData = await fetchWithRetry(bldgUrl);
         const buildings = bldgData?.features ?? [];
 
-        // סנן: רק מבנים שמרכזם בתוך פוליגון החלקה (מסיר שכנים מה-envelope)
-        const parcelRing = parcelFeature.geometry.rings[0];
+        // סנן: רק מבנים שמרכזם בתוך פוליגון החלקה (תומך multi-rings + חורים)
+        const parcelRings = parcelFeature.geometry.rings as number[][][];
         const matchedBuildings = buildings.filter((b: { geometry?: { rings?: number[][][] } }) => {
-          const ring = b?.geometry?.rings?.[0];
-          if (!ring) return false;
-          return pointInPolygon(polygonCentroid(ring), parcelRing);
+          const rings = b?.geometry?.rings;
+          if (!rings?.length) return false;
+          // בחר את הטבעת הגדולה ביותר של המבנה כ-outer לחישוב מרכז
+          const outer = rings.reduce((a, c) =>
+            Math.abs(signedArea(c)) > Math.abs(signedArea(a)) ? c : a);
+          return pointInPolygonWithHoles(polygonCentroid(outer), parcelRings);
         });
 
         for (const b of matchedBuildings) {
-          const ring = b?.geometry?.rings?.[0];
-          if (ring) buildingFootprint += polygonArea(ring);
+          const rings = b?.geometry?.rings;
+          if (rings?.length) buildingFootprint += polygonAreaWithHoles(rings);
         }
         console.log("TLV_GIS_BUILDINGS", JSON.stringify({
           buildingCount: buildings.length,
           matchedCount: matchedBuildings.length,
+          parcelRingCount: parcelRings.length,
+          bldgRingCounts: matchedBuildings.map((b: { geometry?: { rings?: number[][][] } }) => b?.geometry?.rings?.length ?? 0),
           footprint: buildingFootprint,
           plotArea: plotAreaForCoverage,
         }));
