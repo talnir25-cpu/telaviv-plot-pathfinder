@@ -103,6 +103,11 @@ export type CalculationSource =
       max_floors: number;
       renewal_track: "local_renewal" | "pinui_binui" | "rova_plan";
       renewal_track_label: string;
+    }
+  | {
+      method: "ai_estimate";
+      renewal_track: "local_renewal" | "pinui_binui" | "rova_plan";
+      renewal_track_label: string;
       multiplier_used: number;
       note: string;
     };
@@ -185,7 +190,7 @@ export interface TabuAnalysis {
 // ============ Financial analysis ============
 
 export type ProjectType = "urban_renewal" | "new_construction" | "combination";
-export type RenewalSubtype = "tama38" | "pinui_binui";
+export type RenewalSubtype = "local_renewal" | "pinui_binui";
 export type FinishLevel = "standard" | "premium" | "luxury";
 export type ConstructionMode = "full_rebuild" | "addition_only";
 
