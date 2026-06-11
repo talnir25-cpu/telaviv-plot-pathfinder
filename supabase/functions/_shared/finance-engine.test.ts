@@ -148,7 +148,7 @@ Deno.test("construction breakdown (full_rebuild): above-ground equals full propo
   assert(b.totalHardCost === r.hardCosts);
 });
 
-Deno.test("addition_only (tama38/1): no demolition, strengthens existing, prices the added delta at full rate", () => {
+Deno.test("addition_only (חלופי תמ\"א 38/1): no demolition, strengthens existing, prices the added delta at full rate", () => {
   const r = assembleReport({ ...baseInput, constructionMode: "addition_only", strengtheningCostPerSqm: 3000 });
   const b = r.constructionBreakdown;
   assertEquals(b.demolitionCost, 0);
