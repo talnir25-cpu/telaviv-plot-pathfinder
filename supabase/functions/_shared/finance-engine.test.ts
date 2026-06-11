@@ -10,7 +10,7 @@ import { assembleReport, type EngineInput } from "./finance-engine.ts";
 
 const baseInput: EngineInput = {
   projectType: "urban_renewal",
-  renewalSubtype: "tama38",
+  renewalSubtype: "local_renewal",
   plotArea: 800,
   existingBuiltAreaSqm: 1200,
   proposedBuiltAreaSqm: 4500,
