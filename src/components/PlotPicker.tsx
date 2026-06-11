@@ -1776,7 +1776,12 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
                               <th className="px-2 py-1 text-end font-medium">יח"ד</th>
                               <th className="px-2 py-1 text-end font-medium">סטטוס פיזי</th>
                               <th className="px-2 py-1 text-end font-medium">תאריך היתר</th>
-                              <th className="px-2 py-1 text-end font-medium">תמ"א 38</th>
+                              <th className="px-2 py-1 text-end font-medium" title="תמ״א 38 פקעה לקליטת בקשות חדשות באוקטובר 2022 — מוצג כמידע היסטורי">
+                                <span className="inline-flex items-center gap-1">
+                                  תמ"א 38
+                                  <span className="rounded bg-muted px-1 py-0.5 text-[9px] font-semibold text-muted-foreground">פקע 10/2022</span>
+                                </span>
+                              </th>
                             </tr>
                           </thead>
                           <tbody>

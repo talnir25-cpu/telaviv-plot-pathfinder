@@ -86,7 +86,7 @@ type FieldDef = { key: keyof FinancialInput; label: string; suffix: string; grou
 const ALL_FIELDS: FieldDef[] = [
   { key: "avgSalePricePerSqm", label: 'מחיר מכירה ממוצע', suffix: '₪/מ"ר', group: "מכירות" },
   { key: "buildCostPerSqm", label: "עלות בנייה (Hard בסיס)", suffix: '₪/מ"ר', group: "בנייה" },
-  { key: "strengtheningCostPerSqm", label: "עלות חיזוק קיים (תמ״א 38/1)", suffix: '₪/מ"ר', group: "בנייה" },
+  { key: "strengtheningCostPerSqm", label: "עלות חיזוק קונסטרוקטיבי קיים", suffix: '₪/מ"ר', group: "בנייה" },
   { key: "softCostsPct", label: "Soft costs", suffix: "%", group: "בנייה" },
   { key: "escalationPctPerYear", label: "אסקלציה שנתית", suffix: "%", group: "בנייה" },
   { key: "contingencyPct", label: 'בלת"מ', suffix: "%", group: "בנייה" },
@@ -109,13 +109,13 @@ const FINISH_LABEL: Record<FinishLevel, { label: string; hint: string }> = {
 };
 
 const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
-  urban_renewal: "התחדשות עירונית (תמ״א 38/2, פינוי-בינוי)",
+  urban_renewal: "התחדשות עירונית (תכנית רובעית / פינוי-בינוי)",
   new_construction: "בנייה חדשה (קרקע פנויה)",
   combination: "עסקת קומבינציה",
 };
 
 const PROJECT_TYPE_HINT: Record<ProjectType, string> = {
-  urban_renewal: "הקרקע בבעלות הדיירים — שווי הקרקע לא נכלל. עלויות הדיירים (פינוי+שכ״ד) פעילות. פטור היטל השבחה לפי סעיף 19.",
+  urban_renewal: "הקרקע בבעלות הדיירים — שווי הקרקע לא נכלל. עלויות הדיירים (פינוי+שכ״ד) פעילות. פטור היטל השבחה: פינוי-בינוי בלבד (תמ״א 38 פקעה 10/2022).",
   new_construction: "היזם רוכש קרקע פנויה — שווי הקרקע מלא. אין עלויות דיירים. היטל השבחה מלא.",
   combination: "היזם מקבל אחוז מהקרקע מהבעלים — שווי קרקע משוקלל לפי 'חלק היזם'. הוסף עלויות דיירים אם נדרש פינוי.",
 };
@@ -338,12 +338,17 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
                         : "border-border bg-card text-muted-foreground hover:bg-muted"
                     }`}
                   >
-                    {sub === "tama38" ? 'תמ"א 38 / 38-2' : "פינוי-בינוי"}
+                    {sub === "tama38" ? (
+                      <span className="inline-flex items-center gap-1">
+                        תמ"א 38 / 38-2
+                        <span className="rounded bg-destructive/10 px-1 py-0.5 text-[9px] font-semibold text-destructive" title="תמ״א 38 פקעה לקליטת בקשות חדשות באוקטובר 2022">פקע 10/2022</span>
+                      </span>
+                    ) : "פינוי-בינוי"}
                   </button>
                 ))}
               </div>
               <p className="text-[10px] text-muted-foreground">
-                שני המסלולים פטורים מהיטל השבחה — תמ"א 38 לפי סעיף 19, פינוי-בינוי לפי חוק פינוי-בינוי.
+                תמ״א 38 פקעה ב-10/2022 ואינה זמינה לבקשות חדשות — נשמרת לתאימות עם דוחות קיימים בלבד. למסלול חדש בחר/י <strong>פינוי-בינוי</strong> או <strong>תכנית רובעית</strong> (רובע 3/4) שעדיין פעילים. פטור היטל השבחה חל רק על פינוי-בינוי לפי חוק פינוי-בינוי.
               </p>
             </div>
           )}
@@ -354,8 +359,8 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
               <Label className="text-xs font-semibold">מצב בנייה</Label>
               <div className="flex gap-2">
                 {([
-                  { id: "full_rebuild", label: "הריסה + בנייה מחדש", hint: 'תמ"א 38/2, פינוי-בינוי' },
-                  { id: "addition_only", label: "חיזוק + תוספת", hint: 'תמ"א 38/1' },
+                  { id: "full_rebuild", label: "הריסה + בנייה מחדש", hint: "פינוי-בינוי / תכנית רובעית" },
+                  { id: "addition_only", label: "חיזוק קונסטרוקטיבי בלבד", hint: "ללא תוספת זכויות סטטוטוריות (תמ״א 38/1 פקעה 10/2022)" },
                 ] as { id: ConstructionMode; label: string; hint: string }[]).map((m) => {
                   const effective: ConstructionMode = input.constructionMode ??
                     (input.projectType === "urban_renewal" && (input.renewalSubtype ?? "tama38") === "tama38"
