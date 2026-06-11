@@ -132,7 +132,7 @@ const fieldsForType = (input: FinancialInput): FieldDef[] => {
   }
   // strengthening cost only relevant in addition_only mode
   const effectiveMode: ConstructionMode = input.constructionMode ??
-    (input.projectType === "urban_renewal" && (input.renewalSubtype ?? "tama38") === "tama38"
+    (input.projectType === "urban_renewal" && (input.renewalSubtype ?? "local_renewal") === "local_renewal"
       ? "addition_only"
       : "full_rebuild");
   if (effectiveMode !== "addition_only") hidden.add("strengtheningCostPerSqm");
@@ -191,7 +191,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
         };
         setInput({
           projectType: "urban_renewal",
-          renewalSubtype: "tama38",
+          renewalSubtype: "local_renewal",
           developerLandSharePct: 50,
           avgSalePricePerSqm: d.avgSalePricePerSqm,
           buildCostPerSqm: d.buildCostPerSqm,
@@ -327,28 +327,23 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
             <div className="mt-2 space-y-1.5">
               <Label className="text-xs font-semibold">תת-סוג התחדשות עירונית</Label>
               <div className="flex gap-2">
-                {(["tama38", "pinui_binui"] as RenewalSubtype[]).map((sub) => (
+                {(["local_renewal", "pinui_binui"] as RenewalSubtype[]).map((sub) => (
                   <button
                     key={sub}
                     type="button"
                     onClick={() => setInput({ ...input, renewalSubtype: sub })}
                     className={`flex-1 rounded-md border px-3 py-1.5 text-xs transition-colors ${
-                      (input.renewalSubtype ?? "tama38") === sub
+                      (input.renewalSubtype ?? "local_renewal") === sub
                         ? "border-primary bg-primary/10 text-primary font-semibold"
                         : "border-border bg-card text-muted-foreground hover:bg-muted"
                     }`}
                   >
-                    {sub === "tama38" ? (
-                      <span className="inline-flex items-center gap-1">
-                        תמ"א 38 / 38-2
-                        <span className="rounded bg-destructive/10 px-1 py-0.5 text-[9px] font-semibold text-destructive" title="תמ״א 38 פקעה לקליטת בקשות חדשות באוקטובר 2022">פקע 10/2022</span>
-                      </span>
-                    ) : "פינוי-בינוי"}
+                    {sub === "local_renewal" ? "תכנית מקומית / הקלות ועדה" : "פינוי-בינוי"}
                   </button>
                 ))}
               </div>
               <p className="text-[10px] text-muted-foreground">
-                תמ״א 38 פקעה ב-10/2022 ואינה זמינה לבקשות חדשות — נשמרת לתאימות עם דוחות קיימים בלבד. למסלול חדש בחר/י <strong>פינוי-בינוי</strong> או <strong>תכנית רובעית</strong> (רובע 3/4) שעדיין פעילים. פטור היטל השבחה חל רק על פינוי-בינוי לפי חוק פינוי-בינוי.
+                תמ״א 38 פקעה ב-10/2022 ואינה זמינה לבקשות חדשות. המסלולים הפעילים: <strong>פינוי-בינוי</strong> (פטור היטל השבחה לפי חוק פינוי-בינוי), <strong>תכנית רובעית</strong> (תא/3616/א, תא/3729/א) ו<strong>תכנית מקומית/הקלות ועדה</strong> (חלופי תמ״א 38 — דורש אישור פרטני).
               </p>
             </div>
           )}
@@ -363,7 +358,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
                   { id: "addition_only", label: "חיזוק קונסטרוקטיבי בלבד", hint: "ללא תוספת זכויות סטטוטוריות (תמ״א 38/1 פקעה 10/2022)" },
                 ] as { id: ConstructionMode; label: string; hint: string }[]).map((m) => {
                   const effective: ConstructionMode = input.constructionMode ??
-                    (input.projectType === "urban_renewal" && (input.renewalSubtype ?? "tama38") === "tama38"
+                    (input.projectType === "urban_renewal" && (input.renewalSubtype ?? "local_renewal") === "local_renewal"
                       ? "addition_only"
                       : "full_rebuild");
                   return (

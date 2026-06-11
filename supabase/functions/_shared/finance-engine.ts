@@ -2,10 +2,10 @@
 // No AI. Same input -> same output.
 
 export type ProjectType = "urban_renewal" | "new_construction" | "combination";
-export type RenewalSubtype = "tama38" | "pinui_binui";
+export type RenewalSubtype = "local_renewal" | "pinui_binui";
 export type FinishLevel = "standard" | "premium" | "luxury";
-// full_rebuild = הריסה + בנייה מחדש על כל השטח (תמ"א 38/2, פינוי-בינוי, בנייה חדשה)
-// addition_only = חיזוק קיים + תוספת בלבד (תמ"א 38/1)
+// full_rebuild  = הריסה + בנייה מחדש (פינוי-בינוי / תכנית רובעית / בנייה חדשה)
+// addition_only = חיזוק קונסטרוקטיבי + תוספת בלבד (חלופי תמ"א 38/1 ההיסטורית)
 export type ConstructionMode = "full_rebuild" | "addition_only";
 
 export interface ZoningConstraints {
@@ -15,7 +15,7 @@ export interface ZoningConstraints {
   todReliefApplies?: boolean | null;
   dewateringRequired?: boolean | null;
   renewalPotential?: {
-    track: "tama38_2" | "pinui_binui" | "rova_plan";
+    track: "local_renewal" | "pinui_binui" | "rova_plan";
     trackLabel: string;
     effectiveUpliftSqmTotal: number;
     tenantShareOfUpliftPct: number;
@@ -488,10 +488,10 @@ export function computeConstructionCost(input: EngineInput): ConstructionBreakdo
   const finishMul = FINISH_MULTIPLIER[finishLevel];
 
   // Construction mode default:
-  //   - urban_renewal + tama38 → addition_only (חיזוק + תוספת)
-  //   - all other cases       → full_rebuild
+  //   - urban_renewal + local_renewal → addition_only (חיזוק + תוספת)
+  //   - all other cases               → full_rebuild
   const mode: ConstructionMode = input.constructionMode ??
-    (input.projectType === "urban_renewal" && input.renewalSubtype === "tama38"
+    (input.projectType === "urban_renewal" && input.renewalSubtype === "local_renewal"
       ? "addition_only"
       : "full_rebuild");
 
