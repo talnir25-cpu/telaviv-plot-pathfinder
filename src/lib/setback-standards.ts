@@ -22,14 +22,12 @@ export function estimateTypicalFloorArea(
   plotWidth?: number,
   plotDepth?: number,
 ): number {
-  // עדיפות לממדים פיזיים אם סופקו — רוב מגרשי ת"א מלבניים צרים-ארוכים
   if (plotWidth && plotDepth && plotWidth > 0 && plotDepth > 0) {
     const w = Math.max(0, plotWidth - 2 * setbacks.side);
     const d = Math.max(0, plotDepth - setbacks.front - setbacks.rear);
     return Math.round(w * d);
   }
   if (!plotAreaSqm || plotAreaSqm <= 0) return 0;
-  // fallback: קירוב מגרש מרובע
   const side = Math.sqrt(plotAreaSqm);
   const width = Math.max(0, side - 2 * setbacks.side);
   const depth = Math.max(0, side - setbacks.front - setbacks.rear);
@@ -44,14 +42,12 @@ export function coveragePct(floorAreaSqm: number, plotAreaSqm: number): number {
 // ============================================================================
 // קווי בניין מוקלים בהליך התחדשות עירונית
 // ----------------------------------------------------------------------------
-// בהליכי תמ"א 38/2, פינוי-בינוי או תכנית רובעית — הוועדה המקומית רשאית להקל
-// בקווי הבניין הסטטוטוריים, מה שמגדיל את התכסית.
-// חלוקת התמורה לדיירים מהדלתא בתכסית:
-//   tama38_2   — 25% (תוספת ~25 מ"ר/דירה)
-//   pinui_binui — 40% (דירה חדשה גדולה משמעותית)
-//   rova_plan  — 30% (תכנית רובעית — תלוי בנספח התמורות)
+// מסלולים פעילים (לאחר פקיעת תמ"א 38 ב-10/2022):
+//   local_renewal — תכנית מקומית/הקלות ועדה מקומית (חלופי לתמ"א 38/2 ההיסטורית). ~25% חלק דיירים.
+//   pinui_binui   — פינוי-בינוי לפי חוק התשנ"ז-2006. ~40% חלק דיירים.
+//   rova_plan     — תכנית רובעית (תא/3616/א, תא/3729/א). ~30% חלק דיירים.
 
-export type RenewalTrack = "tama38_2" | "pinui_binui" | "rova_plan";
+export type RenewalTrack = "local_renewal" | "pinui_binui" | "rova_plan";
 
 export interface RenewalSetbackStandard {
   front: number;
@@ -63,16 +59,16 @@ export interface RenewalSetbackStandard {
 
 export const RENEWAL_SETBACKS: Record<3 | 4, Record<RenewalTrack, RenewalSetbackStandard>> = {
   3: {
-    tama38_2: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 25,
-      source: 'תמ"א 38/2 — הקלות ועדה מקומית (רובע 3)' },
+    local_renewal: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 25,
+      source: "תכנית מקומית — הקלות ועדה מקומית (רובע 3)" },
     pinui_binui: { front: 3, side: 2, rear: 3, tenantShareOfUpliftPct: 40,
       source: "תכנית פינוי-בינוי נקודתית (רובע 3)" },
     rova_plan: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 30,
       source: "תקנון רובע 3 — מסלול התחדשות" },
   },
   4: {
-    tama38_2: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 25,
-      source: 'תמ"א 38/2 — הקלות ועדה מקומית (רובע 4)' },
+    local_renewal: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 25,
+      source: "תכנית מקומית — הקלות ועדה מקומית (רובע 4)" },
     pinui_binui: { front: 3, side: 2.5, rear: 4, tenantShareOfUpliftPct: 40,
       source: "תכנית פינוי-בינוי נקודתית (רובע 4)" },
     rova_plan: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 30,
@@ -81,18 +77,19 @@ export const RENEWAL_SETBACKS: Record<3 | 4, Record<RenewalTrack, RenewalSetback
 };
 
 export const RENEWAL_TRACK_LABEL: Record<RenewalTrack, string> = {
-  tama38_2: 'תמ"א 38/2 (הריסה ובנייה)',
+  local_renewal: 'תכנית מקומית / הקלות ועדה (חלופי תמ"א 38)',
   pinui_binui: "פינוי-בינוי",
   rova_plan: "תכנית רובעית",
 };
 
 /**
  * זיהוי מסלול ההתחדשות לפי סוג הפרויקט וקלט נוסף.
- * heuristic: pinui_binui אם הוצהר; אחרת tama38_2 לבניינים נמוכים, rova_plan ברירת מחדל.
+ * ברירת מחדל: rova_plan (תכנית רובעית — המסלול הסטטוטורי הפעיל בת"א רובעים 3/4).
+ * תמ"א 38 פקעה ב-10/2022 ואינה ברירת מחדל יותר.
  */
 export function inferRenewalTrack(opts: {
   projectType?: "urban_renewal" | "new_construction" | "combination";
-  renewalSubtype?: "tama38" | "pinui_binui";
+  renewalSubtype?: "local_renewal" | "pinui_binui";
   existingFloors?: number;
   existingUnits?: number;
 }): RenewalTrack | null {
@@ -100,8 +97,8 @@ export function inferRenewalTrack(opts: {
     return null;
   }
   if (opts.renewalSubtype === "pinui_binui") return "pinui_binui";
-  if (opts.renewalSubtype === "tama38") return "tama38_2";
+  if (opts.renewalSubtype === "local_renewal") return "local_renewal";
   // היוריסטיקה: בניינים גבוהים/צפופים → פינוי-בינוי
   if ((opts.existingFloors ?? 0) >= 5 || (opts.existingUnits ?? 0) >= 12) return "pinui_binui";
-  return "tama38_2";
+  return "rova_plan";
 }

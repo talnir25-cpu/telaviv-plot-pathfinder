@@ -108,34 +108,35 @@ function estimateTypicalFloorArea(
   return Math.round(width * depth);
 }
 
-type RenewalTrack = "tama38_2" | "pinui_binui" | "rova_plan";
+type RenewalTrack = "local_renewal" | "pinui_binui" | "rova_plan";
 interface RenewalSetbackStandard {
   front: number; side: number; rear: number;
   tenantShareOfUpliftPct: number; source: string;
 }
 const RENEWAL_SETBACKS: Record<3 | 4, Record<RenewalTrack, RenewalSetbackStandard>> = {
   3: {
-    tama38_2: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 25, source: 'תמ"א 38/2 — הקלות ועדה מקומית (רובע 3)' },
+    local_renewal: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 25, source: "תכנית מקומית — הקלות ועדה מקומית (רובע 3)" },
     pinui_binui: { front: 3, side: 2, rear: 3, tenantShareOfUpliftPct: 40, source: "תכנית פינוי-בינוי נקודתית (רובע 3)" },
     rova_plan: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 30, source: "תקנון רובע 3 — מסלול התחדשות" },
   },
   4: {
-    tama38_2: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 25, source: 'תמ"א 38/2 — הקלות ועדה מקומית (רובע 4)' },
+    local_renewal: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 25, source: "תכנית מקומית — הקלות ועדה מקומית (רובע 4)" },
     pinui_binui: { front: 3, side: 2.5, rear: 4, tenantShareOfUpliftPct: 40, source: "תכנית פינוי-בינוי נקודתית (רובע 4)" },
     rova_plan: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 30, source: "תקנון רובע 4 — מסלול התחדשות" },
   },
 };
 const RENEWAL_TRACK_LABEL: Record<RenewalTrack, string> = {
-  tama38_2: 'תמ"א 38/2 (הריסה ובנייה)',
+  local_renewal: 'תכנית מקומית / הקלות ועדה (חלופי תמ"א 38)',
   pinui_binui: "פינוי-בינוי",
   rova_plan: "תכנית רובעית",
 };
 
 function inferRenewalTrack(existingFloors: number, existingUnits: number, conservation: boolean, buildingYear?: number): RenewalTrack {
+  // ברירת מחדל: rova_plan — המסלול הסטטוטורי הפעיל בת"א רובעים 3/4 לאחר פקיעת תמ"א 38 (10/2022).
   if (conservation) return "rova_plan";
-  if (buildingYear != null && buildingYear >= 1980) return "rova_plan";
   if (existingFloors >= 5 || existingUnits >= 12) return "pinui_binui";
-  return "tama38_2";
+  if (buildingYear != null && buildingYear < 1980) return "local_renewal";
+  return "rova_plan";
 }
 
 
@@ -263,7 +264,7 @@ const SYSTEM_PROMPT = `אתה אנליסט בכיר להתחדשות עירונ�
 
 עקרונות חישוב מקובלים (כשאין נתון מדויק):
 - רובע 3 ו-4: זכויות בנייה טיפוסיות 200%-280% (כולל מרפסות), עד 6-8 קומות + קומת גג חלקית
-- מכפיל יח"ד טיפוסי בפינוי-בינוי: 2.5x-4x; בתמ"א 38: 1.3x-2x
+- מכפיל יח"ד טיפוסי בפינוי-בינוי: 2.5x-4x; בתכנית רובעית: 1.5x-2.3x; בתכנית מקומית/הקלות ועדה: 1.3x-1.8x
 - שטח דירה ממוצע מוצע: 90-110 מ"ר ברוטו
 - חזית מסחרית מותרת לאורך רחובות מסחר ראשיים
 - ברובעים 3 ו-4 קיימת מגבלת חניה משמעותית; אין בריכות; ללא גימור עץ/אבן בגדרות
@@ -290,7 +291,7 @@ const SYSTEM_PROMPT = `אתה אנליסט בכיר להתחדשות עירונ�
 - רובע 3 צפון-מרכזי (גושים 6109-6110): עד 30 מ׳ ≈ 9 קומות.
 
 כללי היתכנות מסלול (חובה לאכוף):
-- אם existingFloors ≥ 5 — תמ"א 38/2 לא משתלמת כלכלית; הצע פינוי-בינוי בלבד וסמן status="high_risk" אם plotArea < 800 מ"ר.
+- אם existingFloors ≥ 5 — הצע פינוי-בינוי או תכנית רובעית בלבד וסמן status="high_risk" אם plotArea < 800 מ"ר. (תמ"א 38 פקעה 10/2022.)
 - אם plotArea < 500 מ"ר ו-existingUnits < 6 — סמן status="high_risk" עם red flag על קושי לעבור סף כלכלי לפינוי-בינוי.
 - אם treesForConservation > 0 וגם המגרש פינתי (notes מציינים פינתי/חזית כפולה) — הוסף red flag warning על מורכבות תכנון מעטפת.
 
@@ -711,8 +712,11 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
         const FLOOR_HEIGHT_M = 3.2;
 
         // מיפוי מסלול → שם השדה בטבלת zoning_rights
+        // מיפוי מסלול → שם השדה בטבלת zoning_rights.
+        // הערה: עמודות tama38_far_bonus/tama38_units_bonus_pct ב-DB משמשות כיום כייצוג של
+        // הקלות ועדה מקומית בתכנית מקומית (חלופי לתמ"א 38 שפקעה 10/2022).
         const TRACK_TO_BONUS_KEY: Record<RenewalTrack, "tama38" | "pinui" | "rova_plan"> = {
-          tama38_2: "tama38",
+          local_renewal: "tama38",
           pinui_binui: "pinui",
           rova_plan: "rova_plan",
         };
@@ -802,7 +806,7 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
 
           if (plotAreaDet > 0 && maxFAR > 0 && maxFloorsDet > 0 && floorAreaEff > 0) {
             const TRACK_MULTIPLIER: Record<RenewalTrack, number> = {
-              tama38_2: 1.6,
+              local_renewal: 1.5,
               rova_plan: 2.3,
               pinui_binui: 3.0,
             };

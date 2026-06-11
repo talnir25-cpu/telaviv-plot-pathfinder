@@ -63,7 +63,7 @@ export interface FeasibilityReport {
     coverageSource?: string;                // תיאור מקור/אמינות
     // פוטנציאל הגדלת תכסית בהליך התחדשות עירונית (אופציונלי)
     renewalPotential?: {
-      track: "tama38_2" | "pinui_binui" | "rova_plan";
+      track: "local_renewal" | "pinui_binui" | "rova_plan";
       trackLabel: string;
       frontSetbackM: number;
       sideSetbackM: number;
@@ -101,12 +101,12 @@ export type CalculationSource =
       density_coefficient_sqm_per_unit: number;
       units_bonus_pct: number;
       max_floors: number;
-      renewal_track: "tama38_2" | "pinui_binui" | "rova_plan";
+      renewal_track: "local_renewal" | "pinui_binui" | "rova_plan";
       renewal_track_label: string;
     }
   | {
       method: "ai_estimate";
-      renewal_track: "tama38_2" | "pinui_binui" | "rova_plan";
+      renewal_track: "local_renewal" | "pinui_binui" | "rova_plan";
       renewal_track_label: string;
       multiplier_used: number;
       note: string;
@@ -190,7 +190,7 @@ export interface TabuAnalysis {
 // ============ Financial analysis ============
 
 export type ProjectType = "urban_renewal" | "new_construction" | "combination";
-export type RenewalSubtype = "tama38" | "pinui_binui";
+export type RenewalSubtype = "local_renewal" | "pinui_binui";
 export type FinishLevel = "standard" | "premium" | "luxury";
 export type ConstructionMode = "full_rebuild" | "addition_only";
 
