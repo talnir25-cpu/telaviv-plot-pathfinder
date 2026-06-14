@@ -743,9 +743,8 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
             : byFAR; // אם אין נתון לתכסית — לא מגביל
           const proposedBuilt = Math.round(Math.min(byFAR, byEnvelope));
 
-          const proposedFloorsDet = floorAreaEff > 0
-            ? Math.min(Math.max(maxFloorsDet, 1), Math.max(1, Math.ceil(proposedBuilt / floorAreaEff)))
-            : Math.max(maxFloorsDet, 1);
+          // מספר הקומות המוצע = המקסימום המותר לפי התקנון (לא נגזרת של שטח)
+          const proposedFloorsDet = Math.max(maxFloorsDet, 1);
 
           const heightDet = Math.round(proposedFloorsDet * FLOOR_HEIGHT_M * 10) / 10;
 
