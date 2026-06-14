@@ -798,19 +798,22 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
             renewal_track_label: RENEWAL_TRACK_LABEL[renewalTrack],
           };
         } else {
-          // ───────── Fallback: חישוב ישן מבוסס AI ─────────
+          // ───────── Fallback: חישוב מבוסס שטח ורובע ─────────
+          // נכנס לפעולה רק כשלא נמצאה שורה בטבלת zoning_rights.
+          // משתמש במקדמי צפיפות ידועים לפי רובע במקום מכפיל גס.
           const maxFAR = Number(report.zoning?.maxFAR ?? 0);
           const maxFloorsDet = Number(report.zoning?.maxFloors ?? 0);
           const maxHeightDet = Number(report.zoning?.maxHeightMeters ?? 0);
           const floorAreaEff = renewalFloorArea > 0 ? renewalFloorArea : typicalFloorArea;
 
           if (plotAreaDet > 0 && maxFAR > 0 && maxFloorsDet > 0 && floorAreaEff > 0) {
-            const TRACK_MULTIPLIER: Record<RenewalTrack, number> = {
-              local_renewal: 1.5,
-              rova_plan: 2.3,
-              pinui_binui: 3.0,
-            };
-            const AVG_UNIT_SIZE = 95;
+
+            // מקדם צפיפות לפי רובע — מבוסס תקנונים תא/3616א ותא/3729א
+            // רובע 3: 80 מ"ר לדירה (ממוצע מגורים ב/ג)
+            // רובע 4: 80 מ"ר לדירה (ברירת מחדל שאר הרחובות)
+            const FALLBACK_DENSITY: Record<number, number> = { 3: 80, 4: 80 };
+            const quarter = Number(body.quarter ?? 0);
+            const densityCoeff = FALLBACK_DENSITY[quarter] ?? 85;
 
             const byFAR = plotAreaDet * maxFAR;
             const byEnvelope = floorAreaEff * maxFloorsDet;
@@ -827,15 +830,13 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
                 : proposedFloorsDet * FLOOR_HEIGHT_M) * 10,
             ) / 10;
 
-            const multiplierDet = TRACK_MULTIPLIER[renewalTrack];
-            const byMultiplier = Math.round((body.existingUnits ?? 0) * multiplierDet);
-            const sellableArea = proposedBuilt * SELLABLE_RATIO;
-            const byDensity = Math.floor(sellableArea / AVG_UNIT_SIZE);
+            // יח"ד = שטח בנייה ÷ מקדם צפיפות (לפי תקנון), לא פחות מהקיים
             const proposedUnitsDet = Math.max(
               body.existingUnits ?? 0,
-              Math.min(byMultiplier, byDensity),
+              Math.floor(proposedBuilt / densityCoeff),
             );
 
+            const sellableArea = proposedBuilt * SELLABLE_RATIO;
             const farDet = Number((proposedBuilt / plotAreaDet).toFixed(2));
 
             report.proposed = {
@@ -857,15 +858,15 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
               estimatedSellableArea: Math.round(sellableArea),
               avgUnitSize: proposedUnitsDet > 0
                 ? Math.round(proposedBuilt / proposedUnitsDet)
-                : AVG_UNIT_SIZE,
+                : densityCoeff,
             };
 
             calcSource = {
-              method: "ai_estimate",
+              method: "fallback_by_quarter",
               renewal_track: renewalTrack,
               renewal_track_label: RENEWAL_TRACK_LABEL[renewalTrack],
-              multiplier_used: multiplierDet,
-              note: "ייעוד לא נמצא בטבלת זכויות — נעשה שימוש בהערכת AI",
+              density_coefficient_used: densityCoeff,
+              note: "ייעוד לא נמצא בטבלת זכויות — שימוש במקדם צפיפות לפי רובע",
             };
           }
         }
