@@ -126,7 +126,7 @@ const RENEWAL_SETBACKS: Record<3 | 4, Record<RenewalTrack, RenewalSetbackStandar
   },
 };
 const RENEWAL_TRACK_LABEL: Record<RenewalTrack, string> = {
-  local_renewal: 'תכנית מקומית / הקלות ועדה (חלופי תמ"א 38)',
+  local_renewal: "תכנית מקומית / הקלות ועדה",
   pinui_binui: "פינוי-בינוי",
   rova_plan: "תכנית רובעית",
 };
