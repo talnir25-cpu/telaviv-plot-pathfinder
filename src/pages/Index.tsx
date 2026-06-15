@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { PlotPicker } from "@/components/PlotPicker";
 import { DashboardReport } from "@/components/DashboardReport";
@@ -8,20 +8,65 @@ import type { AnalysisInput, FeasibilityReport } from "@/types/feasibility";
 import { Card } from "@/components/ui/card";
 import { FileSearch } from "lucide-react";
 
+const ANALYSIS_STATE_KEY = "telaviv-plot-pathfinder:last-analysis";
+
+type AnalysisJobRow = {
+  status: string;
+  result: unknown;
+  error_message: string | null;
+};
+
+type SavedAnalysisState = {
+  status: "processing" | "completed";
+  jobId?: string;
+  input: AnalysisInput;
+  report?: FeasibilityReport;
+  plotLabel?: string;
+  plotIds?: { gush: number; helka: number };
+  updatedAt: string;
+};
+
+const getReportFromResult = (result: unknown) =>
+  (result as { report?: FeasibilityReport } | null)?.report ?? null;
+
+const buildPlotLabel = (input: AnalysisInput) =>
+  `רובע ${input.quarter} • גוש ${input.gush} • חלקה ${input.helka}`;
+
+const saveAnalysisState = (state: SavedAnalysisState) => {
+  try {
+    localStorage.setItem(ANALYSIS_STATE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn("Could not persist analysis state", e);
+  }
+};
+
+const readAnalysisState = (): SavedAnalysisState | null => {
+  try {
+    const raw = localStorage.getItem(ANALYSIS_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SavedAnalysisState;
+    return parsed?.input ? parsed : null;
+  } catch (e) {
+    console.warn("Could not restore analysis state", e);
+    localStorage.removeItem(ANALYSIS_STATE_KEY);
+    return null;
+  }
+};
+
 const Index = () => {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<FeasibilityReport | null>(null);
   const [plotLabel, setPlotLabel] = useState("");
   const [plotIds, setPlotIds] = useState<{ gush: number; helka: number } | null>(null);
   const [lastInput, setLastInput] = useState<AnalysisInput | null>(null);
+  const cleanupJobWatchRef = useRef<(() => void) | null>(null);
 
-  const handleAnalyze = async (input: AnalysisInput) => {
-    setLoading(true);
-    setReport(null);
-    setLastInput(input);
+  const watchAnalysisJob = useCallback((jobId: string, input: AnalysisInput) => {
+    cleanupJobWatchRef.current?.();
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let safetyTimer: ReturnType<typeof setTimeout> | null = null;
     let settled = false;
 
     const cleanup = () => {
@@ -33,12 +78,19 @@ const Index = () => {
         clearInterval(pollTimer);
         pollTimer = null;
       }
+      if (safetyTimer) {
+        clearTimeout(safetyTimer);
+        safetyTimer = null;
+      }
+      if (cleanupJobWatchRef.current === cleanup) cleanupJobWatchRef.current = null;
     };
 
-    const finishWithResult = (row: { status: string; result: unknown; error_message: string | null }) => {
+    cleanupJobWatchRef.current = cleanup;
+
+    const finishWithResult = (row: AnalysisJobRow) => {
       if (settled) return;
       if (row.status === "completed") {
-        const report = (row.result as { report?: FeasibilityReport } | null)?.report;
+        const report = getReportFromResult(row.result);
         if (!report) {
           settled = true;
           cleanup();
@@ -46,19 +98,91 @@ const Index = () => {
           toast.error("לא התקבל דוח מהמודל");
           return;
         }
+
+        const nextPlotLabel = buildPlotLabel(input);
+        const nextPlotIds = { gush: input.gush, helka: input.helka };
         settled = true;
         cleanup();
         setReport(report);
-        setPlotLabel(`רובע ${input.quarter} • גוש ${input.gush} • חלקה ${input.helka}`);
-        setPlotIds({ gush: input.gush, helka: input.helka });
+        setPlotLabel(nextPlotLabel);
+        setPlotIds(nextPlotIds);
+        setLastInput(input);
         setLoading(false);
+        saveAnalysisState({
+          status: "completed",
+          jobId,
+          input,
+          report,
+          plotLabel: nextPlotLabel,
+          plotIds: nextPlotIds,
+          updatedAt: new Date().toISOString(),
+        });
       } else if (row.status === "failed") {
         settled = true;
         cleanup();
         setLoading(false);
+        localStorage.removeItem(ANALYSIS_STATE_KEY);
         toast.error(row.error_message || "ניתוח החלקה נכשל");
       }
     };
+
+    const pollJob = async () => {
+      if (settled) return;
+      const { data: row } = await supabase
+        .from("analysis_jobs")
+        .select("status, result, error_message")
+        .eq("id", jobId)
+        .maybeSingle();
+      if (row) finishWithResult(row as AnalysisJobRow);
+    };
+
+    channel = supabase
+      .channel(`analysis_job_${jobId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "analysis_jobs", filter: `id=eq.${jobId}` },
+        (payload) => finishWithResult(payload.new as AnalysisJobRow),
+      )
+      .subscribe();
+
+    void pollJob();
+    pollTimer = setInterval(pollJob, 3000);
+    safetyTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      setLoading(false);
+      toast.error("הניתוח נמשך זמן רב מהצפוי — נסה שוב");
+    }, 5 * 60 * 1000);
+  }, []);
+
+  useEffect(() => {
+    const saved = readAnalysisState();
+    if (!saved) return;
+
+    setLastInput(saved.input);
+    if (saved.status === "completed" && saved.report) {
+      setReport(saved.report);
+      setPlotLabel(saved.plotLabel ?? buildPlotLabel(saved.input));
+      setPlotIds(saved.plotIds ?? { gush: saved.input.gush, helka: saved.input.helka });
+      return;
+    }
+
+    if (saved.status === "processing" && saved.jobId) {
+      setLoading(true);
+      watchAnalysisJob(saved.jobId, saved.input);
+    }
+
+    return () => cleanupJobWatchRef.current?.();
+  }, [watchAnalysisJob]);
+
+  const handleAnalyze = async (input: AnalysisInput) => {
+    setLoading(true);
+    setReport(null);
+    setLastInput(input);
+    setPlotIds(null);
+    cleanupJobWatchRef.current?.();
+    localStorage.removeItem(ANALYSIS_STATE_KEY);
 
     try {
       const { data, error } = await supabase.functions.invoke("analyze-plot", {
@@ -76,41 +200,11 @@ const Index = () => {
         setLoading(false);
         return;
       }
-
-      // Subscribe to live updates for this job row
-      channel = supabase
-        .channel(`analysis_job_${jobId}`)
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "analysis_jobs", filter: `id=eq.${jobId}` },
-          (payload) => {
-            finishWithResult(payload.new as { status: string; result: unknown; error_message: string | null });
-          },
-        )
-        .subscribe();
-
-      // Fallback poll every 3s in case realtime is delayed/lost
-      pollTimer = setInterval(async () => {
-        if (settled) return;
-        const { data: row } = await supabase
-          .from("analysis_jobs")
-          .select("status, result, error_message")
-          .eq("id", jobId)
-          .maybeSingle();
-        if (row) finishWithResult(row as { status: string; result: unknown; error_message: string | null });
-      }, 3000);
-
-      // Safety timeout: stop spinning after 5 minutes
-      setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        setLoading(false);
-        toast.error("הניתוח נמשך זמן רב מהצפוי — נסה שוב");
-      }, 5 * 60 * 1000);
+      saveAnalysisState({ status: "processing", jobId, input, updatedAt: new Date().toISOString() });
+      watchAnalysisJob(jobId, input);
     } catch (e) {
       console.error(e);
-      cleanup();
+      cleanupJobWatchRef.current?.();
       setLoading(false);
       toast.error("שגיאה לא צפויה");
     }
