@@ -19,31 +19,103 @@ const Index = () => {
     setLoading(true);
     setReport(null);
     setLastInput(input);
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let settled = false;
+
+    const cleanup = () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    };
+
+    const finishWithResult = (row: { status: string; result: unknown; error_message: string | null }) => {
+      if (settled) return;
+      if (row.status === "completed") {
+        const report = (row.result as { report?: FeasibilityReport } | null)?.report;
+        if (!report) {
+          settled = true;
+          cleanup();
+          setLoading(false);
+          toast.error("לא התקבל דוח מהמודל");
+          return;
+        }
+        settled = true;
+        cleanup();
+        setReport(report);
+        setPlotLabel(`רובע ${input.quarter} • גוש ${input.gush} • חלקה ${input.helka}`);
+        setPlotIds({ gush: input.gush, helka: input.helka });
+        setLoading(false);
+      } else if (row.status === "failed") {
+        settled = true;
+        cleanup();
+        setLoading(false);
+        toast.error(row.error_message || "ניתוח החלקה נכשל");
+      }
+    };
+
     try {
       const { data, error } = await supabase.functions.invoke("analyze-plot", {
         body: input,
       });
       if (error) {
-        const msg =
-          (error as { message?: string }).message ||
-          "שגיאה בעת ניתוח החלקה. נסה שוב.";
+        const msg = (error as { message?: string }).message || "שגיאה בעת שליחת הבקשה. נסה שוב.";
         toast.error(msg);
+        setLoading(false);
         return;
       }
-      if (!data?.report) {
-        toast.error("לא התקבל דוח מהמודל");
+      const jobId = (data as { jobId?: string } | null)?.jobId;
+      if (!jobId) {
+        toast.error("לא התקבל מזהה עבודה מהשרת");
+        setLoading(false);
         return;
       }
-      setReport(data.report as FeasibilityReport);
-      setPlotLabel(`רובע ${input.quarter} • גוש ${input.gush} • חלקה ${input.helka}`);
-      setPlotIds({ gush: input.gush, helka: input.helka });
+
+      // Subscribe to live updates for this job row
+      channel = supabase
+        .channel(`analysis_job_${jobId}`)
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "analysis_jobs", filter: `id=eq.${jobId}` },
+          (payload) => {
+            finishWithResult(payload.new as { status: string; result: unknown; error_message: string | null });
+          },
+        )
+        .subscribe();
+
+      // Fallback poll every 3s in case realtime is delayed/lost
+      pollTimer = setInterval(async () => {
+        if (settled) return;
+        const { data: row } = await supabase
+          .from("analysis_jobs")
+          .select("status, result, error_message")
+          .eq("id", jobId)
+          .maybeSingle();
+        if (row) finishWithResult(row as { status: string; result: unknown; error_message: string | null });
+      }, 3000);
+
+      // Safety timeout: stop spinning after 5 minutes
+      setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        setLoading(false);
+        toast.error("הניתוח נמשך זמן רב מהצפוי — נסה שוב");
+      }, 5 * 60 * 1000);
     } catch (e) {
       console.error(e);
-      toast.error("שגיאה לא צפויה");
-    } finally {
+      cleanup();
       setLoading(false);
+      toast.error("שגיאה לא צפויה");
     }
   };
+
 
   const handleRefresh = () => {
     if (lastInput) {

@@ -303,47 +303,80 @@ const SYSTEM_PROMPT = `אתה אנליסט בכיר להתחדשות עירונ�
 - כתוב בעברית מקצועית ותמציתית`;
 
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+// ── Service-role REST helpers for analysis_jobs ──
+async function createJob(input: unknown): Promise<string | null> {
+  const supaUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supaUrl || !serviceKey) {
+    console.error("createJob: missing env");
+    return null;
+  }
+  try {
+    const r = await fetch(`${supaUrl}/rest/v1/analysis_jobs`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({ status: "processing", input }),
+    });
+    if (!r.ok) {
+      console.error("createJob failed", r.status, await r.text());
+      return null;
+    }
+    const rows = await r.json();
+    return Array.isArray(rows) && rows[0]?.id ? rows[0].id as string : null;
+  } catch (e) {
+    console.error("createJob threw", e);
+    return null;
+  }
+}
+
+async function updateJob(jobId: string, patch: Record<string, unknown>): Promise<void> {
+  const supaUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supaUrl || !serviceKey) return;
+  try {
+    const r = await fetch(`${supaUrl}/rest/v1/analysis_jobs?id=eq.${jobId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(patch),
+    });
+    if (!r.ok) console.error("updateJob failed", r.status, await r.text());
+  } catch (e) {
+    console.error("updateJob threw", e);
+  }
+}
+
+async function runAnalysis(body: PlotInput): Promise<unknown> {
+  // ── Tabu override (priority over user-entered fields) ──
+  if (body.tabuAnalysis) {
+    const t = body.tabuAnalysis;
+    if (t.units > 0) body.existingUnits = t.units;
+    if (t.floors > 0) body.existingFloors = t.floors;
+    if (t.buildingYear && t.buildingYear >= 1900) body.buildingYear = t.buildingYear;
+    if (t.plotArea > 0) {
+      body.area = t.plotArea;
+      if (!body.shapeArea) body.shapeArea = t.plotArea;
+    }
+    if (t.avgUnitSize > 0 && t.units > 0 && !body.existingBuiltAreaSqm) {
+      body.existingBuiltAreaSqm = Math.round(t.avgUnitSize * t.units);
+      body.existingBuiltAreaSource = "tabu";
+      body.existingBuiltAreaConfidence = "high";
+    }
   }
 
-  try {
-    const body = (await req.json()) as PlotInput;
+  if (!body.existingUnits || body.existingUnits < 1) {
+    throw new Error("לא ניתן לחשב מכפיל ללא נתון על יח\"ד קיימות (existingUnits ≥ 1)");
+  }
 
-    if (!body || !body.quarter || !body.gush || !body.helka) {
-      return new Response(JSON.stringify({ error: "missing required fields" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // ── Tabu override: when a parsed Tabu document is supplied, it takes
-    //    absolute priority over any other source for existing units/floors,
-    //    plot area, and building year. The original body fields are mutated
-    //    so that all downstream logic uses the authoritative values.
-    if (body.tabuAnalysis) {
-      const t = body.tabuAnalysis;
-      if (t.units > 0) body.existingUnits = t.units;
-      if (t.floors > 0) body.existingFloors = t.floors;
-      if (t.buildingYear && t.buildingYear >= 1900) body.buildingYear = t.buildingYear;
-      if (t.plotArea > 0) {
-        body.area = t.plotArea;
-        if (!body.shapeArea) body.shapeArea = t.plotArea;
-      }
-      if (t.avgUnitSize > 0 && t.units > 0 && !body.existingBuiltAreaSqm) {
-        body.existingBuiltAreaSqm = Math.round(t.avgUnitSize * t.units);
-        body.existingBuiltAreaSource = "tabu";
-        body.existingBuiltAreaConfidence = "high";
-      }
-    }
-
-    if (!body.existingUnits || body.existingUnits < 1) {
-      return new Response(
-        JSON.stringify({ error: "לא ניתן לחשב מכפיל ללא נתון על יח\"ד קיימות (existingUnits ≥ 1)" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
 
 
     // ── שליפת זכויות הבנייה מהתקנון (lookup-zone-info) ──
@@ -456,9 +489,7 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
-      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY missing" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      throw new Error("ANTHROPIC_API_KEY missing");
     }
 
     const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
@@ -483,18 +514,12 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
     });
 
     if (!aiResp.ok) {
-      if (aiResp.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "חרגת ממכסת בקשות בדקה — נסה שוב בעוד רגע" }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
       const t = await aiResp.text();
       console.error("Anthropic error:", aiResp.status, t);
-      return new Response(JSON.stringify({ error: "Anthropic error", details: t.slice(0, 300) }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (aiResp.status === 429) {
+        throw new Error("חרגת ממכסת בקשות בדקה — נסה שוב בעוד רגע");
+      }
+      throw new Error(`Anthropic error ${aiResp.status}: ${t.slice(0, 300)}`);
     }
 
     const aiJson = await aiResp.json();
@@ -503,14 +528,12 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
       : null;
     if (!toolCall?.input) {
       console.error("No tool_use in response", JSON.stringify(aiJson));
-      return new Response(JSON.stringify({ error: "AI did not return structured report" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      throw new Error("AI did not return structured report");
     }
 
     // deno-lint-ignore no-explicit-any
     const report: any = toolCall.input;
+
 
     // ── Post-validation: deterministic sanity checks on AI output ──
     try {
@@ -917,17 +940,60 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
     }
 
 
+  return report;
+}
 
+// ── Edge handler: create job, run analysis in background, return 202 immediately ──
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
+  try {
+    const body = (await req.json()) as PlotInput;
 
-    return new Response(JSON.stringify({ report }), {
+    if (!body || !body.quarter || !body.gush || !body.helka) {
+      return new Response(JSON.stringify({ error: "missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const jobId = await createJob(body);
+    if (!jobId) {
+      return new Response(JSON.stringify({ error: "Failed to create analysis job" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Run the heavy analysis in the background. The HTTP response returns immediately.
+    // deno-lint-ignore no-explicit-any
+    const runtime = (globalThis as any).EdgeRuntime;
+    const work = (async () => {
+      try {
+        const report = await runAnalysis(body);
+        await updateJob(jobId, { status: "completed", result: { report } });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Unknown error";
+        console.error(`job ${jobId} failed:`, msg);
+        await updateJob(jobId, { status: "failed", error_message: msg });
+      }
+    })();
+    if (runtime && typeof runtime.waitUntil === "function") {
+      runtime.waitUntil(work);
+    }
+
+    return new Response(JSON.stringify({ jobId }), {
+      status: 202,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("analyze-plot error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("analyze-plot handler error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 });
+
