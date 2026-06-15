@@ -29,6 +29,15 @@ export interface FeasibilityReport {
     builtAreaSqm: number;
     far: number;
     heightMeters: number;
+    unitRange?: {
+      min: number;
+      base: number;
+      max: number;
+      avgUnitSizeMin: number;
+      avgUnitSizeBase: number;
+      avgUnitSizeMax: number;
+    };
+    sellableAreaSqm?: number;
   };
   metrics: {
     multiplier: number;

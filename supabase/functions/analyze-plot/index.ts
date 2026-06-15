@@ -756,6 +756,17 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
           const unitsBonusPct = 0; // נשמר לתצוגה בלבד — לא בשימוש בחישוב
 
           const sellableArea = proposedBuilt * SELLABLE_RATIO;
+
+          // טווח יחידות דיור לפי תמהיל — ברירת מחדל אחידה, ניתן להרחיב לפי רובע/אזור
+          const UNIT_MIX_DEFAULT = { min: 95, base: 78, max: 60 }; // מ"ר ממוצע לדירה
+          const unitRange = {
+            min: Math.floor(sellableArea / UNIT_MIX_DEFAULT.min),
+            base: Math.round(sellableArea / UNIT_MIX_DEFAULT.base),
+            max: Math.floor(sellableArea / UNIT_MIX_DEFAULT.max),
+            avgUnitSizeMin: UNIT_MIX_DEFAULT.min,
+            avgUnitSizeBase: UNIT_MIX_DEFAULT.base,
+            avgUnitSizeMax: UNIT_MIX_DEFAULT.max,
+          };
           const farDet = Number((proposedBuilt / plotAreaDet).toFixed(2));
 
           report.proposed = {
@@ -765,6 +776,8 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
             builtAreaSqm: proposedBuilt,
             far: farDet,
             heightMeters: heightDet,
+            unitRange,
+            sellableAreaSqm: Math.round(sellableArea),
           };
 
           const existingUnitsForMetrics = report.existing?.units ?? body.existingUnits ?? 0;
@@ -836,6 +849,17 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
             );
 
             const sellableArea = proposedBuilt * SELLABLE_RATIO;
+
+            // טווח יחידות דיור לפי תמהיל — ברירת מחדל אחידה, ניתן להרחיב לפי רובע/אזור
+            const UNIT_MIX_DEFAULT = { min: 95, base: 78, max: 60 }; // מ"ר ממוצע לדירה
+            const unitRange = {
+              min: Math.floor(sellableArea / UNIT_MIX_DEFAULT.min),
+              base: Math.round(sellableArea / UNIT_MIX_DEFAULT.base),
+              max: Math.floor(sellableArea / UNIT_MIX_DEFAULT.max),
+              avgUnitSizeMin: UNIT_MIX_DEFAULT.min,
+              avgUnitSizeBase: UNIT_MIX_DEFAULT.base,
+              avgUnitSizeMax: UNIT_MIX_DEFAULT.max,
+            };
             const farDet = Number((proposedBuilt / plotAreaDet).toFixed(2));
 
             report.proposed = {
@@ -845,6 +869,8 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
               builtAreaSqm: proposedBuilt,
               far: farDet,
               heightMeters: heightDet,
+              unitRange,
+              sellableAreaSqm: Math.round(sellableArea),
             };
 
             const existingUnitsForMetrics = report.existing?.units ?? body.existingUnits ?? 0;
