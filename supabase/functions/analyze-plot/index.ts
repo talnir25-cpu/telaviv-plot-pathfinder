@@ -489,9 +489,7 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
-      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY missing" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      throw new Error("ANTHROPIC_API_KEY missing");
     }
 
     const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
@@ -516,18 +514,12 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
     });
 
     if (!aiResp.ok) {
-      if (aiResp.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "חרגת ממכסת בקשות בדקה — נסה שוב בעוד רגע" }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
       const t = await aiResp.text();
       console.error("Anthropic error:", aiResp.status, t);
-      return new Response(JSON.stringify({ error: "Anthropic error", details: t.slice(0, 300) }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (aiResp.status === 429) {
+        throw new Error("חרגת ממכסת בקשות בדקה — נסה שוב בעוד רגע");
+      }
+      throw new Error(`Anthropic error ${aiResp.status}: ${t.slice(0, 300)}`);
     }
 
     const aiJson = await aiResp.json();
@@ -536,14 +528,12 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
       : null;
     if (!toolCall?.input) {
       console.error("No tool_use in response", JSON.stringify(aiJson));
-      return new Response(JSON.stringify({ error: "AI did not return structured report" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      throw new Error("AI did not return structured report");
     }
 
     // deno-lint-ignore no-explicit-any
     const report: any = toolCall.input;
+
 
     // ── Post-validation: deterministic sanity checks on AI output ──
     try {
