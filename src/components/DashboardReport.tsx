@@ -850,7 +850,40 @@ export const DashboardReport = ({
                     </tr>
                   </thead>
                   <tbody>
-                    <ComparisonRow label="יחידות דיור" existing={fmt(report.existing.units)} proposed={fmt(report.proposed.units)} />
+                    {(() => {
+                      const range = report.proposed?.unitRange;
+                      const sellable = report.proposed?.sellableAreaSqm;
+                      const [avgSize, setAvgSize] = useState(range?.avgUnitSizeBase ?? 78);
+                      const dynamicUnits = sellable && avgSize > 0
+                        ? Math.round(sellable / avgSize)
+                        : range?.base ?? 0;
+
+                      return (
+                        <tr>
+                          <td className="text-right text-gray-600 py-2 pr-4">יחידות דיור</td>
+                          <td className="text-center py-2">{report.existing?.units ?? '—'}</td>
+                          <td className="text-center py-2 font-bold text-blue-700">
+                            <div>{range ? `${range.min}–${range.max}` : dynamicUnits}</div>
+                            <div className="text-xs text-gray-500 font-normal">בסיס: {dynamicUnits}</div>
+                          </td>
+                          <td className="py-2 pr-2">
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <span>ממוצע</span>
+                              <input
+                                type="number"
+                                value={avgSize}
+                                min={40}
+                                max={150}
+                                onChange={e => setAvgSize(Number(e.target.value))}
+                                className="w-14 border border-gray-300 rounded px-1 py-0.5 text-center text-xs"
+                              />
+                              <span>מ"ר</span>
+                            </div>
+                            <div className="text-xs text-gray-400 mt-0.5">ברירת מחדל — ניתן לשינוי</div>
+                          </td>
+                        </tr>
+                      );
+                    })()}
                     <ComparisonRow label="קומות" existing={fmt(report.existing.floors)} proposed={fmt(report.proposed.floors)} />
                     <ComparisonRow
                       label="שטח בנוי"
