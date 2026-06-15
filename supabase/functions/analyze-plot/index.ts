@@ -940,17 +940,60 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
     }
 
 
+  return report;
+}
 
+// ── Edge handler: create job, run analysis in background, return 202 immediately ──
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
+  try {
+    const body = (await req.json()) as PlotInput;
 
-    return new Response(JSON.stringify({ report }), {
+    if (!body || !body.quarter || !body.gush || !body.helka) {
+      return new Response(JSON.stringify({ error: "missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const jobId = await createJob(body);
+    if (!jobId) {
+      return new Response(JSON.stringify({ error: "Failed to create analysis job" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Run the heavy analysis in the background. The HTTP response returns immediately.
+    // deno-lint-ignore no-explicit-any
+    const runtime = (globalThis as any).EdgeRuntime;
+    const work = (async () => {
+      try {
+        const report = await runAnalysis(body);
+        await updateJob(jobId, { status: "completed", result: { report } });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Unknown error";
+        console.error(`job ${jobId} failed:`, msg);
+        await updateJob(jobId, { status: "failed", error_message: msg });
+      }
+    })();
+    if (runtime && typeof runtime.waitUntil === "function") {
+      runtime.waitUntil(work);
+    }
+
+    return new Response(JSON.stringify({ jobId }), {
+      status: 202,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("analyze-plot error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("analyze-plot handler error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 });
+
