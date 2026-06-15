@@ -17,6 +17,8 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PlotMap } from "@/components/PlotMap";
 import { FinancialAnalysis } from "@/components/FinancialAnalysis";
+import ZoningRightsExtractor from "@/components/ZoningRightsExtractor";
+import { Settings } from "lucide-react";
 import {
   AlertTriangle,
   Building2,
