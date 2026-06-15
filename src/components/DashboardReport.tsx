@@ -850,6 +850,22 @@ export const DashboardReport = ({
                     </tr>
                   </thead>
                   <tbody>
+                    {/* שטח מכיר — הנתון המרכזי לחישוב IRR */}
+                    <tr className="bg-blue-50 border-b-2 border-blue-200">
+                      <td className="text-right font-semibold text-blue-800 py-3 pr-4">
+                        שטח מכיר
+                        <span className="block text-xs text-blue-500 font-normal">~75% משטח הבנייה</span>
+                      </td>
+                      <td className="text-center py-3 text-gray-500">—</td>
+                      <td className="text-center py-3 font-bold text-blue-700 text-lg">
+                        {report.proposed?.sellableAreaSqm
+                          ? `${report.proposed.sellableAreaSqm.toLocaleString('he-IL')} מ"ר`
+                          : '—'}
+                      </td>
+                      <td className="py-3 pr-2 text-xs text-blue-500">
+                        הבסיס לחישוב הכנסה × מחיר מ"ר
+                      </td>
+                    </tr>
                     {(() => {
                       const range = report.proposed?.unitRange;
                       const sellable = report.proposed?.sellableAreaSqm;
