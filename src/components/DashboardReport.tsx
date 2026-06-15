@@ -862,15 +862,13 @@ export const DashboardReport = ({
                       ) : undefined}
                     />
                     <ComparisonRow label="קומות" existing={fmt(report.existing.floors)} proposed={fmt(report.proposed.floors)} />
-                    <ComparisonRow label="FAR" existing={`${fmt(report.existing.far * 100)}%`} proposed={`${fmt(report.proposed.far * 100)}%`} />
-                    <ComparisonRow label="גובה מקס׳" existing="—" proposed={fmt(report.proposed.heightMeters, 1)} unit="מ׳" />
                     {(() => {
-                      const [sellableRatio] = useState(0.78);
                       const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
-                      const sellable = Math.round(proposedBuilt * sellableRatio);
+                      const [sellableRatio, setSellableRatio] = useState(0.78);
                       const [mix, setMix] = useState({ small: 20, medium: 50, large: 30 });
                       const SIZES = { small: 55, medium: 75, large: 100 };
 
+                      const sellable = Math.round(proposedBuilt * sellableRatio);
                       const total = mix.small + mix.medium + mix.large;
                       const avgSize = total > 0
                         ? Math.round((mix.small * SIZES.small + mix.medium * SIZES.medium + mix.large * SIZES.large) / total)
@@ -882,54 +880,49 @@ export const DashboardReport = ({
                       };
 
                       return (
-                        <tr>
-                          <td className="text-right text-gray-600 py-2 pr-4 align-top">
-                            יחידות דיור
-                            <span className="block text-xs text-gray-400">לפי תמהיל</span>
-                          </td>
-                          <td className="text-center py-2 align-top">
-                            {report.existing?.units ?? '—'}
-                          </td>
-                          <td className="text-center py-2 font-bold text-blue-700 align-top">
-                            <div className="text-lg">{units}</div>
-                            <div className="text-xs text-gray-500 font-normal">ממוצע: {avgSize} מ"ר</div>
-                          </td>
-                          <td className="py-2 pr-2 align-top">
-                            <div className="space-y-1 text-xs">
-                              {([
-                                ['small', '2 חד\'', mix.small],
-                                ['medium', '3 חד\'', mix.medium],
-                                ['large', '4 חד\'', mix.large]
-                              ] as const).map(([key, label, val]) => (
-                                <div key={key} className="flex items-center gap-1">
-                                  <span className="w-10 text-gray-500 text-right">{label}</span>
-                                  <input
-                                    type="number"
-                                    value={val}
-                                    min={0}
-                                    max={100}
-                                    onChange={e => update(key, Number(e.target.value))}
-                                    className="w-12 border border-gray-300 rounded px-1 py-0.5 text-center text-xs"
-                                  />
-                                  <span className="text-gray-400">%</span>
-                                  <span className="text-gray-300 text-[10px]">({SIZES[key]} מ"ר)</span>
-                                </div>
-                              ))}
-                              {total !== 100 && (
-                                <div className="text-orange-500 text-[10px] mt-1">סה"כ: {total}% (נדרש 100%)</div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })()}
-                    {(() => {
-                      const [sellableRatio, setSellableRatio] = useState(0.78);
-                      const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
-                      const sellableArea = Math.round(proposedBuilt * sellableRatio);
-
-                      return (
                         <>
+                          {/* יחידות דיור */}
+                          <tr>
+                            <td className="text-right text-gray-600 py-2 pr-4 align-top">
+                              יחידות דיור
+                              <span className="block text-xs text-gray-400">לפי תמהיל</span>
+                            </td>
+                            <td className="text-center py-2 align-top">
+                              {report.existing?.units ?? '—'}
+                            </td>
+                            <td className="text-center py-2 font-bold text-blue-700 align-top">
+                              <div className="text-lg">{units}</div>
+                              <div className="text-xs text-gray-500 font-normal">ממוצע: {avgSize} מ"ר</div>
+                            </td>
+                            <td className="py-2 pr-2 align-top">
+                              <div className="space-y-1 text-xs">
+                                {([
+                                  ['small', '2 חד\'', mix.small],
+                                  ['medium', '3 חד\'', mix.medium],
+                                  ['large', '4 חד\'', mix.large],
+                                ] as const).map(([key, label, val]) => (
+                                  <div key={key} className="flex items-center gap-1">
+                                    <span className="w-10 text-gray-500 text-right">{label}</span>
+                                    <input
+                                      type="number"
+                                      value={val}
+                                      min={0}
+                                      max={100}
+                                      onChange={e => update(key, Number(e.target.value))}
+                                      className="w-12 border border-gray-300 rounded px-1 py-0.5 text-center text-xs"
+                                    />
+                                    <span className="text-gray-400">%</span>
+                                    <span className="text-gray-300 text-[10px]">({SIZES[key]} מ"ר)</span>
+                                  </div>
+                                ))}
+                                {total !== 100 && (
+                                  <div className="text-orange-500 text-[10px] mt-1">סה"כ: {total}% (נדרש 100%)</div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* שטח מכיר — שורה תחתונה */}
                           <tr className="bg-blue-100 border-t-2 border-blue-300">
                             <td className="text-right font-semibold text-blue-800 py-3 pr-4 align-top">
                               שטח מכיר
@@ -937,7 +930,7 @@ export const DashboardReport = ({
                             </td>
                             <td className="text-center py-3 text-gray-500 align-top">—</td>
                             <td className="text-center py-3 font-bold text-blue-700 text-lg align-top">
-                              {sellableArea > 0 ? `${sellableArea.toLocaleString('he-IL')} מ"ר` : '—'}
+                              {sellable > 0 ? `${sellable.toLocaleString('he-IL')} מ"ר` : '—'}
                             </td>
                             <td className="py-3 pr-2 align-top">
                               <div className="flex items-center gap-1 text-xs text-gray-600">
@@ -955,6 +948,8 @@ export const DashboardReport = ({
                               <div className="text-[10px] text-gray-400 mt-1">ברירת מחדל 78% — ניתן לשינוי</div>
                             </td>
                           </tr>
+
+                          {/* הערת שיטת חישוב */}
                           <tr className="bg-blue-50">
                             <td colSpan={4} className="pr-4 pb-3 pt-1">
                               <div className="text-[10px] text-gray-500 leading-relaxed border-r-2 border-blue-300 pr-2">
