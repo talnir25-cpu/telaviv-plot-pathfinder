@@ -850,57 +850,6 @@ export const DashboardReport = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {/* שטח מכיר — הנתון המרכזי לחישוב IRR */}
-                    <tr className="bg-blue-50 border-b-2 border-blue-200">
-                      <td className="text-right font-semibold text-blue-800 py-3 pr-4">
-                        שטח מכיר
-                        <span className="block text-xs text-blue-500 font-normal">~75% משטח הבנייה</span>
-                      </td>
-                      <td className="text-center py-3 text-gray-500">—</td>
-                      <td className="text-center py-3 font-bold text-blue-700 text-lg">
-                        {report.proposed?.sellableAreaSqm
-                          ? `${report.proposed.sellableAreaSqm.toLocaleString('he-IL')} מ"ר`
-                          : '—'}
-                      </td>
-                      <td className="py-3 pr-2 text-xs text-blue-500">
-                        הבסיס לחישוב הכנסה × מחיר מ"ר
-                      </td>
-                    </tr>
-                    {(() => {
-                      const range = report.proposed?.unitRange;
-                      const sellable = report.proposed?.sellableAreaSqm;
-                      const [avgSize, setAvgSize] = useState(range?.avgUnitSizeBase ?? 78);
-                      const dynamicUnits = sellable && avgSize > 0
-                        ? Math.round(sellable / avgSize)
-                        : range?.base ?? 0;
-
-                      return (
-                        <tr>
-                          <td className="text-right text-gray-600 py-2 pr-4">יחידות דיור</td>
-                          <td className="text-center py-2">{report.existing?.units ?? '—'}</td>
-                          <td className="text-center py-2 font-bold text-blue-700">
-                            <div>{range ? `${range.min}–${range.max}` : dynamicUnits}</div>
-                            <div className="text-xs text-gray-500 font-normal">בסיס: {dynamicUnits}</div>
-                          </td>
-                          <td className="py-2 pr-2">
-                            <div className="flex items-center gap-1 text-xs text-gray-500">
-                              <span>ממוצע</span>
-                              <input
-                                type="number"
-                                value={avgSize}
-                                min={40}
-                                max={150}
-                                onChange={e => setAvgSize(Number(e.target.value))}
-                                className="w-14 border border-gray-300 rounded px-1 py-0.5 text-center text-xs"
-                              />
-                              <span>מ"ר</span>
-                            </div>
-                            <div className="text-xs text-gray-400 mt-0.5">ברירת מחדל — ניתן לשינוי</div>
-                          </td>
-                        </tr>
-                      );
-                    })()}
-                    <ComparisonRow label="קומות" existing={fmt(report.existing.floors)} proposed={fmt(report.proposed.floors)} />
                     <ComparisonRow
                       label="שטח בנוי"
                       existing={fmt(report.existing.builtAreaSqm)}
@@ -912,8 +861,111 @@ export const DashboardReport = ({
                         </Badge>
                       ) : undefined}
                     />
+                    <ComparisonRow label="קומות" existing={fmt(report.existing.floors)} proposed={fmt(report.proposed.floors)} />
                     <ComparisonRow label="FAR" existing={`${fmt(report.existing.far * 100)}%`} proposed={`${fmt(report.proposed.far * 100)}%`} />
                     <ComparisonRow label="גובה מקס׳" existing="—" proposed={fmt(report.proposed.heightMeters, 1)} unit="מ׳" />
+                    {(() => {
+                      const [sellableRatio] = useState(0.78);
+                      const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
+                      const sellable = Math.round(proposedBuilt * sellableRatio);
+                      const [mix, setMix] = useState({ small: 20, medium: 50, large: 30 });
+                      const SIZES = { small: 55, medium: 75, large: 100 };
+
+                      const total = mix.small + mix.medium + mix.large;
+                      const avgSize = total > 0
+                        ? Math.round((mix.small * SIZES.small + mix.medium * SIZES.medium + mix.large * SIZES.large) / total)
+                        : 78;
+                      const units = sellable > 0 && avgSize > 0 ? Math.round(sellable / avgSize) : 0;
+
+                      const update = (key: 'small' | 'medium' | 'large', val: number) => {
+                        setMix(prev => ({ ...prev, [key]: Math.max(0, Math.min(100, val)) }));
+                      };
+
+                      return (
+                        <tr>
+                          <td className="text-right text-gray-600 py-2 pr-4 align-top">
+                            יחידות דיור
+                            <span className="block text-xs text-gray-400">לפי תמהיל</span>
+                          </td>
+                          <td className="text-center py-2 align-top">
+                            {report.existing?.units ?? '—'}
+                          </td>
+                          <td className="text-center py-2 font-bold text-blue-700 align-top">
+                            <div className="text-lg">{units}</div>
+                            <div className="text-xs text-gray-500 font-normal">ממוצע: {avgSize} מ"ר</div>
+                          </td>
+                          <td className="py-2 pr-2 align-top">
+                            <div className="space-y-1 text-xs">
+                              {([
+                                ['small', '2 חד\'', mix.small],
+                                ['medium', '3 חד\'', mix.medium],
+                                ['large', '4 חד\'', mix.large]
+                              ] as const).map(([key, label, val]) => (
+                                <div key={key} className="flex items-center gap-1">
+                                  <span className="w-10 text-gray-500 text-right">{label}</span>
+                                  <input
+                                    type="number"
+                                    value={val}
+                                    min={0}
+                                    max={100}
+                                    onChange={e => update(key, Number(e.target.value))}
+                                    className="w-12 border border-gray-300 rounded px-1 py-0.5 text-center text-xs"
+                                  />
+                                  <span className="text-gray-400">%</span>
+                                  <span className="text-gray-300 text-[10px]">({SIZES[key]} מ"ר)</span>
+                                </div>
+                              ))}
+                              {total !== 100 && (
+                                <div className="text-orange-500 text-[10px] mt-1">סה"כ: {total}% (נדרש 100%)</div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })()}
+                    {(() => {
+                      const [sellableRatio, setSellableRatio] = useState(0.78);
+                      const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
+                      const sellableArea = Math.round(proposedBuilt * sellableRatio);
+
+                      return (
+                        <>
+                          <tr className="bg-blue-100 border-t-2 border-blue-300">
+                            <td className="text-right font-semibold text-blue-800 py-3 pr-4 align-top">
+                              שטח מכיר
+                              <span className="block text-xs text-blue-500 font-normal">שטח ברוטו × מקדם מכירה</span>
+                            </td>
+                            <td className="text-center py-3 text-gray-500 align-top">—</td>
+                            <td className="text-center py-3 font-bold text-blue-700 text-lg align-top">
+                              {sellableArea > 0 ? `${sellableArea.toLocaleString('he-IL')} מ"ר` : '—'}
+                            </td>
+                            <td className="py-3 pr-2 align-top">
+                              <div className="flex items-center gap-1 text-xs text-gray-600">
+                                <span>מקדם:</span>
+                                <input
+                                  type="number"
+                                  value={Math.round(sellableRatio * 100)}
+                                  min={60}
+                                  max={90}
+                                  onChange={e => setSellableRatio(Number(e.target.value) / 100)}
+                                  className="w-12 border border-gray-300 rounded px-1 py-0.5 text-center text-xs"
+                                />
+                                <span>%</span>
+                              </div>
+                              <div className="text-[10px] text-gray-400 mt-1">ברירת מחדל 78% — ניתן לשינוי</div>
+                            </td>
+                          </tr>
+                          <tr className="bg-blue-50">
+                            <td colSpan={4} className="pr-4 pb-3 pt-1">
+                              <div className="text-[10px] text-gray-500 leading-relaxed border-r-2 border-blue-300 pr-2">
+                                <span className="font-semibold text-gray-600">שיטת חישוב ומקורות: </span>
+                                שטח מכיר = שטח בנייה ברוטו × מקדם מכירה. המקדם מייצג את היחס בין שטח נטו הנמכר לשטח הבנייה הכולל, ומורכב משני מרכיבים: (א) <span className="font-medium">שטח שירות</span> — חדרי מדרגות, מעליות, לובי, מקלטים — כ-12%-18% משטח הבנייה שאינו נמכר; (ב) <span className="font-medium">מרפסות</span> — נספרות בשטח הבנייה אך נמכרות בכ-50% ממחיר המ"ר העיקרי, ומהוות כ-8%-12% בפרויקטי התחדשות טיפוסיים. ברירת המחדל 78% מבוססת על ממוצע פרויקטי התחדשות ברובעים 3-4 בתל אביב. <span className="font-medium text-orange-600">מומלץ לאמת עם אדריכל הפרויקט</span> — המקדם עשוי להשתנות בהתאם למספר הקומות (בניין גבוה → מקדם נמוך יותר עקב שטח גרעין גדול יותר) ולדרישות מיוחדות באזור ההכרזה.
+                              </div>
+                            </td>
+                          </tr>
+                        </>
+                      );
+                    })()}
                   </tbody>
                 </table>
               </div>
