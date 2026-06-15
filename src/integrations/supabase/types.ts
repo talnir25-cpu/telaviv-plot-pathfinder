@@ -81,6 +81,7 @@ export type Database = {
           density_coefficient_sqm_per_unit: number
           id: string
           location_filter: Json
+          max_coverage_pct: number | null
           max_far: number
           max_floors_above: number
           max_floors_roof: number | null
@@ -106,6 +107,7 @@ export type Database = {
           density_coefficient_sqm_per_unit: number
           id?: string
           location_filter?: Json
+          max_coverage_pct?: number | null
           max_far: number
           max_floors_above: number
           max_floors_roof?: number | null
@@ -131,6 +133,7 @@ export type Database = {
           density_coefficient_sqm_per_unit?: number
           id?: string
           location_filter?: Json
+          max_coverage_pct?: number | null
           max_far?: number
           max_floors_above?: number
           max_floors_roof?: number | null
