@@ -17,6 +17,8 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PlotMap } from "@/components/PlotMap";
 import { FinancialAnalysis } from "@/components/FinancialAnalysis";
+import ZoningRightsExtractor from "@/components/ZoningRightsExtractor";
+import { Settings } from "lucide-react";
 import {
   AlertTriangle,
   Building2,
@@ -459,7 +461,7 @@ export const DashboardReport = ({
 
       {/* Dashboard tabs — narrative flow: parcel → zoning → proposed → risks → financial */}
       <Tabs defaultValue="parcel" className="w-full">
-        <TabsList dir="rtl" className="grid w-full grid-cols-5">
+        <TabsList dir="rtl" className="grid w-full grid-cols-6">
           <TabsTrigger value="parcel" className="gap-1.5">
             <MapPin className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">חלקה</span>
@@ -484,6 +486,10 @@ export const DashboardReport = ({
           <TabsTrigger value="financial" className="gap-1.5">
             <Coins className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">פיננסי</span>
+          </TabsTrigger>
+          <TabsTrigger value="admin" className="gap-1.5">
+            <Settings className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">ניהול זכויות</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1092,6 +1098,12 @@ export const DashboardReport = ({
             }}
             planning={report}
           />
+        </TabsContent>
+
+        <TabsContent value="admin" className="mt-4">
+          <Card className="p-2 shadow-card">
+            <ZoningRightsExtractor />
+          </Card>
         </TabsContent>
       </Tabs>
     </section>
