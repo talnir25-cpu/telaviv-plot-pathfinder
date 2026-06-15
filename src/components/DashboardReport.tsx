@@ -1099,6 +1099,12 @@ export const DashboardReport = ({
             planning={report}
           />
         </TabsContent>
+
+        <TabsContent value="admin" className="mt-4">
+          <Card className="p-2 shadow-card">
+            <ZoningRightsExtractor />
+          </Card>
+        </TabsContent>
       </Tabs>
     </section>
   );
