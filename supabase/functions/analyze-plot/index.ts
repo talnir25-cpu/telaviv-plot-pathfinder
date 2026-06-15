@@ -738,10 +738,17 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
           const floorAreaEff = renewalFloorArea > 0 ? renewalFloorArea : typicalFloorArea;
 
           const byFAR = plotAreaDet * effectiveFAR;
-          const byEnvelope = floorAreaEff > 0 && maxFloorsDet > 0
-            ? floorAreaEff * maxFloorsDet
-            : byFAR; // אם אין נתון לתכסית — לא מגביל
-          const proposedBuilt = Math.round(Math.min(byFAR, byEnvelope));
+
+          // כיוון ג: FAR עם תקרת תכסית
+          // שטח קומה מקסימלי = שטח מגרש × תכסית מותרת
+          // שטח בנייה לפי תכסית = שטח קומה מקסימלי × קומות
+          // שטח בנייה סופי = min(לפי FAR, לפי תכסית)
+          const coveragePct = (r as any).max_coverage_pct;
+          const byCoverage = coveragePct && coveragePct > 0 && maxFloorsDet > 0
+            ? Math.round(plotAreaDet * (coveragePct / 100)) * maxFloorsDet
+            : byFAR; // אם אין תכסית בטבלה — FAR בלבד קובע
+
+          const proposedBuilt = Math.round(Math.min(byFAR, byCoverage));
 
           // מספר הקומות המוצע = המקסימום המותר לפי התקנון (לא נגזרת של שטח)
           const proposedFloorsDet = Math.max(maxFloorsDet, 1);
@@ -808,6 +815,8 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
             max_floors: maxFloorsDet,
             renewal_track: renewalTrack,
             renewal_track_label: RENEWAL_TRACK_LABEL[renewalTrack],
+            coverage_pct_used: coveragePct ?? null,
+            built_area_limiting_factor: byCoverage < byFAR ? "coverage" : "far",
           };
         } else {
           // ───────── Fallback: חישוב מבוסס שטח ורובע ─────────
