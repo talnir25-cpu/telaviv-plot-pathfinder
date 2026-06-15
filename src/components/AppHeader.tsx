@@ -1,6 +1,21 @@
-import { Building2, Sparkles } from "lucide-react";
+import { Building2, LogOut, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 export const AppHeader = () => {
+  const [email, setEmail] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setEmail(s?.user?.email ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/auth";
+  };
   return (
     <header className="relative overflow-hidden bg-gradient-hero text-primary-foreground">
       {/* Background pattern + decorative blobs */}
@@ -32,6 +47,22 @@ export const AppHeader = () => {
             <span className="text-sm font-light text-primary-foreground/70">
               גרסת בטא: רובעים 3-4, תל אביב*
             </span>
+            <div className="mr-auto flex items-center gap-2">
+              {email && (
+                <span className="hidden text-xs text-primary-foreground/70 md:inline" dir="ltr">
+                  {email}
+                </span>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={signOut}
+                className="text-primary-foreground hover:bg-primary-foreground/10"
+              >
+                <LogOut className="ml-1 h-4 w-4" />
+                התנתק
+              </Button>
+            </div>
           </div>
 
           {/* Headline */}

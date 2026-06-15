@@ -304,7 +304,7 @@ const SYSTEM_PROMPT = `אתה אנליסט בכיר להתחדשות עירונ�
 
 
 // ── Service-role REST helpers for analysis_jobs ──
-async function createJob(input: unknown): Promise<string | null> {
+async function createJob(input: unknown, userId: string): Promise<string | null> {
   const supaUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supaUrl || !serviceKey) {
@@ -320,7 +320,7 @@ async function createJob(input: unknown): Promise<string | null> {
         Authorization: `Bearer ${serviceKey}`,
         Prefer: "return=representation",
       },
-      body: JSON.stringify({ status: "processing", input }),
+      body: JSON.stringify({ status: "processing", input, user_id: userId }),
     });
     if (!r.ok) {
       console.error("createJob failed", r.status, await r.text());
@@ -330,6 +330,26 @@ async function createJob(input: unknown): Promise<string | null> {
     return Array.isArray(rows) && rows[0]?.id ? rows[0].id as string : null;
   } catch (e) {
     console.error("createJob threw", e);
+    return null;
+  }
+}
+
+// Resolve the authenticated user from the Authorization header by calling Auth.
+async function getUserId(req: Request): Promise<string | null> {
+  const auth = req.headers.get("Authorization") ?? req.headers.get("authorization");
+  if (!auth?.startsWith("Bearer ")) return null;
+  const supaUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+  if (!supaUrl || !anonKey) return null;
+  try {
+    const r = await fetch(`${supaUrl}/auth/v1/user`, {
+      headers: { apikey: anonKey, Authorization: auth },
+    });
+    if (!r.ok) return null;
+    const u = await r.json();
+    return typeof u?.id === "string" ? u.id : null;
+  } catch (e) {
+    console.error("getUserId failed", e);
     return null;
   }
 }
@@ -950,6 +970,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const userId = await getUserId(req);
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const body = (await req.json()) as PlotInput;
 
     if (!body || !body.quarter || !body.gush || !body.helka) {
@@ -959,7 +987,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const jobId = await createJob(body);
+    const jobId = await createJob(body, userId);
     if (!jobId) {
       return new Response(JSON.stringify({ error: "Failed to create analysis job" }), {
         status: 500,
