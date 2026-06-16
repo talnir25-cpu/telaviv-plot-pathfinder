@@ -1,20 +1,15 @@
 import { Building2, LogOut, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 export const AppHeader = () => {
-  const [email, setEmail] = useState<string | null>(null);
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setEmail(s?.user?.email ?? null);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const signOut = async () => {
     await supabase.auth.signOut();
-    window.location.href = "/auth";
+    navigate("/auth", { replace: true });
   };
   return (
     <header className="relative overflow-hidden bg-gradient-hero text-primary-foreground">
@@ -48,9 +43,9 @@ export const AppHeader = () => {
               גרסת בטא: רובעים 3-4, תל אביב*
             </span>
             <div className="mr-auto flex items-center gap-2">
-              {email && (
+              {user?.email && (
                 <span className="hidden text-xs text-primary-foreground/70 md:inline" dir="ltr">
-                  {email}
+                  {user.email}
                 </span>
               )}
               <Button
