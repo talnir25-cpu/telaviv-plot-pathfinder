@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Loader2 } from "lucide-react";
 import { z } from "zod";
+import { useAuth } from "@/hooks/useAuth";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email({ message: "כתובת אימייל לא תקינה" }).max(255),
@@ -18,20 +19,14 @@ const credentialsSchema = z.object({
 
 const Auth = () => {
   const navigate = useNavigate();
+  const { session, ready } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   useEffect(() => {
-    // Redirect if already signed in
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate("/", { replace: true });
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) navigate("/", { replace: true });
-    });
-    return () => sub.subscription.unsubscribe();
-  }, [navigate]);
+    if (ready && session) navigate("/", { replace: true });
+  }, [navigate, ready, session]);
 
   const submit = async (mode: "signin" | "signup") => {
     const parsed = credentialsSchema.safeParse({ email, password });
@@ -42,13 +37,13 @@ const Auth = () => {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: parsed.data.email,
           password: parsed.data.password,
           options: { emailRedirectTo: `${window.location.origin}/` },
         });
         if (error) throw error;
-        toast.success("נרשמת בהצלחה! בדוק את האימייל לאישור (אם נדרש).");
+        if (!data.session) toast.success("נרשמת בהצלחה! אפשר להתחבר עכשיו.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: parsed.data.email,
