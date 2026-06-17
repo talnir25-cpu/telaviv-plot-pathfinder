@@ -18,16 +18,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
-      setReady(true);
-    });
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
+      setReady(true);
+    });
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setSession(data.session);
       setReady(true);
     });
 
@@ -54,3 +54,5 @@ export const useAuth = () => {
   if (!value) throw new Error("useAuth must be used within AuthProvider");
   return value;
 };
+
+export { AuthContext };
