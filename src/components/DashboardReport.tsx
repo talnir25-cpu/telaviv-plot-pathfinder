@@ -391,7 +391,6 @@ export const DashboardReport = ({
 }: Props) => {
   const status = STATUS_STYLES[report.status];
   const plotArea = input.area ?? input.shapeArea ?? 0;
-  const [coverageBasis, setCoverageBasis] = useState<"planning" | "existing">("planning");
   const hasExistingCoverage = report.zoning.coverageExistingPct != null;
 
   return (
