@@ -713,119 +713,163 @@ export const DashboardReport = ({
                           ? "נדרשות יותר קומות לתמיכה בשטח המוצע"
                           : `חריגה ממקסימום ${fmt(maxFloorsVal)} קומות`}
                       </p>
-                      <SourceBadge source="חישוב: שטח מגרש × FAR ÷ שטח קומה טיפוסי" />
-                    </div>
+
+            {/* תכסית, ניצול ופוטנציאל הגדלה — מבט משולב לקבלת החלטות */}
+            {report.zoning.typicalFloorAreaSqm != null && report.zoning.typicalFloorAreaSqm > 0 && (() => {
+              const floorsNeeded = report.zoning.floorsNeededForFAR ?? 0;
+              const proposedFloors = report.proposed.floors;
+              const maxFloorsVal = report.zoning.maxFloors;
+              const isBlocked = floorsNeeded > maxFloorsVal;
+              const isMismatch = !isBlocked && floorsNeeded > proposedFloors;
+              const isOk = !isBlocked && !isMismatch;
+              const statusIcon = isBlocked ? "✕" : isMismatch ? "⚠" : "✓";
+              const statusColor = isBlocked
+                ? "text-destructive"
+                : isMismatch
+                ? "text-amber-600 dark:text-amber-500"
+                : "text-emerald-600 dark:text-emerald-500";
+              const srcLabel = report.zoning.setbackSource === "manual" || report.zoning.setbackSource === "manual_override"
+                ? "הזנת משתמש"
+                : "תקנון רובע";
+
+              const planningArea = report.zoning.typicalFloorAreaSqm;
+              const planningCov = report.zoning.coveragePct ?? 0;
+              const existCov = report.zoning.coverageExistingPct;
+              const existArea = report.zoning.buildingFootprintSqm;
+              const rp = report.zoning.renewalPotential;
+
+              const existDelta = existCov != null ? existCov - planningCov : null;
+              const existOvershoot = existDelta != null && existDelta > 5;
+
+              return (
+                <div className="mt-5 border-t pt-4">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      תכסית, ניצול ופוטנציאל הגדלה
+                    </p>
+                    <span className="text-[10px] text-muted-foreground">מקור קווי בניין: {srcLabel}</span>
                   </div>
-                  {report.zoning.coverageExistingPct != null && (() => {
-                    const exist = report.zoning.coverageExistingPct;
-                    const planning = report.zoning.coveragePct ?? 0;
-                    const overshoot = exist > planning + 5;
-                    return (
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        {coverageBasis === "planning" && (
-                          <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
-                            <div className="mb-1 flex items-center justify-between">
-                              <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+
+                  {/* טבלת השוואה — קיים / תכנוני / פוטנציאל התחדשות */}
+                  <div className="overflow-x-auto rounded-lg border">
+                    <table dir="rtl" className="w-full text-right text-sm">
+                      <thead className="bg-muted/40">
+                        <tr>
+                          <th className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            מצב
+                          </th>
+                          <th className="px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            תכסית (%)
+                          </th>
+                          <th className="px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            שטח עיקרי לקומה (מ״ר)
+                          </th>
+                          <th className="px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            פער / תוספת
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {existCov != null && (
+                          <tr className="border-t">
+                            <td className="px-3 py-2.5">
+                              <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
                                 <Database className="h-3.5 w-3.5" />
-                                תכסית קיימת (GIS עירוני)
-                              </p>
-                              {overshoot && (
-                                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                                  חריגה היסטורית
+                                קיים בפועל
+                              </div>
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">GIS עירוני</p>
+                            </td>
+                            <td className="px-3 py-2.5 text-center font-semibold">{fmt(existCov)}%</td>
+                            <td className="px-3 py-2.5 text-center font-semibold">
+                              {existArea != null ? fmt(existArea) : "—"}
+                            </td>
+                            <td className="px-3 py-2.5 text-center">
+                              {existDelta != null && (
+                                <span className={`font-semibold ${existOvershoot ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground"}`}>
+                                  {existDelta > 0 ? "+" : ""}{fmt(existDelta, 1)}%
+                                  {existOvershoot && (
+                                    <span className="ms-1 text-[10px] font-normal">חריגה</span>
+                                  )}
                                 </span>
                               )}
-                            </div>
-                            <p className="mt-1 text-base font-semibold text-primary">
-                              {fmt(exist)}%
-                              {report.zoning.buildingFootprintSqm != null && (
-                                <span className="me-2 text-xs font-normal text-muted-foreground">
-                                  · שטח מבנה: {fmt(report.zoning.buildingFootprintSqm)} מ״ר
-                                </span>
-                              )}
-                            </p>
-                            <SourceBadge source={report.zoning.coverageSource ?? "GIS עיריית תל אביב — שכבות 524/513"} />
-                          </div>
+                            </td>
+                          </tr>
                         )}
-                        <div className={`rounded-lg border bg-muted/30 px-4 py-3 ${coverageBasis === "existing" ? "sm:col-span-2" : ""}`}>
-                          <p className="text-xs text-muted-foreground">פער מול המעטפת התכנונית</p>
-                          <p className={`mt-1 text-base font-semibold ${overshoot ? "text-amber-600 dark:text-amber-500" : "text-emerald-600 dark:text-emerald-500"}`}>
-                            {exist > planning ? "+" : ""}{fmt(exist - planning, 1)}%
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-muted-foreground">
-                            {overshoot
-                              ? "המבנה הקיים חורג מקווי הבניין — בדיקה משפטית"
-                              : "המבנה הקיים בתוך המעטפת הסטטוטורית"}
-                          </p>
-                          <SourceBadge source="חישוב: תכסית קיימת − תכסית תכנונית" />
-                        </div>
+                        <tr className="border-t bg-muted/10">
+                          <td className="px-3 py-2.5">
+                            <div className="text-xs font-semibold">מעטפת תכנונית</div>
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">תב״ע מאושרת (בסיס לחישוב קומות)</p>
+                          </td>
+                          <td className="px-3 py-2.5 text-center font-semibold">{fmt(planningCov)}%</td>
+                          <td className="px-3 py-2.5 text-center font-semibold">{fmt(planningArea)}</td>
+                          <td className="px-3 py-2.5 text-center text-muted-foreground">בסיס</td>
+                        </tr>
+                        {rp && (
+                          <tr className="border-t bg-primary/5">
+                            <td className="px-3 py-2.5">
+                              <div className="text-xs font-semibold text-primary">פוטנציאל התחדשות</div>
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">{rp.trackLabel}</p>
+                            </td>
+                            <td className="px-3 py-2.5 text-center font-semibold text-primary">{fmt(rp.coveragePct)}%</td>
+                            <td className="px-3 py-2.5 text-center font-semibold text-primary">{fmt(rp.typicalFloorAreaSqm)}</td>
+                            <td className="px-3 py-2.5 text-center">
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-500">
+                                +{fmt(rp.upliftSqmPerFloor)} מ״ר
+                              </span>
+                              <span className="ms-1 text-[10px] text-muted-foreground">(+{fmt(rp.upliftPct)}%)</span>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* שורת תובנת מפתח: תוספת אפקטיבית + קומות נדרשות */}
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">קומות נדרשות / מוצע</p>
+                      <p className={`mt-1 text-base font-semibold ${statusColor}`}>
+                        {fmt(floorsNeeded)} / {fmt(proposedFloors)} <span className="me-1">{statusIcon}</span>
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {isOk
+                          ? "תכנון ריאלי בהינתן התכסית"
+                          : isMismatch
+                          ? "נדרשות יותר קומות לתמיכה בשטח המוצע"
+                          : `חריגה ממקסימום ${fmt(maxFloorsVal)} קומות`}
+                      </p>
+                      <SourceBadge source="חישוב: שטח מגרש × FAR ÷ שטח קומה תכנוני" />
+                    </div>
+                    {rp ? (
+                      <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+                        <p className="text-xs text-muted-foreground">תוספת אפקטיבית סה״כ (התחדשות)</p>
+                        <p className="mt-1 text-base font-semibold text-primary">
+                          +{fmt(rp.effectiveUpliftSqmTotal)} מ״ר
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-muted-foreground">
+                          תוספת לקומה × מס׳ קומות × מקדם מימוש {fmt(rp.realizationFactor * 100)}% · חלק דיירים {rp.tenantShareOfUpliftPct}%
+                        </p>
+                        <SourceBadge source={`${rp.source} · קווי בניין מוקלים ${rp.frontSetbackM}/${rp.sideSetbackM}/${rp.rearSetbackM} מ׳`} />
                       </div>
-                    );
-                  })()}
+                    ) : (
+                      <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                        <p className="text-xs text-muted-foreground">פוטנציאל התחדשות</p>
+                        <p className="mt-1 text-sm text-muted-foreground">לא זוהה מסלול התחדשות רלוונטי למגרש זה.</p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
                     <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                     <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      <span className="font-semibold text-foreground">חישוב מספר הקומות הנדרשות מסתמך תמיד על המעטפת התכנונית</span> (קווי הבניין), ללא קשר למצב המתג. תכסית קיימת משמשת להשוואה ולזיהוי חריגות בלבד.
+                      <span className="font-semibold text-foreground">חישוב מספר הקומות מתבסס תמיד על המעטפת התכנונית.</span>{" "}
+                      תכסית קיימת משמשת לזיהוי חריגות היסטוריות; פוטנציאל ההתחדשות מציג את ההגדלה הריאלית של שטח הקומה והניצול במסלול הרלוונטי.
                     </p>
                   </div>
                 </div>
               );
             })()}
 
-            {/* פוטנציאל הגדלת תכסית בהליך התחדשות */}
-            {report.zoning.renewalPotential && (() => {
-              const rp = report.zoning.renewalPotential;
-              return (
-                <div className="mt-5 border-t pt-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                      פוטנציאל הגדלת תכסית בהליך התחדשות
-                    </p>
-                    <span className="text-[10px] text-muted-foreground">{rp.source}</span>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
-                      <p className="text-xs text-muted-foreground">מסלול</p>
-                      <p className="mt-1 text-sm font-semibold">{rp.trackLabel}</p>
-                      <SourceBadge source={rp.source} />
-                    </div>
-                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                      <p className="text-xs text-muted-foreground">תכסית בהתחדשות</p>
-                      <p className="mt-1 text-base font-semibold text-primary">
-                        {fmt(rp.typicalFloorAreaSqm)} מ״ר
-                        <span className="me-2 text-xs font-normal text-muted-foreground">
-                          ({fmt(rp.coveragePct)}%)
-                        </span>
-                      </p>
-                      <SourceBadge source={`חישוב מקווי בניין מוקלים · ${rp.source}`} />
-                    </div>
-                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                      <p className="text-xs text-muted-foreground">תוספת לקומה</p>
-                      <p className="mt-1 text-base font-semibold text-emerald-600 dark:text-emerald-500">
-                        +{fmt(rp.upliftSqmPerFloor)} מ״ר
-                        <span className="me-2 text-xs font-normal text-muted-foreground">
-                          (+{fmt(rp.upliftPct)}%)
-                        </span>
-                      </p>
-                      <SourceBadge source="חישוב: תכסית התחדשות − תכסית סטטוטורית" />
-                    </div>
-                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                      <p className="text-xs text-muted-foreground">תוספת אפקטיבית סה״כ</p>
-                      <p className="mt-1 text-base font-semibold">
-                        {fmt(rp.effectiveUpliftSqmTotal)} מ״ר
-                      </p>
-                      <p className="mt-0.5 text-[10px] text-muted-foreground">
-                        מקדם מימוש {fmt(rp.realizationFactor * 100)}%
-                      </p>
-                      <SourceBadge source={`תוספת לקומה × מס׳ קומות × מקדם מימוש (${fmt(rp.realizationFactor * 100)}%)`} />
-                    </div>
-                  </div>
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    קווי בניין מוקלים: קדמי {rp.frontSetbackM} / צדדי {rp.sideSetbackM} / אחורי {rp.rearSetbackM} מ׳ •
-                    חלק הדיירים בתמורה: {rp.tenantShareOfUpliftPct}%
-                  </p>
-                </div>
-              );
-            })()}
           </Card>
         </TabsContent>
 
