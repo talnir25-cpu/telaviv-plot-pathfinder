@@ -1,9 +1,20 @@
 import { useContext } from "react";
-import { AuthContext } from "@/hooks/auth-context";
+import { AuthContext, type AuthState } from "@/hooks/auth-context";
 
-export const useAuth = () => {
+const fallback: AuthState = {
+  session: null,
+  user: null,
+  ready: false,
+};
+
+export const useAuth = (): AuthState => {
   const value = useContext(AuthContext);
-  if (!value) throw new Error("useAuth must be used within AuthProvider");
+  if (!value) {
+    console.error(
+      "[useAuth] נקרא מחוץ ל-AuthProvider. ודאו שקומפוננטה עטופה ב-AuthProvider."
+    );
+    return fallback;
+  }
   return value;
 };
 
