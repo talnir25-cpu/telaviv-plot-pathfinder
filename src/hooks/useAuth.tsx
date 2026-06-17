@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
+import { AuthLoadingScreen } from "@/components/AuthLoadingScreen";
 
 type AuthState = {
   session: Session | null;
@@ -41,7 +42,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     [session, ready],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {ready ? children : <AuthLoadingScreen message="מאתחל סשן..." />}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
