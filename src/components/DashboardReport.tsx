@@ -815,60 +815,51 @@ export const DashboardReport = ({
                     {(() => {
                       const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
                       const [sellableRatio, setSellableRatio] = useState(0.78);
-                      const [mix, setMix] = useState({ small: 20, medium: 50, large: 30 });
-                      const SIZES = { small: 55, medium: 75, large: 100 };
-
                       const sellable = Math.round(proposedBuilt * sellableRatio);
-                      const total = mix.small + mix.medium + mix.large;
-                      const avgSize = total > 0
-                        ? Math.round((mix.small * SIZES.small + mix.medium * SIZES.medium + mix.large * SIZES.large) / total)
-                        : 78;
-                      const units = sellable > 0 && avgSize > 0 ? Math.round(sellable / avgSize) : 0;
-
-                      const update = (key: 'small' | 'medium' | 'large', val: number) => {
-                        setMix(prev => ({ ...prev, [key]: Math.max(0, Math.min(100, val)) }));
-                      };
+                      const unitRange = report.proposed?.unitRange;
+                      const hasRange = unitRange && Number.isFinite(unitRange.min) && Number.isFinite(unitRange.max);
 
                       return (
                         <>
-                          {/* יחידות דיור */}
+                          {/* יחידות דיור — טווח מושער */}
                           <tr>
                             <td className="text-right text-gray-600 py-2 pr-4 align-top">
                               יחידות דיור
-                              <span className="block text-xs text-gray-400">לפי תמהיל</span>
+                              <span className="block text-xs text-gray-400">לפי תמהיל ממוצע</span>
                             </td>
                             <td className="text-center py-2 align-top">
                               {report.existing?.units ?? '—'}
                             </td>
-                            <td className="text-center py-2 font-bold text-blue-700 align-top">
-                              <div className="text-lg">{units}</div>
-                              <div className="text-xs text-gray-500 font-normal">ממוצע: {avgSize} מ"ר</div>
+                            <td className="text-center py-2 align-top">
+                              {hasRange ? (
+                                <div>
+                                  <div className="text-lg font-bold text-blue-700">
+                                    {unitRange.min}–{unitRange.max}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    ממוצע: {unitRange.base} יח'
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-lg font-bold text-blue-700">
+                                  {report.proposed?.units ?? '—'}
+                                </div>
+                              )}
                             </td>
                             <td className="py-2 pr-2 align-top">
-                              <div className="space-y-1 text-xs">
-                                {([
-                                  ['small', '2 חד\'', mix.small],
-                                  ['medium', '3 חד\'', mix.medium],
-                                  ['large', '4 חד\'', mix.large],
-                                ] as const).map(([key, label, val]) => (
-                                  <div key={key} className="flex items-center gap-1">
-                                    <span className="w-10 text-gray-500 text-right">{label}</span>
-                                    <input
-                                      type="number"
-                                      value={val}
-                                      min={0}
-                                      max={100}
-                                      onChange={e => update(key, Number(e.target.value))}
-                                      className="w-12 border border-gray-300 rounded px-1 py-0.5 text-center text-xs"
-                                    />
-                                    <span className="text-gray-400">%</span>
-                                    <span className="text-gray-300 text-[10px]">({SIZES[key]} מ"ר)</span>
+                              {hasRange && (
+                                <div className="text-xs text-gray-500 space-y-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-400">ממוצע ליח':</span>
+                                    <span className="font-medium text-gray-700">
+                                      {unitRange.avgUnitSizeMin}–{unitRange.avgUnitSizeMax} מ"ר
+                                    </span>
                                   </div>
-                                ))}
-                                {total !== 100 && (
-                                  <div className="text-orange-500 text-[10px] mt-1">סה"כ: {total}% (נדרש 100%)</div>
-                                )}
-                              </div>
+                                  <div className="text-[10px] text-gray-400">
+                                    בסיס: {unitRange.avgUnitSizeBase} מ"ר
+                                  </div>
+                                </div>
+                              )}
                             </td>
                           </tr>
 
