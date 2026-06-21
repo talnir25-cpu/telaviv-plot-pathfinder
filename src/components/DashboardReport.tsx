@@ -461,6 +461,19 @@ const HousingRangeRows = ({ report, plotArea }: { report: FeasibilityReport; plo
   const envelopeBuilt = plotArea * (report.zoning?.maxFAR ?? 0);
   const envelopeUnits = avgUnitSize > 0 ? Math.floor(envelopeBuilt / avgUnitSize) : null;
 
+  const proposedUnits = report.proposed?.units ?? 0;
+  const unitsPct = envelopeUnits && envelopeUnits > 0 ? Math.round((proposedUnits / envelopeUnits) * 100) : null;
+  const unitsTone =
+    unitsPct == null ? null
+    : unitsPct > 100 ? "text-amber-600 dark:text-amber-500"
+    : unitsPct >= 80 ? "text-primary"
+    : "text-muted-foreground";
+  const unitsBar =
+    unitsPct == null ? null
+    : unitsPct > 100 ? "bg-amber-500"
+    : unitsPct >= 80 ? "bg-primary"
+    : "bg-muted-foreground/50";
+
   return (
     <>
       {/* יחידות דיור */}
@@ -474,18 +487,40 @@ const HousingRangeRows = ({ report, plotArea }: { report: FeasibilityReport; plo
         <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums">
           {report.existing?.units ?? '—'}
         </td>
-        <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums text-muted-foreground">
-          {envelopeUnits ?? '—'}
-        </td>
-        <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
-          {range ? (
-            <div>
-              <div>{range.min}–{range.max}</div>
-              <div className="text-[10px] font-normal text-muted-foreground">ממוצע: {range.base}</div>
+        <td className="w-40 border-b border-border/60 py-3 text-center align-middle">
+          <div className="flex flex-col items-center">
+            <div className="text-sm font-semibold tabular-nums text-primary">
+              {range ? (
+                <>
+                  {range.min}–{range.max}
+                  <span className="ms-1 text-[10px] font-normal text-muted-foreground">(ממוצע: {range.base})</span>
+                </>
+              ) : (
+                proposedUnits || '—'
+              )}
             </div>
-          ) : (
-            report.proposed?.units ?? '—'
-          )}
+            {unitsPct != null && (
+              <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="mt-1 flex flex-col items-center gap-0.5 cursor-help">
+                      <div className="flex items-center gap-1.5 w-full max-w-[88px]">
+                        <div className="h-1 flex-1 rounded-full bg-muted overflow-hidden">
+                          <div className={cn("h-full rounded-full", unitsBar)} style={{ width: `${Math.min(unitsPct, 100)}%` }} />
+                        </div>
+                        <span className={cn("text-[10px] font-medium tabular-nums", unitsTone)}>{unitsPct}%</span>
+                      </div>
+                      <span className="text-[9px] text-muted-foreground/80">מהמעטפת</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-right text-xs" dir="rtl">
+                    <p className="font-semibold">מקס׳ מותר: {envelopeUnits} יח״ד</p>
+                    <p className="text-muted-foreground">חישוב: שטח מגרש × FAR ÷ דירה ממוצעת</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         </td>
       </tr>
 
@@ -498,20 +533,24 @@ const HousingRangeRows = ({ report, plotArea }: { report: FeasibilityReport; plo
           </div>
         </td>
         <td className="w-28 border-b border-border/60 py-3 text-center text-sm text-muted-foreground">—</td>
-        <td className="w-28 border-b border-border/60 py-3 text-center text-sm text-muted-foreground">—</td>
-        <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums text-primary">
-          <div>{sellable > 0 ? `${sellable.toLocaleString('he-IL')}` : '—'}<span className="me-1 text-[10px] font-normal text-muted-foreground">מ"ר</span></div>
-          <div className="mt-1 flex items-center justify-center gap-1 text-[10px] font-normal text-muted-foreground">
-            <span>מקדם:</span>
-            <input
-              type="number"
-              value={Math.round(sellableRatio * 100)}
-              min={60}
-              max={90}
-              onChange={e => setSellableRatio(Number(e.target.value) / 100)}
-              className="w-10 border border-border rounded px-1 py-0.5 text-center text-[10px]"
-            />
-            <span>%</span>
+        <td className="w-40 border-b border-border/60 py-3 text-center align-middle">
+          <div className="flex flex-col items-center">
+            <div className="text-sm font-bold tabular-nums text-primary">
+              {sellable > 0 ? `${sellable.toLocaleString('he-IL')}` : '—'}
+              <span className="me-1 text-[10px] font-normal text-muted-foreground">מ"ר</span>
+            </div>
+            <div className="mt-1 flex items-center justify-center gap-1 text-[10px] font-normal text-muted-foreground">
+              <span>מקדם:</span>
+              <input
+                type="number"
+                value={Math.round(sellableRatio * 100)}
+                min={60}
+                max={90}
+                onChange={e => setSellableRatio(Number(e.target.value) / 100)}
+                className="w-10 border border-border rounded px-1 py-0.5 text-center text-[10px]"
+              />
+              <span>%</span>
+            </div>
           </div>
         </td>
       </tr>
