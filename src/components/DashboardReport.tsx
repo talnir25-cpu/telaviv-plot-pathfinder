@@ -858,6 +858,73 @@ export const DashboardReport = ({
             </Card>
           </div>
 
+          {/* היתכנות תכנונית — קומות נדרשות ותוספת התחדשות (הועבר מטאב הזכויות) */}
+          {report.zoning.typicalFloorAreaSqm != null && report.zoning.typicalFloorAreaSqm > 0 && (() => {
+            const floorsNeeded = report.zoning.floorsNeededForFAR ?? 0;
+            const proposedFloors = report.proposed.floors;
+            const maxFloorsVal = report.zoning.maxFloors;
+            const isBlocked = floorsNeeded > maxFloorsVal;
+            const isMismatch = !isBlocked && floorsNeeded > proposedFloors;
+            const isOk = !isBlocked && !isMismatch;
+            const statusIcon = isBlocked ? "✕" : isMismatch ? "⚠" : "✓";
+            const statusColor = isBlocked
+              ? "text-destructive"
+              : isMismatch
+              ? "text-amber-600 dark:text-amber-500"
+              : "text-emerald-600 dark:text-emerald-500";
+            const rp = report.zoning.renewalPotential;
+
+            return (
+              <Card dir="rtl" className="p-5 shadow-card text-right">
+                <div className="mb-3 flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <h3 className="text-base font-bold">היתכנות תכנונית</h3>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">קומות נדרשות / מוצע</p>
+                    <p className={`mt-1 text-base font-semibold ${statusColor}`}>
+                      {fmt(floorsNeeded)} / {fmt(proposedFloors)} <span className="me-1">{statusIcon}</span>
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      {isOk
+                        ? "תכנון ריאלי בהינתן התכסית"
+                        : isMismatch
+                        ? "נדרשות יותר קומות לתמיכה בשטח המוצע"
+                        : `חריגה ממקסימום ${fmt(maxFloorsVal)} קומות`}
+                    </p>
+                    <SourceBadge source="חישוב: שטח מגרש × FAR ÷ שטח קומה תכנוני" />
+                  </div>
+                  {rp ? (
+                    <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">תוספת אפקטיבית סה״כ (התחדשות)</p>
+                      <p className="mt-1 text-base font-semibold text-primary">
+                        +{fmt(rp.effectiveUpliftSqmTotal)} מ״ר
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        תוספת לקומה × מס׳ קומות × מקדם מימוש {fmt(rp.realizationFactor * 100)}% · חלק דיירים {rp.tenantShareOfUpliftPct}%
+                      </p>
+                      <SourceBadge source={`${rp.source} · קווי בניין מוקלים ${rp.frontSetbackM}/${rp.sideSetbackM}/${rp.rearSetbackM} מ׳`} />
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">פוטנציאל התחדשות</p>
+                      <p className="mt-1 text-sm text-muted-foreground">לא זוהה מסלול התחדשות רלוונטי למגרש זה.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    <span className="font-semibold text-foreground">חישוב מספר הקומות מתבסס תמיד על המעטפת התכנונית.</span>{" "}
+                    תכסית קיימת משמשת לזיהוי חריגות היסטוריות; פוטנציאל ההתחדשות מציג את ההגדלה הריאלית של שטח הקומה והניצול במסלול הרלוונטי.
+                  </p>
+                </div>
+              </Card>
+            );
+          })()}
+
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <StatTile icon={TrendingUp} label="מכפיל יח״ד" value={`${fmt(report.metrics.multiplier, 2)}x`} accent source="יח״ד מוצעות ÷ יח״ד קיימות" />
             <StatTile icon={Building2} label="יח״ד נטו" value={fmt(report.metrics.newUnits)} source="יח״ד מוצעות − יח״ד קיימות" />
@@ -865,6 +932,7 @@ export const DashboardReport = ({
             <StatTile icon={Ruler} label="דירה ממוצעת" value={fmt(report.metrics.avgUnitSize)} unit='מ"ר' source="מקדם צפיפות לפי תקנון הרובע" />
           </div>
         </TabsContent>
+
 
         {/* RISKS — red flags + physical constraints */}
         <TabsContent value="risks" className="mt-4 space-y-4">
