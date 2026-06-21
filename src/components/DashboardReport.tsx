@@ -802,34 +802,71 @@ export const DashboardReport = ({
                 <h3 className="text-base font-bold">קיים מול מוצע</h3>
               </div>
               <div className="overflow-x-auto">
-                <table dir="rtl" className="w-full border-separate border-spacing-x-6 border-spacing-y-0">
+                <table dir="rtl" className="w-full border-separate border-spacing-x-4 border-spacing-y-0">
                   <thead>
                     <tr className="border-b-2 border-border">
                       <th className="border-b-2 border-border pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         פרמטר
                       </th>
-                      <th className="w-32 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         קיים
                       </th>
-                      <th className="w-32 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
+                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        מעטפת תכנונית
+                      </th>
+                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
                         מוצע
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    <ComparisonRow
-                      label="שטח בנוי"
-                      existing={fmt(report.existing.builtAreaSqm)}
-                      proposed={fmt(report.proposed.builtAreaSqm)}
-                      unit='מ"ר'
-                      badge={input.existingBuiltAreaSource ? (
-                        <Badge variant="outline" className="text-[10px]">
-                          {BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource}
-                        </Badge>
-                      ) : undefined}
-                    />
-                    <ComparisonRow label="קומות" existing={fmt(report.existing.floors)} proposed={fmt(report.proposed.floors)} />
-                    <HousingRangeRows report={report} />
+                    {(() => {
+                      const envelopeBuilt = plotArea * (report.zoning.maxFAR ?? 0);
+                      const propFloors = report.proposed.floors || 1;
+                      const propFloorArea = report.proposed.builtAreaSqm / propFloors;
+                      const propCoverage = plotArea > 0 ? (propFloorArea / plotArea) * 100 : 0;
+                      const existCov = report.zoning.coverageExistingPct;
+                      const existFootprint = report.zoning.buildingFootprintSqm;
+                      const envCov = report.zoning.coveragePct;
+                      const envFloorArea = report.zoning.typicalFloorAreaSqm;
+                      return (
+                        <>
+                          <ComparisonRow
+                            label="שטח בנוי"
+                            existing={fmt(report.existing.builtAreaSqm)}
+                            envelope={envelopeBuilt > 0 ? fmt(envelopeBuilt) : "—"}
+                            proposed={fmt(report.proposed.builtAreaSqm)}
+                            unit='מ"ר'
+                            badge={input.existingBuiltAreaSource ? (
+                              <Badge variant="outline" className="text-[10px]">
+                                {BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource}
+                              </Badge>
+                            ) : undefined}
+                          />
+                          <ComparisonRow
+                            label="תכסית"
+                            sublabel="% משטח המגרש"
+                            existing={existCov != null ? `${fmt(existCov)}%` : "—"}
+                            envelope={envCov != null ? `${fmt(envCov)}%` : "—"}
+                            proposed={propCoverage > 0 ? `${fmt(propCoverage)}%` : "—"}
+                          />
+                          <ComparisonRow
+                            label="שטח עיקרי לקומה"
+                            existing={existFootprint != null ? fmt(existFootprint) : "—"}
+                            envelope={envFloorArea != null ? fmt(envFloorArea) : "—"}
+                            proposed={propFloorArea > 0 ? fmt(propFloorArea) : "—"}
+                            unit='מ"ר'
+                          />
+                          <ComparisonRow
+                            label="קומות"
+                            existing={fmt(report.existing.floors)}
+                            envelope={fmt(report.zoning.maxFloors)}
+                            proposed={fmt(report.proposed.floors)}
+                          />
+                          <HousingRangeRows report={report} plotArea={plotArea} />
+                        </>
+                      );
+                    })()}
                   </tbody>
                 </table>
               </div>
