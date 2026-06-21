@@ -127,22 +127,70 @@ const StatTile = ({
   </div>
 );
 
+const UtilizationIndicator = ({
+  proposedValue,
+  envelopeValue,
+  unit,
+  envelopeSource,
+}: {
+  proposedValue: number;
+  envelopeValue: number;
+  unit?: string;
+  envelopeSource?: string;
+}) => {
+  if (!Number.isFinite(proposedValue) || !Number.isFinite(envelopeValue) || envelopeValue <= 0) return null;
+  const pct = (proposedValue / envelopeValue) * 100;
+  const tone =
+    pct > 100
+      ? { bar: "bg-amber-500", text: "text-amber-600 dark:text-amber-500", label: "דורש הקלות/התחדשות" }
+      : pct >= 80
+      ? { bar: "bg-primary", text: "text-primary", label: "ניצול מלא של זכויות הבסיס" }
+      : { bar: "bg-muted-foreground/50", text: "text-muted-foreground", label: "יש מקום להגדלה" };
+  const capLabel = `מקס׳ מותר: ${Number.isInteger(envelopeValue) ? envelopeValue.toLocaleString("he-IL") : envelopeValue.toFixed(1)}${unit ? ` ${unit}` : ""}`;
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="mt-1 flex flex-col items-center gap-0.5 cursor-help">
+            <div className="flex items-center gap-1.5 w-full max-w-[88px]">
+              <div className="h-1 flex-1 rounded-full bg-muted overflow-hidden">
+                <div className={cn("h-full rounded-full transition-all", tone.bar)} style={{ width: `${Math.min(pct, 100)}%` }} />
+              </div>
+              <span className={cn("text-[10px] font-medium tabular-nums", tone.text)}>{Math.round(pct)}%</span>
+            </div>
+            <span className="text-[9px] text-muted-foreground/80">מהמעטפת</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="text-right text-xs" dir="rtl">
+          <p className="font-semibold">{capLabel}</p>
+          <p className="text-muted-foreground">{tone.label}</p>
+          {envelopeSource && <p className="mt-0.5 text-[10px] text-muted-foreground/80">{envelopeSource}</p>}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
+
 const ComparisonRow = ({
   label,
   sublabel,
   existing,
-  envelope,
   proposed,
+  proposedRaw,
+  envelopeRaw,
   unit,
   badge,
+  envelopeSource,
 }: {
   label: string;
   sublabel?: string;
   existing: string | number;
-  envelope: string | number;
   proposed: string | number;
+  proposedRaw?: number;
+  envelopeRaw?: number;
   unit?: string;
   badge?: React.ReactNode;
+  envelopeSource?: string;
 }) => (
   <tr>
     <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
@@ -158,13 +206,21 @@ const ComparisonRow = ({
       {existing}
       {unit && existing !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
     </td>
-    <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums text-muted-foreground">
-      {envelope}
-      {unit && envelope !== "—" && <span className="me-1 text-muted-foreground/70">{unit}</span>}
-    </td>
-    <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
-      {proposed}
-      {unit && proposed !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
+    <td className="w-40 border-b border-border/60 py-3 text-center align-middle">
+      <div className="flex flex-col items-center">
+        <div className="text-sm font-semibold tabular-nums text-primary">
+          {proposed}
+          {unit && proposed !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
+        </div>
+        {proposedRaw != null && envelopeRaw != null && (
+          <UtilizationIndicator
+            proposedValue={proposedRaw}
+            envelopeValue={envelopeRaw}
+            unit={unit}
+            envelopeSource={envelopeSource}
+          />
+        )}
+      </div>
     </td>
   </tr>
 );
@@ -405,6 +461,19 @@ const HousingRangeRows = ({ report, plotArea }: { report: FeasibilityReport; plo
   const envelopeBuilt = plotArea * (report.zoning?.maxFAR ?? 0);
   const envelopeUnits = avgUnitSize > 0 ? Math.floor(envelopeBuilt / avgUnitSize) : null;
 
+  const proposedUnits = report.proposed?.units ?? 0;
+  const unitsPct = envelopeUnits && envelopeUnits > 0 ? Math.round((proposedUnits / envelopeUnits) * 100) : null;
+  const unitsTone =
+    unitsPct == null ? null
+    : unitsPct > 100 ? "text-amber-600 dark:text-amber-500"
+    : unitsPct >= 80 ? "text-primary"
+    : "text-muted-foreground";
+  const unitsBar =
+    unitsPct == null ? null
+    : unitsPct > 100 ? "bg-amber-500"
+    : unitsPct >= 80 ? "bg-primary"
+    : "bg-muted-foreground/50";
+
   return (
     <>
       {/* יחידות דיור */}
@@ -418,18 +487,40 @@ const HousingRangeRows = ({ report, plotArea }: { report: FeasibilityReport; plo
         <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums">
           {report.existing?.units ?? '—'}
         </td>
-        <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums text-muted-foreground">
-          {envelopeUnits ?? '—'}
-        </td>
-        <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
-          {range ? (
-            <div>
-              <div>{range.min}–{range.max}</div>
-              <div className="text-[10px] font-normal text-muted-foreground">ממוצע: {range.base}</div>
+        <td className="w-40 border-b border-border/60 py-3 text-center align-middle">
+          <div className="flex flex-col items-center">
+            <div className="text-sm font-semibold tabular-nums text-primary">
+              {range ? (
+                <>
+                  {range.min}–{range.max}
+                  <span className="ms-1 text-[10px] font-normal text-muted-foreground">(ממוצע: {range.base})</span>
+                </>
+              ) : (
+                proposedUnits || '—'
+              )}
             </div>
-          ) : (
-            report.proposed?.units ?? '—'
-          )}
+            {unitsPct != null && (
+              <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="mt-1 flex flex-col items-center gap-0.5 cursor-help">
+                      <div className="flex items-center gap-1.5 w-full max-w-[88px]">
+                        <div className="h-1 flex-1 rounded-full bg-muted overflow-hidden">
+                          <div className={cn("h-full rounded-full", unitsBar)} style={{ width: `${Math.min(unitsPct, 100)}%` }} />
+                        </div>
+                        <span className={cn("text-[10px] font-medium tabular-nums", unitsTone)}>{unitsPct}%</span>
+                      </div>
+                      <span className="text-[9px] text-muted-foreground/80">מהמעטפת</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-right text-xs" dir="rtl">
+                    <p className="font-semibold">מקס׳ מותר: {envelopeUnits} יח״ד</p>
+                    <p className="text-muted-foreground">חישוב: שטח מגרש × FAR ÷ דירה ממוצעת</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         </td>
       </tr>
 
@@ -442,20 +533,24 @@ const HousingRangeRows = ({ report, plotArea }: { report: FeasibilityReport; plo
           </div>
         </td>
         <td className="w-28 border-b border-border/60 py-3 text-center text-sm text-muted-foreground">—</td>
-        <td className="w-28 border-b border-border/60 py-3 text-center text-sm text-muted-foreground">—</td>
-        <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums text-primary">
-          <div>{sellable > 0 ? `${sellable.toLocaleString('he-IL')}` : '—'}<span className="me-1 text-[10px] font-normal text-muted-foreground">מ"ר</span></div>
-          <div className="mt-1 flex items-center justify-center gap-1 text-[10px] font-normal text-muted-foreground">
-            <span>מקדם:</span>
-            <input
-              type="number"
-              value={Math.round(sellableRatio * 100)}
-              min={60}
-              max={90}
-              onChange={e => setSellableRatio(Number(e.target.value) / 100)}
-              className="w-10 border border-border rounded px-1 py-0.5 text-center text-[10px]"
-            />
-            <span>%</span>
+        <td className="w-40 border-b border-border/60 py-3 text-center align-middle">
+          <div className="flex flex-col items-center">
+            <div className="text-sm font-bold tabular-nums text-primary">
+              {sellable > 0 ? `${sellable.toLocaleString('he-IL')}` : '—'}
+              <span className="me-1 text-[10px] font-normal text-muted-foreground">מ"ר</span>
+            </div>
+            <div className="mt-1 flex items-center justify-center gap-1 text-[10px] font-normal text-muted-foreground">
+              <span>מקדם:</span>
+              <input
+                type="number"
+                value={Math.round(sellableRatio * 100)}
+                min={60}
+                max={90}
+                onChange={e => setSellableRatio(Number(e.target.value) / 100)}
+                className="w-10 border border-border rounded px-1 py-0.5 text-center text-[10px]"
+              />
+              <span>%</span>
+            </div>
           </div>
         </td>
       </tr>
@@ -712,11 +807,8 @@ export const DashboardReport = ({
                       <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         קיים
                       </th>
-                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        מעטפת תכנונית
-                      </th>
-                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
-                        מוצע
+                      <th className="w-40 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
+                        מוצע · ניצול מהמעטפת
                       </th>
                     </tr>
                   </thead>
@@ -730,14 +822,34 @@ export const DashboardReport = ({
                       const existFootprint = report.zoning.buildingFootprintSqm;
                       const envCov = report.zoning.coveragePct;
                       const envFloorArea = report.zoning.typicalFloorAreaSqm;
+                      const zoneSrc = `תקנון רובע ${input.quarter} · ${report.zoning.source}`;
+
+                      // Average utilization across primary axes
+                      const utils: number[] = [];
+                      if (envelopeBuilt > 0) utils.push((report.proposed.builtAreaSqm / envelopeBuilt) * 100);
+                      if (envCov && envCov > 0) utils.push((propCoverage / envCov) * 100);
+                      if (report.zoning.maxFloors > 0) utils.push((report.proposed.floors / report.zoning.maxFloors) * 100);
+                      const avgUtil = utils.length ? Math.round(utils.reduce((a, b) => a + b, 0) / utils.length) : null;
+
                       return (
                         <>
+                          {avgUtil != null && (
+                            <tr>
+                              <td colSpan={3} className="pb-3 pt-1">
+                                <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[12px] leading-relaxed text-foreground">
+                                  התכנון המוצע מנצל בממוצע <span className="font-bold text-primary">{avgUtil}%</span> ממעטפת הזכויות החוקית. פירוט מלא של המעטפת זמין בטאב "חלקה וזכויות".
+                                </div>
+                              </td>
+                            </tr>
+                          )}
                           <ComparisonRow
                             label="שטח בנוי"
                             existing={fmt(report.existing.builtAreaSqm)}
-                            envelope={envelopeBuilt > 0 ? fmt(envelopeBuilt) : "—"}
                             proposed={fmt(report.proposed.builtAreaSqm)}
+                            proposedRaw={report.proposed.builtAreaSqm}
+                            envelopeRaw={envelopeBuilt}
                             unit='מ"ר'
+                            envelopeSource={zoneSrc}
                             badge={input.existingBuiltAreaSource ? (
                               <Badge variant="outline" className="text-[10px]">
                                 {BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource}
@@ -748,21 +860,27 @@ export const DashboardReport = ({
                             label="תכסית"
                             sublabel="% משטח המגרש"
                             existing={existCov != null ? `${fmt(existCov)}%` : "—"}
-                            envelope={envCov != null ? `${fmt(envCov)}%` : "—"}
                             proposed={propCoverage > 0 ? `${fmt(propCoverage)}%` : "—"}
+                            proposedRaw={propCoverage}
+                            envelopeRaw={envCov ?? undefined}
+                            envelopeSource={zoneSrc}
                           />
                           <ComparisonRow
                             label="שטח עיקרי לקומה"
                             existing={existFootprint != null ? fmt(existFootprint) : "—"}
-                            envelope={envFloorArea != null ? fmt(envFloorArea) : "—"}
                             proposed={propFloorArea > 0 ? fmt(propFloorArea) : "—"}
+                            proposedRaw={propFloorArea}
+                            envelopeRaw={envFloorArea ?? undefined}
                             unit='מ"ר'
+                            envelopeSource={zoneSrc}
                           />
                           <ComparisonRow
                             label="קומות"
                             existing={fmt(report.existing.floors)}
-                            envelope={fmt(report.zoning.maxFloors)}
                             proposed={fmt(report.proposed.floors)}
+                            proposedRaw={report.proposed.floors}
+                            envelopeRaw={report.zoning.maxFloors}
+                            envelopeSource={zoneSrc}
                           />
                           <HousingRangeRows report={report} plotArea={plotArea} />
                         </>
