@@ -763,52 +763,94 @@ export const DashboardReport = ({
                       <th className="border-b-2 border-border pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         פרמטר
                       </th>
-                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="w-24 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         קיים
                       </th>
-                      <th className="w-40 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
-                        מוצע · ניצול מהמעטפת
+                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
+                        מוצע
+                      </th>
+                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        תובנה
+                      </th>
+                      <th className="border-b-2 border-border pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        הסבר
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     {(() => {
-                      const envelopeBuilt = plotArea * (report.zoning.maxFAR ?? 0);
                       const propFloors = report.proposed.floors || 1;
                       const propFloorArea = report.proposed.builtAreaSqm / propFloors;
                       const propCoverage = plotArea > 0 ? (propFloorArea / plotArea) * 100 : 0;
                       const existCov = report.zoning.coverageExistingPct;
                       const existFootprint = report.zoning.buildingFootprintSqm;
-                      const envCov = report.zoning.coveragePct;
-                      const envFloorArea = report.zoning.typicalFloorAreaSqm;
-                      const zoneSrc = `תקנון רובע ${input.quarter} · ${report.zoning.source}`;
 
-                      // Average utilization across primary axes
-                      const utils: number[] = [];
-                      if (envelopeBuilt > 0) utils.push((report.proposed.builtAreaSqm / envelopeBuilt) * 100);
-                      if (envCov && envCov > 0) utils.push((propCoverage / envCov) * 100);
-                      if (report.zoning.maxFloors > 0) utils.push((report.proposed.floors / report.zoning.maxFloors) * 100);
-                      const avgUtil = utils.length ? Math.round(utils.reduce((a, b) => a + b, 0) / utils.length) : null;
+                      // Insights
+                      const gfaMult = report.existing.builtAreaSqm > 0
+                        ? report.proposed.builtAreaSqm / report.existing.builtAreaSqm
+                        : NaN;
+                      const gfaTone: InsightTone =
+                        !Number.isFinite(gfaMult) ? "neutral"
+                        : gfaMult >= 2.5 ? "success"
+                        : gfaMult >= 2.0 ? "neutral"
+                        : gfaMult >= 1.5 ? "warning"
+                        : "danger";
+                      const gfaText =
+                        !Number.isFinite(gfaMult) ? "—"
+                        : gfaMult >= 2.5 ? "מכפיל GFA מצוין — מרווח רווחיות גבוה ליזם."
+                        : gfaMult >= 2.0 ? "מכפיל GFA בטווח הכלכלי המקובל להתחדשות (~2.0×)."
+                        : gfaMult >= 1.5 ? "מכפיל GFA גבולי — תלוי בעלויות בנייה ובהיתרים."
+                        : "מכפיל GFA נמוך — סביר שלא יצדיק הריסה ובנייה.";
+
+                      const covDelta = existCov != null ? propCoverage - existCov : NaN;
+                      const covTone: InsightTone =
+                        !Number.isFinite(covDelta) ? "neutral"
+                        : covDelta > 15 ? "warning"
+                        : covDelta > 5 ? "neutral"
+                        : "success";
+                      const covText =
+                        !Number.isFinite(covDelta) ? "—"
+                        : covDelta > 15 ? "קפיצת תכסית משמעותית — צפוי להידרש אישור ועדה והקלות."
+                        : covDelta > 5 ? "הגדלת תכסית מתונה — מקור עיקרי לתוספת ערך מוסף."
+                        : "שינוי תכסית מינורי — לרוב בתחום הזכויות הקיימות.";
+
+                      const floorAreaDelta = existFootprint != null ? propFloorArea - existFootprint : NaN;
+                      const floorAreaPct = existFootprint && existFootprint > 0
+                        ? (propFloorArea / existFootprint - 1) * 100
+                        : NaN;
+                      const faTone: InsightTone =
+                        !Number.isFinite(floorAreaPct) ? "neutral"
+                        : floorAreaPct >= 20 ? "success"
+                        : floorAreaPct >= 0 ? "neutral"
+                        : "warning";
+                      const faText =
+                        !Number.isFinite(floorAreaPct) ? "—"
+                        : floorAreaPct >= 20 ? "פוטפרינט גדל משמעותית — מאפשר תכנון קומה יעיל יותר."
+                        : floorAreaPct >= 0 ? "תוספת מתונה לשטח הקומה — תכנון דומה למצב הקיים."
+                        : "צמצום פוטפרינט — מצריך תוספת קומות לפיצוי.";
+
+                      const floorsDelta = report.proposed.floors - report.existing.floors;
+                      const flTone: InsightTone =
+                        floorsDelta >= 4 ? "success"
+                        : floorsDelta >= 2 ? "neutral"
+                        : floorsDelta >= 0 ? "warning"
+                        : "danger";
+                      const flText =
+                        floorsDelta >= 4 ? `תוספת ${floorsDelta} קומות — מקור עיקרי ליחידות החדשות.`
+                        : floorsDelta >= 2 ? `תוספת ${floorsDelta} קומות — תורמת לכדאיות אך לא דרמטית.`
+                        : floorsDelta >= 0 ? "תוספת קומות מצומצמת — מגבילה את מכפיל היחידות."
+                        : "ירידה במספר הקומות — חריג, יש לוודא נכונות הנתון.";
 
                       return (
                         <>
-                          {avgUtil != null && (
-                            <tr>
-                              <td colSpan={3} className="pb-3 pt-1">
-                                <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[12px] leading-relaxed text-foreground">
-                                  התכנון המוצע מנצל בממוצע <span className="font-bold text-primary">{avgUtil}%</span> ממעטפת הזכויות החוקית. פירוט מלא של המעטפת זמין בטאב "חלקה וזכויות".
-                                </div>
-                              </td>
-                            </tr>
-                          )}
                           <ComparisonRow
                             label="שטח בנוי"
                             existing={fmt(report.existing.builtAreaSqm)}
                             proposed={fmt(report.proposed.builtAreaSqm)}
-                            proposedRaw={report.proposed.builtAreaSqm}
-                            envelopeRaw={envelopeBuilt}
                             unit='מ"ר'
-                            envelopeSource={zoneSrc}
+                            insight={Number.isFinite(gfaMult) ? `×${gfaMult.toFixed(2)}` : "—"}
+                            insightTone={gfaTone}
+                            explanation={gfaText}
                             badge={input.existingBuiltAreaSource ? (
                               <Badge variant="outline" className="text-[10px]">
                                 {BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource}
@@ -820,32 +862,33 @@ export const DashboardReport = ({
                             sublabel="% משטח המגרש"
                             existing={existCov != null ? `${fmt(existCov)}%` : "—"}
                             proposed={propCoverage > 0 ? `${fmt(propCoverage)}%` : "—"}
-                            proposedRaw={propCoverage}
-                            envelopeRaw={envCov ?? undefined}
-                            envelopeSource={zoneSrc}
+                            insight={Number.isFinite(covDelta) ? `${covDelta >= 0 ? "+" : ""}${fmt(covDelta)} נק׳` : "—"}
+                            insightTone={covTone}
+                            explanation={covText}
                           />
                           <ComparisonRow
                             label="שטח עיקרי לקומה"
                             existing={existFootprint != null ? fmt(existFootprint) : "—"}
                             proposed={propFloorArea > 0 ? fmt(propFloorArea) : "—"}
-                            proposedRaw={propFloorArea}
-                            envelopeRaw={envFloorArea ?? undefined}
                             unit='מ"ר'
-                            envelopeSource={zoneSrc}
+                            insight={Number.isFinite(floorAreaDelta) ? `${floorAreaDelta >= 0 ? "+" : ""}${fmt(floorAreaDelta)}` : "—"}
+                            insightTone={faTone}
+                            explanation={faText}
                           />
                           <ComparisonRow
                             label="קומות"
                             existing={fmt(report.existing.floors)}
                             proposed={fmt(report.proposed.floors)}
-                            proposedRaw={report.proposed.floors}
-                            envelopeRaw={report.zoning.maxFloors}
-                            envelopeSource={zoneSrc}
+                            insight={`${floorsDelta >= 0 ? "+" : ""}${floorsDelta}`}
+                            insightTone={flTone}
+                            explanation={flText}
                           />
                           <HousingRangeRows report={report} plotArea={plotArea} />
                         </>
                       );
                     })()}
                   </tbody>
+
                 </table>
               </div>
             </Card>
