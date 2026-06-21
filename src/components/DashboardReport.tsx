@@ -127,48 +127,13 @@ const StatTile = ({
   </div>
 );
 
-const UtilizationIndicator = ({
-  proposedValue,
-  envelopeValue,
-  unit,
-  envelopeSource,
-}: {
-  proposedValue: number;
-  envelopeValue: number;
-  unit?: string;
-  envelopeSource?: string;
-}) => {
-  if (!Number.isFinite(proposedValue) || !Number.isFinite(envelopeValue) || envelopeValue <= 0) return null;
-  const pct = (proposedValue / envelopeValue) * 100;
-  const tone =
-    pct > 100
-      ? { bar: "bg-amber-500", text: "text-amber-600 dark:text-amber-500", label: "דורש הקלות/התחדשות" }
-      : pct >= 80
-      ? { bar: "bg-primary", text: "text-primary", label: "ניצול מלא של זכויות הבסיס" }
-      : { bar: "bg-muted-foreground/50", text: "text-muted-foreground", label: "יש מקום להגדלה" };
-  const capLabel = `מקס׳ מותר: ${Number.isInteger(envelopeValue) ? envelopeValue.toLocaleString("he-IL") : envelopeValue.toFixed(1)}${unit ? ` ${unit}` : ""}`;
-  return (
-    <TooltipProvider delayDuration={150}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="mt-1 flex flex-col items-center gap-0.5 cursor-help">
-            <div className="flex items-center gap-1.5 w-full max-w-[88px]">
-              <div className="h-1 flex-1 rounded-full bg-muted overflow-hidden">
-                <div className={cn("h-full rounded-full transition-all", tone.bar)} style={{ width: `${Math.min(pct, 100)}%` }} />
-              </div>
-              <span className={cn("text-[10px] font-medium tabular-nums", tone.text)}>{Math.round(pct)}%</span>
-            </div>
-            <span className="text-[9px] text-muted-foreground/80">מהמעטפת</span>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-right text-xs" dir="rtl">
-          <p className="font-semibold">{capLabel}</p>
-          <p className="text-muted-foreground">{tone.label}</p>
-          {envelopeSource && <p className="mt-0.5 text-[10px] text-muted-foreground/80">{envelopeSource}</p>}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
+type InsightTone = "success" | "warning" | "danger" | "neutral";
+
+const INSIGHT_TONE_CLASS: Record<InsightTone, string> = {
+  success: "text-emerald-600 dark:text-emerald-500",
+  warning: "text-amber-600 dark:text-amber-500",
+  danger: "text-rose-600 dark:text-rose-500",
+  neutral: "text-primary",
 };
 
 const ComparisonRow = ({
@@ -176,21 +141,21 @@ const ComparisonRow = ({
   sublabel,
   existing,
   proposed,
-  proposedRaw,
-  envelopeRaw,
   unit,
   badge,
-  envelopeSource,
+  insight,
+  insightTone = "neutral",
+  explanation,
 }: {
   label: string;
   sublabel?: string;
   existing: string | number;
   proposed: string | number;
-  proposedRaw?: number;
-  envelopeRaw?: number;
   unit?: string;
   badge?: React.ReactNode;
-  envelopeSource?: string;
+  insight?: React.ReactNode;
+  insightTone?: InsightTone;
+  explanation?: React.ReactNode;
 }) => (
   <tr>
     <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
@@ -202,25 +167,19 @@ const ComparisonRow = ({
         </div>
       </div>
     </td>
-    <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums">
+    <td className="w-24 border-b border-border/60 py-3 text-center text-sm tabular-nums">
       {existing}
       {unit && existing !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
     </td>
-    <td className="w-40 border-b border-border/60 py-3 text-center align-middle">
-      <div className="flex flex-col items-center">
-        <div className="text-sm font-semibold tabular-nums text-primary">
-          {proposed}
-          {unit && proposed !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
-        </div>
-        {proposedRaw != null && envelopeRaw != null && (
-          <UtilizationIndicator
-            proposedValue={proposedRaw}
-            envelopeValue={envelopeRaw}
-            unit={unit}
-            envelopeSource={envelopeSource}
-          />
-        )}
-      </div>
+    <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
+      {proposed}
+      {unit && proposed !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
+    </td>
+    <td className={cn("w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums", INSIGHT_TONE_CLASS[insightTone])}>
+      {insight ?? "—"}
+    </td>
+    <td className="border-b border-border/60 py-3 text-right text-[12px] leading-snug text-muted-foreground">
+      {explanation ?? "—"}
     </td>
   </tr>
 );
@@ -447,7 +406,7 @@ const CalculationSourceCard = ({ report }: { report: FeasibilityReport }) => {
   );
 };
 
-const HousingRangeRows = ({ report, plotArea }: { report: FeasibilityReport; plotArea: number }) => {
+const HousingRangeRows = ({ report, plotArea: _plotArea }: { report: FeasibilityReport; plotArea: number }) => {
   const [sellableRatio, setSellableRatio] = useState(0.78);
   const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
   const sellable = Math.round(proposedBuilt * sellableRatio);
@@ -456,27 +415,32 @@ const HousingRangeRows = ({ report, plotArea }: { report: FeasibilityReport; plo
     ? unitRange
     : null;
 
-  // Envelope units: plot × FAR ÷ avg unit size
-  const avgUnitSize = report.metrics?.avgUnitSize ?? 0;
-  const envelopeBuilt = plotArea * (report.zoning?.maxFAR ?? 0);
-  const envelopeUnits = avgUnitSize > 0 ? Math.floor(envelopeBuilt / avgUnitSize) : null;
-
   const proposedUnits = report.proposed?.units ?? 0;
-  const unitsPct = envelopeUnits && envelopeUnits > 0 ? Math.round((proposedUnits / envelopeUnits) * 100) : null;
-  const unitsTone =
-    unitsPct == null ? null
-    : unitsPct > 100 ? "text-amber-600 dark:text-amber-500"
-    : unitsPct >= 80 ? "text-primary"
-    : "text-muted-foreground";
-  const unitsBar =
-    unitsPct == null ? null
-    : unitsPct > 100 ? "bg-amber-500"
-    : unitsPct >= 80 ? "bg-primary"
-    : "bg-muted-foreground/50";
+  const existingUnits = report.existing?.units ?? 0;
+  const unitsMult = existingUnits > 0 ? proposedUnits / existingUnits : NaN;
+  const unitsTone: InsightTone =
+    !Number.isFinite(unitsMult) ? "neutral"
+    : unitsMult >= 2.2 ? "success"
+    : unitsMult >= 1.8 ? "neutral"
+    : unitsMult >= 1.5 ? "warning"
+    : "danger";
+  const unitsText =
+    !Number.isFinite(unitsMult) ? "—"
+    : unitsMult >= 2.2 ? 'מכפיל יח"ד בריא להתחדשות — אטרקטיבי גם ליזם וגם לדיירים.'
+    : unitsMult >= 1.8 ? 'מכפיל יח"ד גבולי-טוב — לרוב סף הכניסה לתמ"א/פינוי-בינוי.'
+    : unitsMult >= 1.5 ? 'מכפיל יח"ד נמוך — לרוב לא יצדיק את עלות ההתחדשות.'
+    : 'מכפיל יח"ד לא כלכלי — נדרשת בחינה מחדש של תמהיל/זכויות.';
+
+  const sellPct = proposedBuilt > 0 ? (sellable / proposedBuilt) * 100 : NaN;
+  const sellTone: InsightTone =
+    !Number.isFinite(sellPct) ? "neutral"
+    : sellPct >= 80 ? "success"
+    : sellPct >= 70 ? "neutral"
+    : "warning";
+  const sellText = 'שטח המכירה הוא מקור ההכנסה בפועל. ניתן לכוונן את מקדם המכירה לפי תכנון הפרויקט.';
 
   return (
     <>
-      {/* יחידות דיור */}
       <tr>
         <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
           <div>
@@ -484,47 +448,27 @@ const HousingRangeRows = ({ report, plotArea }: { report: FeasibilityReport; plo
             <span className="block text-[10px] text-muted-foreground/70">לפי תמהיל ממוצע</span>
           </div>
         </td>
-        <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums">
-          {report.existing?.units ?? '—'}
+        <td className="w-24 border-b border-border/60 py-3 text-center text-sm tabular-nums">
+          {existingUnits || '—'}
         </td>
-        <td className="w-40 border-b border-border/60 py-3 text-center align-middle">
-          <div className="flex flex-col items-center">
-            <div className="text-sm font-semibold tabular-nums text-primary">
-              {range ? (
-                <>
-                  {range.min}–{range.max}
-                  <span className="ms-1 text-[10px] font-normal text-muted-foreground">(ממוצע: {range.base})</span>
-                </>
-              ) : (
-                proposedUnits || '—'
-              )}
-            </div>
-            {unitsPct != null && (
-              <TooltipProvider delayDuration={150}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="mt-1 flex flex-col items-center gap-0.5 cursor-help">
-                      <div className="flex items-center gap-1.5 w-full max-w-[88px]">
-                        <div className="h-1 flex-1 rounded-full bg-muted overflow-hidden">
-                          <div className={cn("h-full rounded-full", unitsBar)} style={{ width: `${Math.min(unitsPct, 100)}%` }} />
-                        </div>
-                        <span className={cn("text-[10px] font-medium tabular-nums", unitsTone)}>{unitsPct}%</span>
-                      </div>
-                      <span className="text-[9px] text-muted-foreground/80">מהמעטפת</span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-right text-xs" dir="rtl">
-                    <p className="font-semibold">מקס׳ מותר: {envelopeUnits} יח״ד</p>
-                    <p className="text-muted-foreground">חישוב: שטח מגרש × FAR ÷ דירה ממוצעת</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </div>
+        <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
+          {range ? (
+            <>
+              {range.min}–{range.max}
+              <span className="ms-1 text-[10px] font-normal text-muted-foreground">(ממוצע: {range.base})</span>
+            </>
+          ) : (
+            proposedUnits || '—'
+          )}
+        </td>
+        <td className={cn("w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums", INSIGHT_TONE_CLASS[unitsTone])}>
+          {Number.isFinite(unitsMult) ? `×${unitsMult.toFixed(2)}` : "—"}
+        </td>
+        <td className="border-b border-border/60 py-3 text-right text-[12px] leading-snug text-muted-foreground">
+          {unitsText}
         </td>
       </tr>
 
-      {/* שטח מכיר */}
       <tr className="bg-primary/5">
         <td className="border-b border-border/60 py-3 text-right text-sm font-semibold text-primary">
           <div>
@@ -532,11 +476,11 @@ const HousingRangeRows = ({ report, plotArea }: { report: FeasibilityReport; plo
             <span className="block text-[10px] font-normal text-muted-foreground">שטח ברוטו × מקדם מכירה</span>
           </div>
         </td>
-        <td className="w-28 border-b border-border/60 py-3 text-center text-sm text-muted-foreground">—</td>
-        <td className="w-40 border-b border-border/60 py-3 text-center align-middle">
+        <td className="w-24 border-b border-border/60 py-3 text-center text-sm text-muted-foreground">—</td>
+        <td className="w-28 border-b border-border/60 py-3 text-center align-middle">
           <div className="flex flex-col items-center">
             <div className="text-sm font-bold tabular-nums text-primary">
-              {sellable > 0 ? `${sellable.toLocaleString('he-IL')}` : '—'}
+              {sellable > 0 ? sellable.toLocaleString('he-IL') : '—'}
               <span className="me-1 text-[10px] font-normal text-muted-foreground">מ"ר</span>
             </div>
             <div className="mt-1 flex items-center justify-center gap-1 text-[10px] font-normal text-muted-foreground">
@@ -552,6 +496,12 @@ const HousingRangeRows = ({ report, plotArea }: { report: FeasibilityReport; plo
               <span>%</span>
             </div>
           </div>
+        </td>
+        <td className={cn("w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums", INSIGHT_TONE_CLASS[sellTone])}>
+          {Number.isFinite(sellPct) ? `${Math.round(sellPct)}%` : "—"}
+        </td>
+        <td className="border-b border-border/60 py-3 text-right text-[12px] leading-snug text-muted-foreground">
+          {sellText}
         </td>
       </tr>
     </>
@@ -804,52 +754,94 @@ export const DashboardReport = ({
                       <th className="border-b-2 border-border pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         פרמטר
                       </th>
-                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="w-24 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         קיים
                       </th>
-                      <th className="w-40 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
-                        מוצע · ניצול מהמעטפת
+                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
+                        מוצע
+                      </th>
+                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        תובנה
+                      </th>
+                      <th className="border-b-2 border-border pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        הסבר
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     {(() => {
-                      const envelopeBuilt = plotArea * (report.zoning.maxFAR ?? 0);
                       const propFloors = report.proposed.floors || 1;
                       const propFloorArea = report.proposed.builtAreaSqm / propFloors;
                       const propCoverage = plotArea > 0 ? (propFloorArea / plotArea) * 100 : 0;
                       const existCov = report.zoning.coverageExistingPct;
                       const existFootprint = report.zoning.buildingFootprintSqm;
-                      const envCov = report.zoning.coveragePct;
-                      const envFloorArea = report.zoning.typicalFloorAreaSqm;
-                      const zoneSrc = `תקנון רובע ${input.quarter} · ${report.zoning.source}`;
 
-                      // Average utilization across primary axes
-                      const utils: number[] = [];
-                      if (envelopeBuilt > 0) utils.push((report.proposed.builtAreaSqm / envelopeBuilt) * 100);
-                      if (envCov && envCov > 0) utils.push((propCoverage / envCov) * 100);
-                      if (report.zoning.maxFloors > 0) utils.push((report.proposed.floors / report.zoning.maxFloors) * 100);
-                      const avgUtil = utils.length ? Math.round(utils.reduce((a, b) => a + b, 0) / utils.length) : null;
+                      // Insights
+                      const gfaMult = report.existing.builtAreaSqm > 0
+                        ? report.proposed.builtAreaSqm / report.existing.builtAreaSqm
+                        : NaN;
+                      const gfaTone: InsightTone =
+                        !Number.isFinite(gfaMult) ? "neutral"
+                        : gfaMult >= 2.5 ? "success"
+                        : gfaMult >= 2.0 ? "neutral"
+                        : gfaMult >= 1.5 ? "warning"
+                        : "danger";
+                      const gfaText =
+                        !Number.isFinite(gfaMult) ? "—"
+                        : gfaMult >= 2.5 ? "מכפיל GFA מצוין — מרווח רווחיות גבוה ליזם."
+                        : gfaMult >= 2.0 ? "מכפיל GFA בטווח הכלכלי המקובל להתחדשות (~2.0×)."
+                        : gfaMult >= 1.5 ? "מכפיל GFA גבולי — תלוי בעלויות בנייה ובהיתרים."
+                        : "מכפיל GFA נמוך — סביר שלא יצדיק הריסה ובנייה.";
+
+                      const covDelta = existCov != null ? propCoverage - existCov : NaN;
+                      const covTone: InsightTone =
+                        !Number.isFinite(covDelta) ? "neutral"
+                        : covDelta > 15 ? "warning"
+                        : covDelta > 5 ? "neutral"
+                        : "success";
+                      const covText =
+                        !Number.isFinite(covDelta) ? "—"
+                        : covDelta > 15 ? "קפיצת תכסית משמעותית — צפוי להידרש אישור ועדה והקלות."
+                        : covDelta > 5 ? "הגדלת תכסית מתונה — מקור עיקרי לתוספת ערך מוסף."
+                        : "שינוי תכסית מינורי — לרוב בתחום הזכויות הקיימות.";
+
+                      const floorAreaDelta = existFootprint != null ? propFloorArea - existFootprint : NaN;
+                      const floorAreaPct = existFootprint && existFootprint > 0
+                        ? (propFloorArea / existFootprint - 1) * 100
+                        : NaN;
+                      const faTone: InsightTone =
+                        !Number.isFinite(floorAreaPct) ? "neutral"
+                        : floorAreaPct >= 20 ? "success"
+                        : floorAreaPct >= 0 ? "neutral"
+                        : "warning";
+                      const faText =
+                        !Number.isFinite(floorAreaPct) ? "—"
+                        : floorAreaPct >= 20 ? "פוטפרינט גדל משמעותית — מאפשר תכנון קומה יעיל יותר."
+                        : floorAreaPct >= 0 ? "תוספת מתונה לשטח הקומה — תכנון דומה למצב הקיים."
+                        : "צמצום פוטפרינט — מצריך תוספת קומות לפיצוי.";
+
+                      const floorsDelta = report.proposed.floors - report.existing.floors;
+                      const flTone: InsightTone =
+                        floorsDelta >= 4 ? "success"
+                        : floorsDelta >= 2 ? "neutral"
+                        : floorsDelta >= 0 ? "warning"
+                        : "danger";
+                      const flText =
+                        floorsDelta >= 4 ? `תוספת ${floorsDelta} קומות — מקור עיקרי ליחידות החדשות.`
+                        : floorsDelta >= 2 ? `תוספת ${floorsDelta} קומות — תורמת לכדאיות אך לא דרמטית.`
+                        : floorsDelta >= 0 ? "תוספת קומות מצומצמת — מגבילה את מכפיל היחידות."
+                        : "ירידה במספר הקומות — חריג, יש לוודא נכונות הנתון.";
 
                       return (
                         <>
-                          {avgUtil != null && (
-                            <tr>
-                              <td colSpan={3} className="pb-3 pt-1">
-                                <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[12px] leading-relaxed text-foreground">
-                                  התכנון המוצע מנצל בממוצע <span className="font-bold text-primary">{avgUtil}%</span> ממעטפת הזכויות החוקית. פירוט מלא של המעטפת זמין בטאב "חלקה וזכויות".
-                                </div>
-                              </td>
-                            </tr>
-                          )}
                           <ComparisonRow
                             label="שטח בנוי"
                             existing={fmt(report.existing.builtAreaSqm)}
                             proposed={fmt(report.proposed.builtAreaSqm)}
-                            proposedRaw={report.proposed.builtAreaSqm}
-                            envelopeRaw={envelopeBuilt}
                             unit='מ"ר'
-                            envelopeSource={zoneSrc}
+                            insight={Number.isFinite(gfaMult) ? `×${gfaMult.toFixed(2)}` : "—"}
+                            insightTone={gfaTone}
+                            explanation={gfaText}
                             badge={input.existingBuiltAreaSource ? (
                               <Badge variant="outline" className="text-[10px]">
                                 {BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource}
@@ -861,32 +853,33 @@ export const DashboardReport = ({
                             sublabel="% משטח המגרש"
                             existing={existCov != null ? `${fmt(existCov)}%` : "—"}
                             proposed={propCoverage > 0 ? `${fmt(propCoverage)}%` : "—"}
-                            proposedRaw={propCoverage}
-                            envelopeRaw={envCov ?? undefined}
-                            envelopeSource={zoneSrc}
+                            insight={Number.isFinite(covDelta) ? `${covDelta >= 0 ? "+" : ""}${fmt(covDelta)} נק׳` : "—"}
+                            insightTone={covTone}
+                            explanation={covText}
                           />
                           <ComparisonRow
                             label="שטח עיקרי לקומה"
                             existing={existFootprint != null ? fmt(existFootprint) : "—"}
                             proposed={propFloorArea > 0 ? fmt(propFloorArea) : "—"}
-                            proposedRaw={propFloorArea}
-                            envelopeRaw={envFloorArea ?? undefined}
                             unit='מ"ר'
-                            envelopeSource={zoneSrc}
+                            insight={Number.isFinite(floorAreaDelta) ? `${floorAreaDelta >= 0 ? "+" : ""}${fmt(floorAreaDelta)}` : "—"}
+                            insightTone={faTone}
+                            explanation={faText}
                           />
                           <ComparisonRow
                             label="קומות"
                             existing={fmt(report.existing.floors)}
                             proposed={fmt(report.proposed.floors)}
-                            proposedRaw={report.proposed.floors}
-                            envelopeRaw={report.zoning.maxFloors}
-                            envelopeSource={zoneSrc}
+                            insight={`${floorsDelta >= 0 ? "+" : ""}${floorsDelta}`}
+                            insightTone={flTone}
+                            explanation={flText}
                           />
                           <HousingRangeRows report={report} plotArea={plotArea} />
                         </>
                       );
                     })()}
                   </tbody>
+
                 </table>
               </div>
             </Card>
