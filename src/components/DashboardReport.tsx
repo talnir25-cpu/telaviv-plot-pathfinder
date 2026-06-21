@@ -129,13 +129,17 @@ const StatTile = ({
 
 const ComparisonRow = ({
   label,
+  sublabel,
   existing,
+  envelope,
   proposed,
   unit,
   badge,
 }: {
   label: string;
+  sublabel?: string;
   existing: string | number;
+  envelope: string | number;
   proposed: string | number;
   unit?: string;
   badge?: React.ReactNode;
@@ -144,16 +148,23 @@ const ComparisonRow = ({
     <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
       <div className="flex items-center justify-start gap-2">
         {badge}
-        <span>{label}</span>
+        <div>
+          <span>{label}</span>
+          {sublabel && <span className="block text-[10px] text-muted-foreground/70">{sublabel}</span>}
+        </div>
       </div>
     </td>
-    <td className="w-32 border-b border-border/60 py-3 text-center text-sm tabular-nums">
+    <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums">
       {existing}
       {unit && existing !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
     </td>
-    <td className="w-32 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
+    <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums text-muted-foreground">
+      {envelope}
+      {unit && envelope !== "—" && <span className="me-1 text-muted-foreground/70">{unit}</span>}
+    </td>
+    <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
       {proposed}
-      {unit && <span className="me-1 text-muted-foreground">{unit}</span>}
+      {unit && proposed !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
     </td>
   </tr>
 );
@@ -380,7 +391,7 @@ const CalculationSourceCard = ({ report }: { report: FeasibilityReport }) => {
   );
 };
 
-const HousingRangeRows = ({ report }: { report: FeasibilityReport }) => {
+const HousingRangeRows = ({ report, plotArea }: { report: FeasibilityReport; plotArea: number }) => {
   const [sellableRatio, setSellableRatio] = useState(0.78);
   const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
   const sellable = Math.round(proposedBuilt * sellableRatio);
@@ -389,62 +400,52 @@ const HousingRangeRows = ({ report }: { report: FeasibilityReport }) => {
     ? unitRange
     : null;
 
+  // Envelope units: plot × FAR ÷ avg unit size
+  const avgUnitSize = report.metrics?.avgUnitSize ?? 0;
+  const envelopeBuilt = plotArea * (report.zoning?.maxFAR ?? 0);
+  const envelopeUnits = avgUnitSize > 0 ? Math.floor(envelopeBuilt / avgUnitSize) : null;
+
   return (
     <>
-      {/* יחידות דיור — טווח מושער */}
+      {/* יחידות דיור */}
       <tr>
-        <td className="text-right text-gray-600 py-2 pr-4 align-top">
-          יחידות דיור
-          <span className="block text-xs text-gray-400">לפי תמהיל ממוצע</span>
+        <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
+          <div>
+            <span>יחידות דיור</span>
+            <span className="block text-[10px] text-muted-foreground/70">לפי תמהיל ממוצע</span>
+          </div>
         </td>
-        <td className="text-center py-2 align-top">
+        <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums">
           {report.existing?.units ?? '—'}
         </td>
-        <td className="text-center py-2 align-top">
+        <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums text-muted-foreground">
+          {envelopeUnits ?? '—'}
+        </td>
+        <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
           {range ? (
             <div>
-              <div className="text-lg font-bold text-blue-700">
-                {range.min}–{range.max}
-              </div>
-              <div className="text-xs text-gray-500">
-                ממוצע: {range.base} יח'
-              </div>
+              <div>{range.min}–{range.max}</div>
+              <div className="text-[10px] font-normal text-muted-foreground">ממוצע: {range.base}</div>
             </div>
           ) : (
-            <div className="text-lg font-bold text-blue-700">
-              {report.proposed?.units ?? '—'}
-            </div>
-          )}
-        </td>
-        <td className="py-2 pr-2 align-top">
-          {range && (
-            <div className="text-xs text-gray-500 space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="text-gray-400">ממוצע ליח':</span>
-                <span className="font-medium text-gray-700">
-                  {range.avgUnitSizeMin}–{range.avgUnitSizeMax} מ"ר
-                </span>
-              </div>
-              <div className="text-[10px] text-gray-400">
-                בסיס: {range.avgUnitSizeBase} מ"ר
-              </div>
-            </div>
+            report.proposed?.units ?? '—'
           )}
         </td>
       </tr>
 
-      {/* שטח מכיר — שורה תחתונה */}
-      <tr className="bg-blue-100 border-t-2 border-blue-300">
-        <td className="text-right font-semibold text-blue-800 py-3 pr-4 align-top">
-          שטח מכיר
-          <span className="block text-xs text-blue-500 font-normal">שטח ברוטו × מקדם מכירה</span>
+      {/* שטח מכיר */}
+      <tr className="bg-primary/5">
+        <td className="border-b border-border/60 py-3 text-right text-sm font-semibold text-primary">
+          <div>
+            <span>שטח מכיר</span>
+            <span className="block text-[10px] font-normal text-muted-foreground">שטח ברוטו × מקדם מכירה</span>
+          </div>
         </td>
-        <td className="text-center py-3 text-gray-500 align-top">—</td>
-        <td className="text-center py-3 font-bold text-blue-700 text-lg align-top">
-          {sellable > 0 ? `${sellable.toLocaleString('he-IL')} מ"ר` : '—'}
-        </td>
-        <td className="py-3 pr-2 align-top">
-          <div className="flex items-center gap-1 text-xs text-gray-600">
+        <td className="w-28 border-b border-border/60 py-3 text-center text-sm text-muted-foreground">—</td>
+        <td className="w-28 border-b border-border/60 py-3 text-center text-sm text-muted-foreground">—</td>
+        <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums text-primary">
+          <div>{sellable > 0 ? `${sellable.toLocaleString('he-IL')}` : '—'}<span className="me-1 text-[10px] font-normal text-muted-foreground">מ"ר</span></div>
+          <div className="mt-1 flex items-center justify-center gap-1 text-[10px] font-normal text-muted-foreground">
             <span>מקדם:</span>
             <input
               type="number"
@@ -452,20 +453,9 @@ const HousingRangeRows = ({ report }: { report: FeasibilityReport }) => {
               min={60}
               max={90}
               onChange={e => setSellableRatio(Number(e.target.value) / 100)}
-              className="w-12 border border-gray-300 rounded px-1 py-0.5 text-center text-xs"
+              className="w-10 border border-border rounded px-1 py-0.5 text-center text-[10px]"
             />
             <span>%</span>
-          </div>
-          <div className="text-[10px] text-gray-400 mt-1">ברירת מחדל 78% — ניתן לשינוי</div>
-        </td>
-      </tr>
-
-      {/* הערת שיטת חישוב */}
-      <tr className="bg-blue-50">
-        <td colSpan={4} className="pr-4 pb-3 pt-1">
-          <div className="text-[10px] text-gray-500 leading-relaxed border-r-2 border-blue-300 pr-2">
-            <span className="font-semibold text-gray-600">שיטת חישוב ומקורות: </span>
-            שטח מכיר = שטח בנייה ברוטו × מקדם מכירה. המקדם מייצג את היחס בין שטח נטו הנמכר לשטח הבנייה הכולל, ומורכב משני מרכיבים: (א) <span className="font-medium">שטח שירות</span> — חדרי מדרגות, מעליות, לובי, מקלטים — כ-12%-18% משטח הבנייה שאינו נמכר; (ב) <span className="font-medium">מרפסות</span> — נספרות בשטח הבנייה אך נמכרות בכ-50% ממחיר המ"ר העיקרי, ומהוות כ-8%-12% בפרויקטי התחדשות טיפוסיים. ברירת המחדל 78% מבוססת על ממוצע פרויקטי התחדשות ברובעים 3-4 בתל אביב. <span className="font-medium text-orange-600">מומלץ לאמת עם אדריכל הפרויקט</span> — המקדם עשוי להשתנות בהתאם למספר הקומות (בניין גבוה → מקדם נמוך יותר עקב שטח גרעין גדול יותר) ולדרישות מיוחדות באזור ההכרזה.
           </div>
         </td>
       </tr>
@@ -697,106 +687,7 @@ export const DashboardReport = ({
               </div>
             </div>
 
-            {/* Section 4 — פער ניצול ופוטנציאל הגדלה */}
-            {report.zoning.typicalFloorAreaSqm != null && report.zoning.typicalFloorAreaSqm > 0 && (() => {
-              const srcLabel = report.zoning.setbackSource === "manual" || report.zoning.setbackSource === "manual_override"
-                ? "הזנת משתמש"
-                : "תקנון רובע";
-
-              const planningArea = report.zoning.typicalFloorAreaSqm;
-              const planningCov = report.zoning.coveragePct ?? 0;
-              const existCov = report.zoning.coverageExistingPct;
-              const existArea = report.zoning.buildingFootprintSqm;
-              const rp = report.zoning.renewalPotential;
-
-              const existDelta = existCov != null ? existCov - planningCov : null;
-              const existOvershoot = existDelta != null && existDelta > 5;
-
-              return (
-                <div className="border-t pt-5">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-primary" />
-                      <h4 className="text-sm font-bold">פער ניצול ופוטנציאל הגדלה</h4>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">מקור קווי בניין: {srcLabel}</span>
-                  </div>
-
-                  <div className="overflow-x-auto rounded-lg border">
-                    <table dir="rtl" className="w-full text-right text-sm">
-                      <thead className="bg-muted/40">
-                        <tr>
-                          <th className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            מצב
-                          </th>
-                          <th className="px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            תכסית (%)
-                          </th>
-                          <th className="px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            שטח עיקרי לקומה (מ״ר)
-                          </th>
-                          <th className="px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            פער / תוספת
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {existCov != null && (
-                          <tr className="border-t">
-                            <td className="px-3 py-2.5">
-                              <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                                <Database className="h-3.5 w-3.5" />
-                                קיים בפועל
-                              </div>
-                              <p className="mt-0.5 text-[10px] text-muted-foreground">GIS עירוני</p>
-                            </td>
-                            <td className="px-3 py-2.5 text-center font-semibold">{fmt(existCov)}%</td>
-                            <td className="px-3 py-2.5 text-center font-semibold">
-                              {existArea != null ? fmt(existArea) : "—"}
-                            </td>
-                            <td className="px-3 py-2.5 text-center">
-                              {existDelta != null && (
-                                <span className={`font-semibold ${existOvershoot ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground"}`}>
-                                  {existDelta > 0 ? "+" : ""}{fmt(existDelta, 1)}%
-                                  {existOvershoot && (
-                                    <span className="ms-1 text-[10px] font-normal">חריגה</span>
-                                  )}
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        )}
-                        <tr className="border-t bg-muted/10">
-                          <td className="px-3 py-2.5">
-                            <div className="text-xs font-semibold">מעטפת תכנונית</div>
-                            <p className="mt-0.5 text-[10px] text-muted-foreground">תב״ע מאושרת (בסיס לחישוב קומות)</p>
-                          </td>
-                          <td className="px-3 py-2.5 text-center font-semibold">{fmt(planningCov)}%</td>
-                          <td className="px-3 py-2.5 text-center font-semibold">{fmt(planningArea)}</td>
-                          <td className="px-3 py-2.5 text-center text-muted-foreground">בסיס</td>
-                        </tr>
-                        {rp && (
-                          <tr className="border-t bg-primary/5">
-                            <td className="px-3 py-2.5">
-                              <div className="text-xs font-semibold text-primary">פוטנציאל התחדשות</div>
-                              <p className="mt-0.5 text-[10px] text-muted-foreground">{rp.trackLabel}</p>
-                            </td>
-                            <td className="px-3 py-2.5 text-center font-semibold text-primary">{fmt(rp.coveragePct)}%</td>
-                            <td className="px-3 py-2.5 text-center font-semibold text-primary">{fmt(rp.typicalFloorAreaSqm)}</td>
-                            <td className="px-3 py-2.5 text-center">
-                              <span className="font-semibold text-emerald-600 dark:text-emerald-500">
-                                +{fmt(rp.upliftSqmPerFloor)} מ״ר
-                              </span>
-                              <span className="ms-1 text-[10px] text-muted-foreground">(+{fmt(rp.upliftPct)}%)</span>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              );
-            })()}
+            {/* טבלת השוואת ניצול הועברה לטאב "תכנון מוצע" */}
           </Card>
         </TabsContent>
 
@@ -812,34 +703,71 @@ export const DashboardReport = ({
                 <h3 className="text-base font-bold">קיים מול מוצע</h3>
               </div>
               <div className="overflow-x-auto">
-                <table dir="rtl" className="w-full border-separate border-spacing-x-6 border-spacing-y-0">
+                <table dir="rtl" className="w-full border-separate border-spacing-x-4 border-spacing-y-0">
                   <thead>
                     <tr className="border-b-2 border-border">
                       <th className="border-b-2 border-border pb-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         פרמטר
                       </th>
-                      <th className="w-32 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         קיים
                       </th>
-                      <th className="w-32 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
+                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        מעטפת תכנונית
+                      </th>
+                      <th className="w-28 border-b-2 border-border pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-primary">
                         מוצע
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    <ComparisonRow
-                      label="שטח בנוי"
-                      existing={fmt(report.existing.builtAreaSqm)}
-                      proposed={fmt(report.proposed.builtAreaSqm)}
-                      unit='מ"ר'
-                      badge={input.existingBuiltAreaSource ? (
-                        <Badge variant="outline" className="text-[10px]">
-                          {BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource}
-                        </Badge>
-                      ) : undefined}
-                    />
-                    <ComparisonRow label="קומות" existing={fmt(report.existing.floors)} proposed={fmt(report.proposed.floors)} />
-                    <HousingRangeRows report={report} />
+                    {(() => {
+                      const envelopeBuilt = plotArea * (report.zoning.maxFAR ?? 0);
+                      const propFloors = report.proposed.floors || 1;
+                      const propFloorArea = report.proposed.builtAreaSqm / propFloors;
+                      const propCoverage = plotArea > 0 ? (propFloorArea / plotArea) * 100 : 0;
+                      const existCov = report.zoning.coverageExistingPct;
+                      const existFootprint = report.zoning.buildingFootprintSqm;
+                      const envCov = report.zoning.coveragePct;
+                      const envFloorArea = report.zoning.typicalFloorAreaSqm;
+                      return (
+                        <>
+                          <ComparisonRow
+                            label="שטח בנוי"
+                            existing={fmt(report.existing.builtAreaSqm)}
+                            envelope={envelopeBuilt > 0 ? fmt(envelopeBuilt) : "—"}
+                            proposed={fmt(report.proposed.builtAreaSqm)}
+                            unit='מ"ר'
+                            badge={input.existingBuiltAreaSource ? (
+                              <Badge variant="outline" className="text-[10px]">
+                                {BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource}
+                              </Badge>
+                            ) : undefined}
+                          />
+                          <ComparisonRow
+                            label="תכסית"
+                            sublabel="% משטח המגרש"
+                            existing={existCov != null ? `${fmt(existCov)}%` : "—"}
+                            envelope={envCov != null ? `${fmt(envCov)}%` : "—"}
+                            proposed={propCoverage > 0 ? `${fmt(propCoverage)}%` : "—"}
+                          />
+                          <ComparisonRow
+                            label="שטח עיקרי לקומה"
+                            existing={existFootprint != null ? fmt(existFootprint) : "—"}
+                            envelope={envFloorArea != null ? fmt(envFloorArea) : "—"}
+                            proposed={propFloorArea > 0 ? fmt(propFloorArea) : "—"}
+                            unit='מ"ר'
+                          />
+                          <ComparisonRow
+                            label="קומות"
+                            existing={fmt(report.existing.floors)}
+                            envelope={fmt(report.zoning.maxFloors)}
+                            proposed={fmt(report.proposed.floors)}
+                          />
+                          <HousingRangeRows report={report} plotArea={plotArea} />
+                        </>
+                      );
+                    })()}
                   </tbody>
                 </table>
               </div>
