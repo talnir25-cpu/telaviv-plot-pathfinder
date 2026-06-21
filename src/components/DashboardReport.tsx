@@ -129,13 +129,17 @@ const StatTile = ({
 
 const ComparisonRow = ({
   label,
+  sublabel,
   existing,
+  envelope,
   proposed,
   unit,
   badge,
 }: {
   label: string;
+  sublabel?: string;
   existing: string | number;
+  envelope: string | number;
   proposed: string | number;
   unit?: string;
   badge?: React.ReactNode;
@@ -144,16 +148,23 @@ const ComparisonRow = ({
     <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
       <div className="flex items-center justify-start gap-2">
         {badge}
-        <span>{label}</span>
+        <div>
+          <span>{label}</span>
+          {sublabel && <span className="block text-[10px] text-muted-foreground/70">{sublabel}</span>}
+        </div>
       </div>
     </td>
-    <td className="w-32 border-b border-border/60 py-3 text-center text-sm tabular-nums">
+    <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums">
       {existing}
       {unit && existing !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
     </td>
-    <td className="w-32 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
+    <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums text-muted-foreground">
+      {envelope}
+      {unit && envelope !== "—" && <span className="me-1 text-muted-foreground/70">{unit}</span>}
+    </td>
+    <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
       {proposed}
-      {unit && <span className="me-1 text-muted-foreground">{unit}</span>}
+      {unit && proposed !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
     </td>
   </tr>
 );
