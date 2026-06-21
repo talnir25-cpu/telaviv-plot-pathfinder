@@ -392,6 +392,7 @@ export const DashboardReport = ({
   const status = STATUS_STYLES[report.status];
   const plotArea = input.area ?? input.shapeArea ?? 0;
   const hasExistingCoverage = report.zoning.coverageExistingPct != null;
+  const [sellableRatio, setSellableRatio] = useState(0.78);
 
   return (
     <section dir="rtl" className="space-y-4 text-right animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -814,10 +815,10 @@ export const DashboardReport = ({
                     <ComparisonRow label="קומות" existing={fmt(report.existing.floors)} proposed={fmt(report.proposed.floors)} />
                     {(() => {
                       const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
-                      const [sellableRatio, setSellableRatio] = useState(0.78);
                       const sellable = Math.round(proposedBuilt * sellableRatio);
                       const unitRange = report.proposed?.unitRange;
                       const hasRange = unitRange && Number.isFinite(unitRange.min) && Number.isFinite(unitRange.max);
+
 
                       return (
                         <>
