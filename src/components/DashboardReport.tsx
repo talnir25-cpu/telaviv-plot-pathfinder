@@ -551,16 +551,12 @@ export const DashboardReport = ({
       {/* KPI Header — מכפילי כדאיות מרכזיים */}
       <KpiHeader report={report} />
 
-      {/* Dashboard tabs — narrative flow: parcel → zoning → proposed → risks → financial */}
+      {/* Dashboard tabs — narrative flow: parcel+zoning → proposed → risks → financial */}
       <Tabs defaultValue="parcel" className="w-full">
-        <TabsList dir="rtl" className="grid w-full grid-cols-6">
+        <TabsList dir="rtl" className="grid w-full grid-cols-5">
           <TabsTrigger value="parcel" className="gap-1.5">
             <MapPin className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">חלקה</span>
-          </TabsTrigger>
-          <TabsTrigger value="zoning" className="gap-1.5">
-            <Ruler className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">זכויות</span>
+            <span className="hidden sm:inline">חלקה וזכויות</span>
           </TabsTrigger>
           <TabsTrigger value="proposed" className="gap-1.5">
             <Sparkles className="h-3.5 w-3.5" />
