@@ -391,7 +391,7 @@ const CalculationSourceCard = ({ report }: { report: FeasibilityReport }) => {
   );
 };
 
-const HousingRangeRows = ({ report }: { report: FeasibilityReport }) => {
+const HousingRangeRows = ({ report, plotArea }: { report: FeasibilityReport; plotArea: number }) => {
   const [sellableRatio, setSellableRatio] = useState(0.78);
   const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
   const sellable = Math.round(proposedBuilt * sellableRatio);
@@ -400,62 +400,52 @@ const HousingRangeRows = ({ report }: { report: FeasibilityReport }) => {
     ? unitRange
     : null;
 
+  // Envelope units: plot × FAR ÷ avg unit size
+  const avgUnitSize = report.metrics?.avgUnitSize ?? 0;
+  const envelopeBuilt = plotArea * (report.zoning?.maxFAR ?? 0);
+  const envelopeUnits = avgUnitSize > 0 ? Math.floor(envelopeBuilt / avgUnitSize) : null;
+
   return (
     <>
-      {/* יחידות דיור — טווח מושער */}
+      {/* יחידות דיור */}
       <tr>
-        <td className="text-right text-gray-600 py-2 pr-4 align-top">
-          יחידות דיור
-          <span className="block text-xs text-gray-400">לפי תמהיל ממוצע</span>
+        <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
+          <div>
+            <span>יחידות דיור</span>
+            <span className="block text-[10px] text-muted-foreground/70">לפי תמהיל ממוצע</span>
+          </div>
         </td>
-        <td className="text-center py-2 align-top">
+        <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums">
           {report.existing?.units ?? '—'}
         </td>
-        <td className="text-center py-2 align-top">
+        <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums text-muted-foreground">
+          {envelopeUnits ?? '—'}
+        </td>
+        <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
           {range ? (
             <div>
-              <div className="text-lg font-bold text-blue-700">
-                {range.min}–{range.max}
-              </div>
-              <div className="text-xs text-gray-500">
-                ממוצע: {range.base} יח'
-              </div>
+              <div>{range.min}–{range.max}</div>
+              <div className="text-[10px] font-normal text-muted-foreground">ממוצע: {range.base}</div>
             </div>
           ) : (
-            <div className="text-lg font-bold text-blue-700">
-              {report.proposed?.units ?? '—'}
-            </div>
-          )}
-        </td>
-        <td className="py-2 pr-2 align-top">
-          {range && (
-            <div className="text-xs text-gray-500 space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="text-gray-400">ממוצע ליח':</span>
-                <span className="font-medium text-gray-700">
-                  {range.avgUnitSizeMin}–{range.avgUnitSizeMax} מ"ר
-                </span>
-              </div>
-              <div className="text-[10px] text-gray-400">
-                בסיס: {range.avgUnitSizeBase} מ"ר
-              </div>
-            </div>
+            report.proposed?.units ?? '—'
           )}
         </td>
       </tr>
 
-      {/* שטח מכיר — שורה תחתונה */}
-      <tr className="bg-blue-100 border-t-2 border-blue-300">
-        <td className="text-right font-semibold text-blue-800 py-3 pr-4 align-top">
-          שטח מכיר
-          <span className="block text-xs text-blue-500 font-normal">שטח ברוטו × מקדם מכירה</span>
+      {/* שטח מכיר */}
+      <tr className="bg-primary/5">
+        <td className="border-b border-border/60 py-3 text-right text-sm font-semibold text-primary">
+          <div>
+            <span>שטח מכיר</span>
+            <span className="block text-[10px] font-normal text-muted-foreground">שטח ברוטו × מקדם מכירה</span>
+          </div>
         </td>
-        <td className="text-center py-3 text-gray-500 align-top">—</td>
-        <td className="text-center py-3 font-bold text-blue-700 text-lg align-top">
-          {sellable > 0 ? `${sellable.toLocaleString('he-IL')} מ"ר` : '—'}
-        </td>
-        <td className="py-3 pr-2 align-top">
-          <div className="flex items-center gap-1 text-xs text-gray-600">
+        <td className="w-28 border-b border-border/60 py-3 text-center text-sm text-muted-foreground">—</td>
+        <td className="w-28 border-b border-border/60 py-3 text-center text-sm text-muted-foreground">—</td>
+        <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums text-primary">
+          <div>{sellable > 0 ? `${sellable.toLocaleString('he-IL')}` : '—'}<span className="me-1 text-[10px] font-normal text-muted-foreground">מ"ר</span></div>
+          <div className="mt-1 flex items-center justify-center gap-1 text-[10px] font-normal text-muted-foreground">
             <span>מקדם:</span>
             <input
               type="number"
@@ -463,20 +453,9 @@ const HousingRangeRows = ({ report }: { report: FeasibilityReport }) => {
               min={60}
               max={90}
               onChange={e => setSellableRatio(Number(e.target.value) / 100)}
-              className="w-12 border border-gray-300 rounded px-1 py-0.5 text-center text-xs"
+              className="w-10 border border-border rounded px-1 py-0.5 text-center text-[10px]"
             />
             <span>%</span>
-          </div>
-          <div className="text-[10px] text-gray-400 mt-1">ברירת מחדל 78% — ניתן לשינוי</div>
-        </td>
-      </tr>
-
-      {/* הערת שיטת חישוב */}
-      <tr className="bg-blue-50">
-        <td colSpan={4} className="pr-4 pb-3 pt-1">
-          <div className="text-[10px] text-gray-500 leading-relaxed border-r-2 border-blue-300 pr-2">
-            <span className="font-semibold text-gray-600">שיטת חישוב ומקורות: </span>
-            שטח מכיר = שטח בנייה ברוטו × מקדם מכירה. המקדם מייצג את היחס בין שטח נטו הנמכר לשטח הבנייה הכולל, ומורכב משני מרכיבים: (א) <span className="font-medium">שטח שירות</span> — חדרי מדרגות, מעליות, לובי, מקלטים — כ-12%-18% משטח הבנייה שאינו נמכר; (ב) <span className="font-medium">מרפסות</span> — נספרות בשטח הבנייה אך נמכרות בכ-50% ממחיר המ"ר העיקרי, ומהוות כ-8%-12% בפרויקטי התחדשות טיפוסיים. ברירת המחדל 78% מבוססת על ממוצע פרויקטי התחדשות ברובעים 3-4 בתל אביב. <span className="font-medium text-orange-600">מומלץ לאמת עם אדריכל הפרויקט</span> — המקדם עשוי להשתנות בהתאם למספר הקומות (בניין גבוה → מקדם נמוך יותר עקב שטח גרעין גדול יותר) ולדרישות מיוחדות באזור ההכרזה.
           </div>
         </td>
       </tr>
