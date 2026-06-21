@@ -815,10 +815,10 @@ export const DashboardReport = ({
                     <ComparisonRow label="קומות" existing={fmt(report.existing.floors)} proposed={fmt(report.proposed.floors)} />
                     {(() => {
                       const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
-                      const [sellableRatio, setSellableRatio] = useState(0.78);
                       const sellable = Math.round(proposedBuilt * sellableRatio);
                       const unitRange = report.proposed?.unitRange;
                       const hasRange = unitRange && Number.isFinite(unitRange.min) && Number.isFinite(unitRange.max);
+
 
                       return (
                         <>
