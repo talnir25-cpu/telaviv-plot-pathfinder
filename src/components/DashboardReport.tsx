@@ -127,48 +127,13 @@ const StatTile = ({
   </div>
 );
 
-const UtilizationIndicator = ({
-  proposedValue,
-  envelopeValue,
-  unit,
-  envelopeSource,
-}: {
-  proposedValue: number;
-  envelopeValue: number;
-  unit?: string;
-  envelopeSource?: string;
-}) => {
-  if (!Number.isFinite(proposedValue) || !Number.isFinite(envelopeValue) || envelopeValue <= 0) return null;
-  const pct = (proposedValue / envelopeValue) * 100;
-  const tone =
-    pct > 100
-      ? { bar: "bg-amber-500", text: "text-amber-600 dark:text-amber-500", label: "דורש הקלות/התחדשות" }
-      : pct >= 80
-      ? { bar: "bg-primary", text: "text-primary", label: "ניצול מלא של זכויות הבסיס" }
-      : { bar: "bg-muted-foreground/50", text: "text-muted-foreground", label: "יש מקום להגדלה" };
-  const capLabel = `מקס׳ מותר: ${Number.isInteger(envelopeValue) ? envelopeValue.toLocaleString("he-IL") : envelopeValue.toFixed(1)}${unit ? ` ${unit}` : ""}`;
-  return (
-    <TooltipProvider delayDuration={150}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="mt-1 flex flex-col items-center gap-0.5 cursor-help">
-            <div className="flex items-center gap-1.5 w-full max-w-[88px]">
-              <div className="h-1 flex-1 rounded-full bg-muted overflow-hidden">
-                <div className={cn("h-full rounded-full transition-all", tone.bar)} style={{ width: `${Math.min(pct, 100)}%` }} />
-              </div>
-              <span className={cn("text-[10px] font-medium tabular-nums", tone.text)}>{Math.round(pct)}%</span>
-            </div>
-            <span className="text-[9px] text-muted-foreground/80">מהמעטפת</span>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-right text-xs" dir="rtl">
-          <p className="font-semibold">{capLabel}</p>
-          <p className="text-muted-foreground">{tone.label}</p>
-          {envelopeSource && <p className="mt-0.5 text-[10px] text-muted-foreground/80">{envelopeSource}</p>}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
+type InsightTone = "success" | "warning" | "danger" | "neutral";
+
+const INSIGHT_TONE_CLASS: Record<InsightTone, string> = {
+  success: "text-emerald-600 dark:text-emerald-500",
+  warning: "text-amber-600 dark:text-amber-500",
+  danger: "text-rose-600 dark:text-rose-500",
+  neutral: "text-primary",
 };
 
 const ComparisonRow = ({
@@ -176,21 +141,21 @@ const ComparisonRow = ({
   sublabel,
   existing,
   proposed,
-  proposedRaw,
-  envelopeRaw,
   unit,
   badge,
-  envelopeSource,
+  insight,
+  insightTone = "neutral",
+  explanation,
 }: {
   label: string;
   sublabel?: string;
   existing: string | number;
   proposed: string | number;
-  proposedRaw?: number;
-  envelopeRaw?: number;
   unit?: string;
   badge?: React.ReactNode;
-  envelopeSource?: string;
+  insight?: React.ReactNode;
+  insightTone?: InsightTone;
+  explanation?: React.ReactNode;
 }) => (
   <tr>
     <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
@@ -202,25 +167,19 @@ const ComparisonRow = ({
         </div>
       </div>
     </td>
-    <td className="w-28 border-b border-border/60 py-3 text-center text-sm tabular-nums">
+    <td className="w-24 border-b border-border/60 py-3 text-center text-sm tabular-nums">
       {existing}
       {unit && existing !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
     </td>
-    <td className="w-40 border-b border-border/60 py-3 text-center align-middle">
-      <div className="flex flex-col items-center">
-        <div className="text-sm font-semibold tabular-nums text-primary">
-          {proposed}
-          {unit && proposed !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
-        </div>
-        {proposedRaw != null && envelopeRaw != null && (
-          <UtilizationIndicator
-            proposedValue={proposedRaw}
-            envelopeValue={envelopeRaw}
-            unit={unit}
-            envelopeSource={envelopeSource}
-          />
-        )}
-      </div>
+    <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
+      {proposed}
+      {unit && proposed !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
+    </td>
+    <td className={cn("w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums", INSIGHT_TONE_CLASS[insightTone])}>
+      {insight ?? "—"}
+    </td>
+    <td className="border-b border-border/60 py-3 text-right text-[12px] leading-snug text-muted-foreground">
+      {explanation ?? "—"}
     </td>
   </tr>
 );
