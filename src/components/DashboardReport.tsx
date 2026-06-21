@@ -392,6 +392,7 @@ export const DashboardReport = ({
   const status = STATUS_STYLES[report.status];
   const plotArea = input.area ?? input.shapeArea ?? 0;
   const hasExistingCoverage = report.zoning.coverageExistingPct != null;
+  const [sellableRatio, setSellableRatio] = useState(0.78);
 
   return (
     <section dir="rtl" className="space-y-4 text-right animate-in fade-in slide-in-from-bottom-2 duration-500">
