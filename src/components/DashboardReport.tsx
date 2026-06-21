@@ -484,7 +484,7 @@ export const DashboardReport = ({
 }: Props) => {
   const status = STATUS_STYLES[report.status];
   const plotArea = input.area ?? input.shapeArea ?? 0;
-  const hasExistingCoverage = report.zoning.coverageExistingPct != null;
+  
 
   return (
     <section dir="rtl" className="space-y-4 text-right animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -551,16 +551,12 @@ export const DashboardReport = ({
       {/* KPI Header — מכפילי כדאיות מרכזיים */}
       <KpiHeader report={report} />
 
-      {/* Dashboard tabs — narrative flow: parcel → zoning → proposed → risks → financial */}
+      {/* Dashboard tabs — narrative flow: parcel+zoning → proposed → risks → financial */}
       <Tabs defaultValue="parcel" className="w-full">
-        <TabsList dir="rtl" className="grid w-full grid-cols-6">
+        <TabsList dir="rtl" className="grid w-full grid-cols-5">
           <TabsTrigger value="parcel" className="gap-1.5">
             <MapPin className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">חלקה</span>
-          </TabsTrigger>
-          <TabsTrigger value="zoning" className="gap-1.5">
-            <Ruler className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">זכויות</span>
+            <span className="hidden sm:inline">חלקה וזכויות</span>
           </TabsTrigger>
           <TabsTrigger value="proposed" className="gap-1.5">
             <Sparkles className="h-3.5 w-3.5" />
@@ -584,144 +580,125 @@ export const DashboardReport = ({
             <span className="hidden sm:inline">ניהול זכויות</span>
           </TabsTrigger>
         </TabsList>
-
-        {/* PARCEL — map + GIS facts */}
+        {/* PARCEL + ZONING — what exists, what's allowed, and the utilization gap */}
         <TabsContent value="parcel" className="mt-4 space-y-4">
           <PlotMap gush={gush} helka={helka} />
-          <Card dir="rtl" className="p-5 shadow-card text-right">
-            <div className="mb-3 flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-primary" />
-              <h3 className="text-base font-bold">נתוני חלקה</h3>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <StatTile
-                icon={MapPin}
-                label="גוש / חלקה"
-                value={`${gush} / ${helka}`}
-                source="GovMap / נסח טאבו"
-              />
-              <StatTile
-                icon={Ruler}
-                label="שטח מגרש"
-                value={plotArea > 0 ? fmt(plotArea) : "—"}
-                unit={plotArea > 0 ? 'מ"ר' : undefined}
-                source={input.shapeArea ? "GIS עיריית ת״א — שכבת חלקות" : "נסח טאבו / קלט משתמש"}
-              />
-              <StatTile
-                icon={Building2}
-                label="יח״ד קיימות"
-                value={fmt(report.existing.units)}
-                source="קלט משתמש / נסח טאבו"
-              />
-              <StatTile
-                icon={Layers}
-                label="קומות קיימות"
-                value={fmt(report.existing.floors)}
-                source="קלט משתמש / סקר שטח"
-              />
-              <StatTile
-                icon={Layers}
-                label="שטח בנוי קיים"
-                value={fmt(report.existing.builtAreaSqm)}
-                unit='מ"ר'
-                source={
-                  input.existingBuiltAreaSource
-                    ? BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource
-                    : "אומדן"
-                }
-              />
-              <StatTile
-                icon={TrendingUp}
-                label="FAR קיים"
-                value={`${fmt(report.existing.far * 100)}%`}
-                source="חישוב: שטח בנוי ÷ שטח מגרש"
-              />
-              <div className="flex items-start gap-3 rounded-xl border bg-card p-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Info className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    מקור שטח בנוי
-                  </p>
-                  <p className="text-sm font-semibold leading-tight">
-                    {input.existingBuiltAreaSource
-                      ? BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource
-                      : "—"}
-                  </p>
-                  <SourceBadge source="שדה existingBuiltAreaSource בקלט הניתוח" />
-                </div>
+          <Card dir="rtl" className="p-5 shadow-card text-right space-y-6">
+            {/* Section 1 — מה יש: זיהוי החלקה */}
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-primary" />
+                <h3 className="text-base font-bold">נתוני חלקה</h3>
               </div>
-              <div className="flex items-start gap-3 rounded-xl border bg-card p-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <ShieldAlert className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    שימור
-                  </p>
-                  <p className="text-sm font-semibold leading-tight">
-                    {input.conservationDetails?.level
-                      ? `שימור ${input.conservationDetails.level}`
-                      : input.conservation
-                      ? "כן"
-                      : "לא"}
-                  </p>
-                  {input.conservationDetails?.buildingName && (
-                    <p className="truncate text-[10px] text-muted-foreground" title={input.conservationDetails.buildingName}>
-                      {input.conservationDetails.buildingName}
-                      {input.conservationDetails.planRef ? ` · ${input.conservationDetails.planRef}` : ""}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <StatTile
+                  icon={MapPin}
+                  label="גוש / חלקה"
+                  value={`${gush} / ${helka}`}
+                  source="GovMap / נסח טאבו"
+                />
+                <StatTile
+                  icon={Ruler}
+                  label="שטח מגרש"
+                  value={plotArea > 0 ? fmt(plotArea) : "—"}
+                  unit={plotArea > 0 ? 'מ"ר' : undefined}
+                  source={input.shapeArea ? "GIS עיריית ת״א — שכבת חלקות" : "נסח טאבו / קלט משתמש"}
+                />
+                <div className="flex items-start gap-3 rounded-xl border bg-card p-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <ShieldAlert className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      שימור
                     </p>
-                  )}
-                  <SourceBadge source="רשימת שימור עיריית ת״א (תא/2650/ב)" />
+                    <p className="text-sm font-semibold leading-tight">
+                      {input.conservationDetails?.level
+                        ? `שימור ${input.conservationDetails.level}`
+                        : input.conservation
+                        ? "כן"
+                        : "לא"}
+                    </p>
+                    {input.conservationDetails?.buildingName && (
+                      <p className="truncate text-[10px] text-muted-foreground" title={input.conservationDetails.buildingName}>
+                        {input.conservationDetails.buildingName}
+                        {input.conservationDetails.planRef ? ` · ${input.conservationDetails.planRef}` : ""}
+                      </p>
+                    )}
+                    <SourceBadge source="רשימת שימור עיריית ת״א (תא/2650/ב)" />
+                  </div>
                 </div>
               </div>
             </div>
-          </Card>
-        </TabsContent>
 
-        {/* ZONING — rights, setbacks, coverage, renewal potential */}
-        <TabsContent value="zoning" className="mt-4">
-          <Card dir="rtl" className="p-5 shadow-card text-right">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Ruler className="h-4 w-4 text-primary" />
-                <h3 className="text-base font-bold">זכויות בנייה ותקנון</h3>
+            {/* Section 2 — מצב בנוי קיים */}
+            <div className="border-t pt-5">
+              <div className="mb-3 flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                <h4 className="text-sm font-bold">מצב בנוי קיים</h4>
               </div>
-              <span className="text-[11px] text-muted-foreground">מקור: {report.zoning.source}</span>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <StatTile
+                  icon={Building2}
+                  label="יח״ד קיימות"
+                  value={fmt(report.existing.units)}
+                  source="קלט משתמש / נסח טאבו"
+                />
+                <StatTile
+                  icon={Layers}
+                  label="קומות קיימות"
+                  value={fmt(report.existing.floors)}
+                  source="קלט משתמש / סקר שטח"
+                />
+                <StatTile
+                  icon={Layers}
+                  label="שטח בנוי קיים"
+                  value={fmt(report.existing.builtAreaSqm)}
+                  unit='מ"ר'
+                  source={
+                    input.existingBuiltAreaSource
+                      ? BUILT_AREA_SOURCE_LABEL[input.existingBuiltAreaSource] ?? input.existingBuiltAreaSource
+                      : "אומדן"
+                  }
+                />
+                <StatTile
+                  icon={TrendingUp}
+                  label="FAR קיים"
+                  value={`${fmt(report.existing.far * 100)}%`}
+                  source="חישוב: שטח בנוי ÷ שטח מגרש"
+                />
+              </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                { label: "גובה מקס׳", value: `${fmt(report.zoning.maxHeightMeters, 1)} מ׳`, source: `תקנון רובע ${input.quarter} · ${report.zoning.source}` },
-                { label: "קומות מקס׳", value: fmt(report.zoning.maxFloors), source: `תקנון רובע ${input.quarter} · ${report.zoning.source}` },
-                { label: "FAR מקס׳", value: `${fmt(report.zoning.maxFAR * 100)}%`, source: `תקנון רובע ${input.quarter} · ${report.zoning.source}` },
-                { label: "קו בניין קדמי", value: `${fmt(report.zoning.frontSetbackM, 1)} מ׳`, source: report.zoning.setbackSource === "manual" || report.zoning.setbackSource === "manual_override" ? "הזנת משתמש" : `תקנון רובע ${input.quarter} (תא/${input.quarter === 3 ? "3616/א" : "3729/א"})` },
-                { label: "קו בניין צדדי", value: `${fmt(report.zoning.sideSetbackM, 1)} מ׳`, source: report.zoning.setbackSource === "manual" || report.zoning.setbackSource === "manual_override" ? "הזנת משתמש" : `תקנון רובע ${input.quarter} (תא/${input.quarter === 3 ? "3616/א" : "3729/א"})` },
-                { label: "קו בניין אחורי", value: `${fmt(report.zoning.rearSetbackM, 1)} מ׳`, source: report.zoning.setbackSource === "manual" || report.zoning.setbackSource === "manual_override" ? "הזנת משתמש" : `תקנון רובע ${input.quarter} (תא/${input.quarter === 3 ? "3616/א" : "3729/א"})` },
-              ].map((it) => (
-                <div key={it.label} className="rounded-lg border bg-muted/30 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">{it.label}</p>
-                  <p className="mt-1 text-base font-semibold">{it.value}</p>
-                  <SourceBadge source={it.source} />
+
+            {/* Section 3 — מעטפת זכויות ע״פ תקנון */}
+            <div className="border-t pt-5">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Ruler className="h-4 w-4 text-primary" />
+                  <h4 className="text-sm font-bold">מעטפת זכויות ע״פ תקנון</h4>
                 </div>
-              ))}
+                <span className="text-[11px] text-muted-foreground">מקור: {report.zoning.source}</span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  { label: "גובה מקס׳", value: `${fmt(report.zoning.maxHeightMeters, 1)} מ׳`, source: `תקנון רובע ${input.quarter} · ${report.zoning.source}` },
+                  { label: "קומות מקס׳", value: fmt(report.zoning.maxFloors), source: `תקנון רובע ${input.quarter} · ${report.zoning.source}` },
+                  { label: "FAR מקס׳", value: `${fmt(report.zoning.maxFAR * 100)}%`, source: `תקנון רובע ${input.quarter} · ${report.zoning.source}` },
+                  { label: "קו בניין קדמי", value: `${fmt(report.zoning.frontSetbackM, 1)} מ׳`, source: report.zoning.setbackSource === "manual" || report.zoning.setbackSource === "manual_override" ? "הזנת משתמש" : `תקנון רובע ${input.quarter} (תא/${input.quarter === 3 ? "3616/א" : "3729/א"})` },
+                  { label: "קו בניין צדדי", value: `${fmt(report.zoning.sideSetbackM, 1)} מ׳`, source: report.zoning.setbackSource === "manual" || report.zoning.setbackSource === "manual_override" ? "הזנת משתמש" : `תקנון רובע ${input.quarter} (תא/${input.quarter === 3 ? "3616/א" : "3729/א"})` },
+                  { label: "קו בניין אחורי", value: `${fmt(report.zoning.rearSetbackM, 1)} מ׳`, source: report.zoning.setbackSource === "manual" || report.zoning.setbackSource === "manual_override" ? "הזנת משתמש" : `תקנון רובע ${input.quarter} (תא/${input.quarter === 3 ? "3616/א" : "3729/א"})` },
+                ].map((it) => (
+                  <div key={it.label} className="rounded-lg border bg-muted/30 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">{it.label}</p>
+                    <p className="mt-1 text-base font-semibold">{it.value}</p>
+                    <SourceBadge source={it.source} />
+                  </div>
+                ))}
+              </div>
             </div>
 
-
-            {/* תכסית, ניצול ופוטנציאל הגדלה — מבט משולב לקבלת החלטות */}
+            {/* Section 4 — פער ניצול ופוטנציאל הגדלה */}
             {report.zoning.typicalFloorAreaSqm != null && report.zoning.typicalFloorAreaSqm > 0 && (() => {
-              const floorsNeeded = report.zoning.floorsNeededForFAR ?? 0;
-              const proposedFloors = report.proposed.floors;
-              const maxFloorsVal = report.zoning.maxFloors;
-              const isBlocked = floorsNeeded > maxFloorsVal;
-              const isMismatch = !isBlocked && floorsNeeded > proposedFloors;
-              const isOk = !isBlocked && !isMismatch;
-              const statusIcon = isBlocked ? "✕" : isMismatch ? "⚠" : "✓";
-              const statusColor = isBlocked
-                ? "text-destructive"
-                : isMismatch
-                ? "text-amber-600 dark:text-amber-500"
-                : "text-emerald-600 dark:text-emerald-500";
               const srcLabel = report.zoning.setbackSource === "manual" || report.zoning.setbackSource === "manual_override"
                 ? "הזנת משתמש"
                 : "תקנון רובע";
@@ -736,15 +713,15 @@ export const DashboardReport = ({
               const existOvershoot = existDelta != null && existDelta > 5;
 
               return (
-                <div className="mt-5 border-t pt-4">
+                <div className="border-t pt-5">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      תכסית, ניצול ופוטנציאל הגדלה
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-primary" />
+                      <h4 className="text-sm font-bold">פער ניצול ופוטנציאל הגדלה</h4>
+                    </div>
                     <span className="text-[10px] text-muted-foreground">מקור קווי בניין: {srcLabel}</span>
                   </div>
 
-                  {/* טבלת השוואה — קיים / תכנוני / פוטנציאל התחדשות */}
                   <div className="overflow-x-auto rounded-lg border">
                     <table dir="rtl" className="w-full text-right text-sm">
                       <thead className="bg-muted/40">
@@ -817,55 +794,12 @@ export const DashboardReport = ({
                       </tbody>
                     </table>
                   </div>
-
-                  {/* שורת תובנת מפתח: תוספת אפקטיבית + קומות נדרשות */}
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                      <p className="text-xs text-muted-foreground">קומות נדרשות / מוצע</p>
-                      <p className={`mt-1 text-base font-semibold ${statusColor}`}>
-                        {fmt(floorsNeeded)} / {fmt(proposedFloors)} <span className="me-1">{statusIcon}</span>
-                      </p>
-                      <p className="mt-0.5 text-[10px] text-muted-foreground">
-                        {isOk
-                          ? "תכנון ריאלי בהינתן התכסית"
-                          : isMismatch
-                          ? "נדרשות יותר קומות לתמיכה בשטח המוצע"
-                          : `חריגה ממקסימום ${fmt(maxFloorsVal)} קומות`}
-                      </p>
-                      <SourceBadge source="חישוב: שטח מגרש × FAR ÷ שטח קומה תכנוני" />
-                    </div>
-                    {rp ? (
-                      <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
-                        <p className="text-xs text-muted-foreground">תוספת אפקטיבית סה״כ (התחדשות)</p>
-                        <p className="mt-1 text-base font-semibold text-primary">
-                          +{fmt(rp.effectiveUpliftSqmTotal)} מ״ר
-                        </p>
-                        <p className="mt-0.5 text-[10px] text-muted-foreground">
-                          תוספת לקומה × מס׳ קומות × מקדם מימוש {fmt(rp.realizationFactor * 100)}% · חלק דיירים {rp.tenantShareOfUpliftPct}%
-                        </p>
-                        <SourceBadge source={`${rp.source} · קווי בניין מוקלים ${rp.frontSetbackM}/${rp.sideSetbackM}/${rp.rearSetbackM} מ׳`} />
-                      </div>
-                    ) : (
-                      <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                        <p className="text-xs text-muted-foreground">פוטנציאל התחדשות</p>
-                        <p className="mt-1 text-sm text-muted-foreground">לא זוהה מסלול התחדשות רלוונטי למגרש זה.</p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      <span className="font-semibold text-foreground">חישוב מספר הקומות מתבסס תמיד על המעטפת התכנונית.</span>{" "}
-                      תכסית קיימת משמשת לזיהוי חריגות היסטוריות; פוטנציאל ההתחדשות מציג את ההגדלה הריאלית של שטח הקומה והניצול במסלול הרלוונטי.
-                    </p>
-                  </div>
                 </div>
               );
             })()}
-
           </Card>
         </TabsContent>
+
 
         {/* PROPOSED — existing vs proposed, multipliers, committee */}
         <TabsContent value="proposed" className="mt-4 space-y-4">
@@ -924,6 +858,73 @@ export const DashboardReport = ({
             </Card>
           </div>
 
+          {/* היתכנות תכנונית — קומות נדרשות ותוספת התחדשות (הועבר מטאב הזכויות) */}
+          {report.zoning.typicalFloorAreaSqm != null && report.zoning.typicalFloorAreaSqm > 0 && (() => {
+            const floorsNeeded = report.zoning.floorsNeededForFAR ?? 0;
+            const proposedFloors = report.proposed.floors;
+            const maxFloorsVal = report.zoning.maxFloors;
+            const isBlocked = floorsNeeded > maxFloorsVal;
+            const isMismatch = !isBlocked && floorsNeeded > proposedFloors;
+            const isOk = !isBlocked && !isMismatch;
+            const statusIcon = isBlocked ? "✕" : isMismatch ? "⚠" : "✓";
+            const statusColor = isBlocked
+              ? "text-destructive"
+              : isMismatch
+              ? "text-amber-600 dark:text-amber-500"
+              : "text-emerald-600 dark:text-emerald-500";
+            const rp = report.zoning.renewalPotential;
+
+            return (
+              <Card dir="rtl" className="p-5 shadow-card text-right">
+                <div className="mb-3 flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <h3 className="text-base font-bold">היתכנות תכנונית</h3>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">קומות נדרשות / מוצע</p>
+                    <p className={`mt-1 text-base font-semibold ${statusColor}`}>
+                      {fmt(floorsNeeded)} / {fmt(proposedFloors)} <span className="me-1">{statusIcon}</span>
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      {isOk
+                        ? "תכנון ריאלי בהינתן התכסית"
+                        : isMismatch
+                        ? "נדרשות יותר קומות לתמיכה בשטח המוצע"
+                        : `חריגה ממקסימום ${fmt(maxFloorsVal)} קומות`}
+                    </p>
+                    <SourceBadge source="חישוב: שטח מגרש × FAR ÷ שטח קומה תכנוני" />
+                  </div>
+                  {rp ? (
+                    <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">תוספת אפקטיבית סה״כ (התחדשות)</p>
+                      <p className="mt-1 text-base font-semibold text-primary">
+                        +{fmt(rp.effectiveUpliftSqmTotal)} מ״ר
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        תוספת לקומה × מס׳ קומות × מקדם מימוש {fmt(rp.realizationFactor * 100)}% · חלק דיירים {rp.tenantShareOfUpliftPct}%
+                      </p>
+                      <SourceBadge source={`${rp.source} · קווי בניין מוקלים ${rp.frontSetbackM}/${rp.sideSetbackM}/${rp.rearSetbackM} מ׳`} />
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">פוטנציאל התחדשות</p>
+                      <p className="mt-1 text-sm text-muted-foreground">לא זוהה מסלול התחדשות רלוונטי למגרש זה.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    <span className="font-semibold text-foreground">חישוב מספר הקומות מתבסס תמיד על המעטפת התכנונית.</span>{" "}
+                    תכסית קיימת משמשת לזיהוי חריגות היסטוריות; פוטנציאל ההתחדשות מציג את ההגדלה הריאלית של שטח הקומה והניצול במסלול הרלוונטי.
+                  </p>
+                </div>
+              </Card>
+            );
+          })()}
+
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <StatTile icon={TrendingUp} label="מכפיל יח״ד" value={`${fmt(report.metrics.multiplier, 2)}x`} accent source="יח״ד מוצעות ÷ יח״ד קיימות" />
             <StatTile icon={Building2} label="יח״ד נטו" value={fmt(report.metrics.newUnits)} source="יח״ד מוצעות − יח״ד קיימות" />
@@ -931,6 +932,7 @@ export const DashboardReport = ({
             <StatTile icon={Ruler} label="דירה ממוצעת" value={fmt(report.metrics.avgUnitSize)} unit='מ"ר' source="מקדם צפיפות לפי תקנון הרובע" />
           </div>
         </TabsContent>
+
 
         {/* RISKS — red flags + physical constraints */}
         <TabsContent value="risks" className="mt-4 space-y-4">
