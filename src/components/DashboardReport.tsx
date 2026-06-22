@@ -625,7 +625,7 @@ export const DashboardReport = ({
                 <MapPin className="h-4 w-4 text-primary" />
                 <h3 className="text-base font-bold">נתוני חלקה</h3>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <StatTile
                   icon={MapPin}
                   label="גוש / חלקה"
@@ -638,6 +638,20 @@ export const DashboardReport = ({
                   value={plotArea > 0 ? fmt(plotArea) : "—"}
                   unit={plotArea > 0 ? 'מ"ר' : undefined}
                   source={input.shapeArea ? "GIS עיריית ת״א — שכבת חלקות" : "נסח טאבו / קלט משתמש"}
+                />
+                <StatTile
+                  icon={BookOpen}
+                  label="ייעוד קרקע"
+                  value={
+                    report.calculationSource?.method === "regulation"
+                      ? report.calculationSource.zone_label
+                      : "—"
+                  }
+                  source={
+                    report.calculationSource?.method === "regulation"
+                      ? `${report.calculationSource.plan_code} · תקנון רובע ${input.quarter}`
+                      : report.zoning.source
+                  }
                 />
                 <div className="flex items-start gap-3 rounded-xl border bg-card p-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
