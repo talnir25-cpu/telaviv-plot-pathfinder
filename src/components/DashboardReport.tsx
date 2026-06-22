@@ -642,9 +642,13 @@ export const DashboardReport = ({
                 <StatTile
                   icon={BookOpen}
                   label="ייעוד קרקע"
-                  value={report.calculationSource?.zone_label ?? "—"}
+                  value={
+                    report.calculationSource?.method === "regulation"
+                      ? report.calculationSource.zone_label
+                      : "—"
+                  }
                   source={
-                    report.calculationSource?.plan_code
+                    report.calculationSource?.method === "regulation"
                       ? `${report.calculationSource.plan_code} · תקנון רובע ${input.quarter}`
                       : report.zoning.source
                   }
