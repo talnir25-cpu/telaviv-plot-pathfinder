@@ -788,6 +788,14 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
           // שטח בנייה לפי תכסית = שטח קומה מקסימלי × קומות
           // שטח בנייה סופי = min(לפי FAR, לפי תכסית)
           const coveragePct = r.max_coverage_pct;
+          if ((coveragePct == null || coveragePct === 0) && r.density_coefficient_sqm_per_unit > 0) {
+            report.redFlags.push({
+              level: "info",
+              title: "בדיקת תקרת תכסית לא בוצעה",
+              description: "נתון תכסית מקסימלית חסר בתקנון לאזור זה. שטח הבנייה המוצע מוגבל לפי FAR בלבד.",
+              source: "בדיקת שלמות אוטומטית — zoning_rights",
+            });
+          }
           const byCoverage = coveragePct && coveragePct > 0 && maxFloorsDet > 0
             ? Math.round(plotAreaDet * (coveragePct / 100)) * maxFloorsDet
             : byFAR; // אם אין תכסית בטבלה — FAR בלבד קובע
