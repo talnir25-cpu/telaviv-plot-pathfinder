@@ -232,6 +232,7 @@ Deno.serve(async (req) => {
         zone_label: chosen.zone_label,
         rights: {
           coverage_pct: chosen.coverage_pct,
+          max_coverage_pct: chosen.max_coverage_pct,
           max_far: chosen.max_far,
           max_floors_above: chosen.max_floors_above,
           max_floors_roof: chosen.max_floors_roof,
