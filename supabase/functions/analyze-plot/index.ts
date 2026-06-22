@@ -808,10 +808,31 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
           const heightDet = Math.round(proposedFloorsDet * FLOOR_HEIGHT_M * 10) / 10;
 
           // יח"ד דטרמיניסטי: שטח בנייה מותר ÷ מקדם הצפיפות מהתקנון
+          const unitsByDensity = Math.floor(proposedBuilt / r.density_coefficient_sqm_per_unit);
+
+          // הגבלה לפי מינימום שטח חוקי לדירה — מונע ספירת יח"ד שלא ניתנות למימוש
+          // בפועל בגלל אילוץ גודל דירה מינימלי. חיתוך זה חל רק אם min_unit_size_sqm
+          // קיים וגדול ממקדם הצפיפות (כלומר המקדם "אופטימי" יותר מהמינימום החוקי).
+          const minUnitSize = r.min_unit_size_sqm;
+          const unitsCappedByMinSize = minUnitSize && minUnitSize > r.density_coefficient_sqm_per_unit
+            ? Math.floor(proposedBuilt / minUnitSize)
+            : unitsByDensity;
+
+          const unitsBeforeExistingFloor = Math.min(unitsByDensity, unitsCappedByMinSize);
+
           const proposedUnitsDet = Math.max(
             body.existingUnits ?? 0,
-            Math.floor(proposedBuilt / r.density_coefficient_sqm_per_unit),
+            unitsBeforeExistingFloor,
           );
+
+          if (unitsCappedByMinSize < unitsByDensity) {
+            report.redFlags.push({
+              level: "warning",
+              title: "מספר יח\"ד הוגבל לפי מינימום שטח דירה חוקי",
+              description: `מקדם הצפיפות בתקנון (${r.density_coefficient_sqm_per_unit} מ"ר/יח"ד) קטן מהמינימום החוקי לדירה (${minUnitSize} מ"ר) באזור זה. ספירת היח"ד הוגבלה מ-${unitsByDensity} ל-${unitsCappedByMinSize} כדי לשקף את המקסימום הניתן למימוש בדירות בגודל החוקי המינימלי. אם בכוונתך תמהיל דירות לא-אחיד (חלק קטנות וחלק גדולות מהמינימום, בממוצע תקין), מספר היחידות בפועל עשוי להיות גבוה יותר — מומלץ אימות תכנוני נקודתי.`,
+              source: "בדיקת שלמות אוטומטית — zoning_rights (density_coefficient_sqm_per_unit מול min_unit_size_sqm)",
+            });
+          }
           // הערה: בונוס יחידות לא מחושב כשדה נפרד — הוא כבר מגולם בהגדלת proposedBuilt
           // באמצעות far_bonus (ר' למעלה), ומשם נגזר ל-proposedUnitsDet דרך מקדם הצפיפות.
           // unitsBonusPct נשאר 0 בכוונה כדי שלא תיווצר ספירה כפולה.
