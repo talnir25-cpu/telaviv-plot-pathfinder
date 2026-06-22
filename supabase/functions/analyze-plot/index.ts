@@ -812,7 +812,10 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
             body.existingUnits ?? 0,
             Math.floor(proposedBuilt / r.density_coefficient_sqm_per_unit),
           );
-          const unitsBonusPct = 0; // נשמר לתצוגה בלבד — לא בשימוש בחישוב
+          // הערה: בונוס יחידות לא מחושב כשדה נפרד — הוא כבר מגולם בהגדלת proposedBuilt
+          // באמצעות far_bonus (ר' למעלה), ומשם נגזר ל-proposedUnitsDet דרך מקדם הצפיפות.
+          // unitsBonusPct נשאר 0 בכוונה כדי שלא תיווצר ספירה כפולה.
+          const unitsBonusPct = 0;
 
           const sellableArea = proposedBuilt * SELLABLE_RATIO;
 

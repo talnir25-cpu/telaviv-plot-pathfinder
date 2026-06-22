@@ -373,8 +373,8 @@ const CalculationSourceCard = ({ report }: { report: FeasibilityReport }) => {
           <div>
             <span className="text-muted-foreground">מקדם צפיפות: </span>
             <span className="font-semibold tabular-nums">{src.density_coefficient_sqm_per_unit} מ"ר/יח"ד</span>
-            {src.units_bonus_pct > 0 && (
-              <span className="text-success"> · בונוס יח"ד +{src.units_bonus_pct}%</span>
+            {src.far_bonus_pct > 0 && (
+              <span className="text-success"> · כולל תוספת זכויות +{src.far_bonus_pct}% (משפיעה גם על מס' היח"ד)</span>
             )}
           </div>
           <div>
