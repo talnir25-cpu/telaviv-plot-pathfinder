@@ -786,9 +786,12 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
           // כיוון ג: FAR עם תקרת תכסית
           // שטח קומה מקסימלי = שטח מגרש × תכסית מותרת
           // שטח בנייה לפי תכסית = שטח קומה מקסימלי × קומות
-          // שטח בנייה סופי = min(לפי FAR, לפי תכסית)
+          // במסלול תכנית רבעית (rova_plan): התקרה היא תכסית × קומות בלבד; FAR אינו חוסם.
+          // בשאר המסלולים: שטח בנייה סופי = min(לפי FAR, לפי תכסית).
           const coveragePct = r.max_coverage_pct;
-          if ((coveragePct == null || coveragePct === 0) && r.density_coefficient_sqm_per_unit > 0) {
+          const hasCoverage = coveragePct != null && coveragePct > 0 && maxFloorsDet > 0;
+
+          if (!hasCoverage && r.density_coefficient_sqm_per_unit > 0 && renewalTrack !== "rova_plan") {
             report.redFlags.push({
               level: "info",
               title: "בדיקת תקרת תכסית לא בוצעה",
@@ -796,11 +799,34 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
               source: "בדיקת שלמות אוטומטית — zoning_rights",
             });
           }
-          const byCoverage = coveragePct && coveragePct > 0 && maxFloorsDet > 0
-            ? Math.round(plotAreaDet * (coveragePct / 100)) * maxFloorsDet
+          if (!hasCoverage && renewalTrack === "rova_plan") {
+            report.redFlags.push({
+              level: "info",
+              title: "תכסית חסרה — שימוש ב-FAR כפולבק",
+              description: "במסלול תכנית רבעית הזכויות נגזרות מתכסית × קומות, אך נתון התכסית חסר בתקנון לאזור זה. שטח הבנייה חושב כפולבק לפי תקרת FAR בלבד — נדרשת בדיקה ידנית.",
+              source: "בדיקת שלמות אוטומטית — zoning_rights (rova_plan)",
+            });
+          }
+
+          const byCoverage = hasCoverage
+            ? Math.round(plotAreaDet * (coveragePct! / 100)) * maxFloorsDet
             : byFAR; // אם אין תכסית בטבלה — FAR בלבד קובע
 
-          const proposedBuilt = Math.round(Math.min(byFAR, byCoverage));
+          let proposedBuilt: number;
+          let limitingFactor: string;
+          if (renewalTrack === "rova_plan") {
+            if (hasCoverage) {
+              proposedBuilt = Math.round(byCoverage);
+              limitingFactor = "coverage";
+            } else {
+              proposedBuilt = Math.round(byFAR);
+              limitingFactor = "far_fallback_no_coverage";
+            }
+          } else {
+            proposedBuilt = Math.round(Math.min(byFAR, byCoverage));
+            limitingFactor = byCoverage < byFAR ? "coverage" : "far";
+          }
+
 
           // מספר הקומות המוצע = המקסימום המותר לפי התקנון (לא נגזרת של שטח)
           const proposedFloorsDet = Math.max(maxFloorsDet, 1);
