@@ -801,31 +801,29 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
           }
           if (!hasCoverage && renewalTrack === "rova_plan") {
             report.redFlags.push({
-              level: "info",
-              title: "תכסית חסרה — שימוש ב-FAR כפולבק",
-              description: "במסלול תכנית רבעית הזכויות נגזרות מתכסית × קומות, אך נתון התכסית חסר בתקנון לאזור זה. שטח הבנייה חושב כפולבק לפי תקרת FAR בלבד — נדרשת בדיקה ידנית.",
+              level: "critical",
+              title: "תכסית חסרה — לא ניתן לחשב זכויות במסלול רובעי",
+              description: "במסלול תכנית רבעית הזכויות נגזרות מתכסית × קומות בלבד. נתון התכסית חסר בתקנון לאזור זה — לא ניתן לחשב את שטח הבנייה האפשרי. נדרש השלמת הנתון בטבלת zoning_rights או בדיקה ידנית.",
               source: "בדיקת שלמות אוטומטית — zoning_rights (rova_plan)",
             });
+            report.status = "blocked";
           }
 
           const byCoverage = hasCoverage
             ? Math.round(plotAreaDet * (coveragePct! / 100)) * maxFloorsDet
-            : byFAR; // אם אין תכסית בטבלה — FAR בלבד קובע
+            : byFAR; // לא רלוונטי ב-rova_plan ללא תכסית — מטופל לעיל
 
           let proposedBuilt: number;
           let limitingFactor: string;
           if (renewalTrack === "rova_plan") {
-            if (hasCoverage) {
-              proposedBuilt = Math.round(byCoverage);
-              limitingFactor = "coverage";
-            } else {
-              proposedBuilt = Math.round(byFAR);
-              limitingFactor = "far_fallback_no_coverage";
-            }
+            // חסר תכסית → 0 (כבר נרשם blocked + critical flag); אחרת תכסית × קומות
+            proposedBuilt = hasCoverage ? Math.round(byCoverage) : 0;
+            limitingFactor = hasCoverage ? "coverage" : "coverage_missing";
           } else {
             proposedBuilt = Math.round(Math.min(byFAR, byCoverage));
             limitingFactor = byCoverage < byFAR ? "coverage" : "far";
           }
+
 
 
           // מספר הקומות המוצע = המקסימום המותר לפי התקנון (לא נגזרת של שטח)
