@@ -918,7 +918,7 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
             renewal_track: renewalTrack,
             renewal_track_label: RENEWAL_TRACK_LABEL[renewalTrack],
             coverage_pct_used: coveragePct ?? null,
-            built_area_limiting_factor: byCoverage < byFAR ? "coverage" : "far",
+            built_area_limiting_factor: limitingFactor,
           };
         } else {
           // ───────── Fallback: חישוב מבוסס שטח ורובע ─────────
