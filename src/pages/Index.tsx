@@ -68,8 +68,10 @@ const Index = () => {
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let safetyTimer: ReturnType<typeof setTimeout> | null = null;
     let settled = false;
+    let cancelled = false;
 
     const cleanup = () => {
+      cancelled = true;
       if (channel) {
         supabase.removeChannel(channel);
         channel = null;
@@ -136,17 +138,44 @@ const Index = () => {
       if (row) finishWithResult(row as AnalysisJobRow);
     };
 
-    channel = supabase
-      .channel(`analysis_job_${jobId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "analysis_jobs", filter: `id=eq.${jobId}` },
-        (payload) => finishWithResult(payload.new as AnalysisJobRow),
-      )
-      .subscribe();
+    // Scope the Realtime channel to the authenticated user's id and filter
+    // postgres_changes by user_id so subscriptions are user-bound (defense in
+    // depth on top of the SELECT RLS policy on analysis_jobs).
+    void (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+      if (cancelled) return;
+      if (!userId) {
+        // No session — rely on polling only (RLS will block reads anyway).
+        void pollJob();
+        pollTimer = setInterval(pollJob, 3000);
+        return;
+      }
 
-    void pollJob();
-    pollTimer = setInterval(pollJob, 3000);
+      channel = supabase
+        .channel(`analysis_job_${userId}_${jobId}`, {
+          config: { private: true },
+        })
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "analysis_jobs",
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            const row = payload.new as AnalysisJobRow & { id?: string };
+            if (row?.id && row.id !== jobId) return;
+            finishWithResult(row);
+          },
+        )
+        .subscribe();
+
+      void pollJob();
+      pollTimer = setInterval(pollJob, 3000);
+    })();
+
     safetyTimer = setTimeout(() => {
       if (settled) return;
       settled = true;
