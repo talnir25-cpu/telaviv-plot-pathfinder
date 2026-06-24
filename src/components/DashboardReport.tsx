@@ -717,19 +717,27 @@ export const DashboardReport = ({
                       : report.existing.floors > 0 && plotArea > 0
                         ? (report.existing.builtAreaSqm / report.existing.floors / plotArea) * 100
                         : NaN;
+                  const coverageSource =
+                    typeof report.zoning.coverageExistingPct === "number"
+                      ? report.zoning.coverageSource ?? "GIS עיריית ת״א"
+                      : "חישוב: שטח בנוי ÷ קומות ÷ שטח מגרש";
                   return (
                     <StatTile
                       icon={Ruler}
                       label="תכסית קיימת"
                       value={Number.isFinite(existingCoveragePct) ? `${fmt(existingCoveragePct)}%` : "—"}
-                      source={
-                        typeof report.zoning.coverageExistingPct === "number"
-                          ? report.zoning.coverageSource ?? "GIS עיריית ת״א"
-                          : "חישוב: שטח בנוי ÷ קומות ÷ שטח מגרש"
-                      }
+                      source={coverageSource}
                     />
                   );
                 })()}
+                <div className="col-span-full">
+                  <p className="text-[11px] text-muted-foreground">
+                    <span className="font-semibold text-primary">ציטוט מקור תכסית קיימת:</span>{" "}
+                    {typeof report.zoning.coverageExistingPct === "number"
+                      ? `נתון GIS — ${report.zoning.coverageSource ?? "GIS עיריית ת״א"}`
+                      : "חישוב פנימי — שטח בנוי קיים ÷ קומות ÷ שטח מגרש"}
+                  </p>
+                </div>
                 <StatTile
                   icon={TrendingUp}
                   label="FAR קיים"
