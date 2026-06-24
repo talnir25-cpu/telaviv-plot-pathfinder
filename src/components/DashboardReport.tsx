@@ -686,7 +686,7 @@ export const DashboardReport = ({
                 <Building2 className="h-4 w-4 text-primary" />
                 <h4 className="text-sm font-bold">מצב בנוי קיים</h4>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <StatTile
                   icon={Building2}
                   label="יח״ד קיימות"
@@ -710,6 +710,26 @@ export const DashboardReport = ({
                       : "אומדן"
                   }
                 />
+                {(() => {
+                  const existingCoveragePct =
+                    typeof report.zoning.coverageExistingPct === "number"
+                      ? report.zoning.coverageExistingPct
+                      : report.existing.floors > 0 && plotArea > 0
+                        ? (report.existing.builtAreaSqm / report.existing.floors / plotArea) * 100
+                        : NaN;
+                  return (
+                    <StatTile
+                      icon={Ruler}
+                      label="תכסית קיימת"
+                      value={Number.isFinite(existingCoveragePct) ? `${fmt(existingCoveragePct)}%` : "—"}
+                      source={
+                        typeof report.zoning.coverageExistingPct === "number"
+                          ? report.zoning.coverageSource ?? "GIS עיריית ת״א"
+                          : "חישוב: שטח בנוי ÷ קומות ÷ שטח מגרש"
+                      }
+                    />
+                  );
+                })()}
                 <StatTile
                   icon={TrendingUp}
                   label="FAR קיים"
@@ -717,6 +737,7 @@ export const DashboardReport = ({
                   source="חישוב: שטח בנוי ÷ שטח מגרש"
                 />
               </div>
+
             </div>
 
             {/* Section 3 — מעטפת זכויות ע״פ תקנון */}
