@@ -568,6 +568,16 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
     try {
       report.redFlags = Array.isArray(report.redFlags) ? report.redFlags : [];
 
+      // ── Manual renewal track override (informational) ──
+      if (renewalTrackOverridden) {
+        report.redFlags.push({
+          level: "info",
+          title: "מסלול התחדשות נקבע ידנית",
+          description: `המסלול "${RENEWAL_TRACK_LABEL[renewalTrack]}" נבחר ידנית על ידי המשתמש, ולא נגזר מההיוריסטיקה האוטומטית (מספר קומות/יח"ד קיימות, שנת בנייה). (ההיוריסטיקה האוטומטית הייתה מציעה: ${RENEWAL_TRACK_LABEL[inferredRenewalTrack]}.)`,
+          source: "קביעה ידנית של המשתמש",
+        });
+      }
+
       // ── Tabu-derived active renewal warning (highest priority red flag) ──
       if (body.tabuAnalysis?.hasActiveRenewal) {
         const party = body.tabuAnalysis.renewalParty?.trim() || "יזם לא מזוהה";
