@@ -771,157 +771,265 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
 
         let calcSource: any = null;
 
-        if (zoneInfo && plotAreaDet > 0 && zoneInfo.rights.density_coefficient_sqm_per_unit > 0) {
+        if (zoneInfo && plotAreaDet > 0) {
           // ───────── מסלול מבוסס תקנון ─────────
           const r = zoneInfo.rights;
-          const bonusKey = TRACK_TO_BONUS_KEY[renewalTrack];
-          const farBonus = Number(((r as any)[`${bonusKey}_far_bonus`]) ?? 0);
 
-          // ⚠️ הערה: לא מכפילים ב-units_bonus_pct.
-          // ה-far_bonus כבר מגדיל את שטח הבנייה, וכמות יח"ד נגזרת ממנו דרך
-          // מקדם הצפיפות. הכפלה נוספת ב-units_bonus_pct הייתה ספירה כפולה.
+          // (1) חסימה כאשר השורה דורשת סיווג ידני (רלוונטי ל-pinui_binui ו-rova_plan)
+          const blockedByManualClassification =
+            r.requires_manual_classification &&
+            (renewalTrack === "pinui_binui" || renewalTrack === "rova_plan");
 
-          const effectiveFAR = (r.max_far + farBonus) / 100;
-          const maxFloorsDet = (r.max_floors_above ?? 0) + (r.max_floors_roof ?? 0);
-          const floorAreaEff = renewalFloorArea > 0 ? renewalFloorArea : typicalFloorArea;
-
-          const byFAR = plotAreaDet * effectiveFAR;
-
-          // כיוון ג: FAR עם תקרת תכסית
-          // שטח קומה מקסימלי = שטח מגרש × תכסית מותרת
-          // שטח בנייה לפי תכסית = שטח קומה מקסימלי × קומות
-          // במסלול תכנית רבעית (rova_plan): התקרה היא תכסית × קומות בלבד; FAR אינו חוסם.
-          // בשאר המסלולים: שטח בנייה סופי = min(לפי FAR, לפי תכסית).
-          const coveragePct = r.max_coverage_pct;
-          const hasCoverage = coveragePct != null && coveragePct > 0 && maxFloorsDet > 0;
-
-          if (!hasCoverage && r.density_coefficient_sqm_per_unit > 0 && renewalTrack !== "rova_plan") {
+          if (blockedByManualClassification) {
             report.redFlags.push({
-              level: "info",
-              title: "בדיקת תקרת תכסית לא בוצעה",
-              description: "נתון תכסית מקסימלית חסר בתקנון לאזור זה. שטח הבנייה המוצע מוגבל לפי FAR בלבד.",
-              source: "בדיקת שלמות אוטומטית — zoning_rights",
-            });
-          }
-          if (!hasCoverage && renewalTrack === "rova_plan") {
-            report.redFlags.push({
-              level: "critical",
-              title: "תכסית חסרה — לא ניתן לחשב זכויות במסלול רובעי",
-              description: "במסלול תכנית רבעית הזכויות נגזרות מתכסית × קומות בלבד. נתון התכסית חסר בתקנון לאזור זה — לא ניתן לחשב את שטח הבנייה האפשרי. נדרש השלמת הנתון בטבלת zoning_rights או בדיקה ידנית.",
-              source: "בדיקת שלמות אוטומטית — zoning_rights (rova_plan)",
+              level: "warning",
+              title: "דורש סיווג ידני — לא ניתן לחשב זכויות אוטומטית",
+              description: `המגרש משויך לאזור "${zoneInfo.zone_label}" בתקנון, שדורש זיהוי נוסף שאינו ממומש אוטומטית כיום${r.classification_note ? `: ${r.classification_note}` : "."} לא ניתן לחשב היקף בנייה מוצע ללא אימות תכנוני נקודתי.`,
+              source: r.classification_note ?? zoneInfo.source_citation ?? "בדיקת שלמות אוטומטית — zoning_rights",
             });
             report.status = "blocked";
           }
 
-          const byCoverage = hasCoverage
-            ? Math.round(plotAreaDet * (coveragePct! / 100)) * maxFloorsDet
-            : byFAR; // לא רלוונטי ב-rova_plan ללא תכסית — מטופל לעיל
+          // (2) האם להפעיל את מודל הקומות×צפיפות (ללא FAR)?
+          const useFloorsDensity =
+            !blockedByManualClassification &&
+            r.rights_basis === "floors_density" &&
+            renewalTrack !== "local_renewal";
 
-          let proposedBuilt: number;
-          let limitingFactor: string;
-          if (renewalTrack === "rova_plan") {
-            // חסר תכסית → 0 (כבר נרשם blocked + critical flag); אחרת תכסית × קומות
-            proposedBuilt = hasCoverage ? Math.round(byCoverage) : 0;
-            limitingFactor = hasCoverage ? "coverage" : "coverage_missing";
-          } else {
-            proposedBuilt = Math.round(Math.min(byFAR, byCoverage));
-            limitingFactor = byCoverage < byFAR ? "coverage" : "far";
-          }
+          // (3) האם להפעיל את המסלול הישן (FAR + תכסית)?
+          const useLegacyFar =
+            !blockedByManualClassification &&
+            !useFloorsDensity &&
+            (r.density_coefficient_sqm_per_unit ?? 0) > 0 &&
+            (r.max_far ?? 0) > 0;
 
+          if (useFloorsDensity) {
+            // ───────── מודל קומות × מקדם צפיפות (תקנוני, ללא FAR) ─────────
+            const maxFloorsDet = (r.max_floors_above ?? 0) + (r.max_floors_roof ?? 0);
+            const floorAreaEff = renewalFloorArea > 0 ? renewalFloorArea : typicalFloorArea;
 
+            // שטח הבנייה = שטח קומה גיאומטרי (מקווי בניין) × מספר קומות מהתקנון
+            const proposedBuilt = Math.round(floorAreaEff * maxFloorsDet);
+            const limitingFactor = "floors_x_density";
 
-          // מספר הקומות המוצע = המקסימום המותר לפי התקנון (לא נגזרת של שטח)
-          const proposedFloorsDet = Math.max(maxFloorsDet, 1);
+            const proposedFloorsDet = Math.max(maxFloorsDet, 1);
+            const heightDet = Math.round(proposedFloorsDet * FLOOR_HEIGHT_M * 10) / 10;
 
-          const heightDet = Math.round(proposedFloorsDet * FLOOR_HEIGHT_M * 10) / 10;
+            // יח"ד נגזרות ממקדם הצפיפות בתקנון
+            const densityCoef = r.density_coefficient_sqm_per_unit ?? 0;
+            if (densityCoef <= 0) {
+              report.redFlags.push({
+                level: "critical",
+                title: "מקדם צפיפות חסר — לא ניתן לחשב יח״ד",
+                description: `לאזור "${zoneInfo.zone_label}" אין מקדם צפיפות קבוע בתקנון (לדוגמה: מקדם נגזר משטח שירות, או שורה עם מגבלת יח"ד יחידה). נדרש חישוב ידני.`,
+                source: zoneInfo.source_citation,
+              });
+              report.status = "blocked";
+            }
+            const unitsByDensity = densityCoef > 0
+              ? Math.floor(proposedBuilt / densityCoef)
+              : 0;
 
-          // יח"ד דטרמיניסטי: שטח בנייה מותר ÷ מקדם הצפיפות מהתקנון
-          const unitsByDensity = Math.floor(proposedBuilt / r.density_coefficient_sqm_per_unit);
+            // חיתוך לפי מינימום שטח חוקי לדירה
+            const minUnitSize = r.min_unit_size_sqm;
+            const unitsCappedByMinSize = minUnitSize && densityCoef > 0 && minUnitSize > densityCoef
+              ? Math.floor(proposedBuilt / minUnitSize)
+              : unitsByDensity;
 
-          // הגבלה לפי מינימום שטח חוקי לדירה — מונע ספירת יח"ד שלא ניתנות למימוש
-          // בפועל בגלל אילוץ גודל דירה מינימלי. חיתוך זה חל רק אם min_unit_size_sqm
-          // קיים וגדול ממקדם הצפיפות (כלומר המקדם "אופטימי" יותר מהמינימום החוקי).
-          const minUnitSize = r.min_unit_size_sqm;
-          const unitsCappedByMinSize = minUnitSize && minUnitSize > r.density_coefficient_sqm_per_unit
-            ? Math.floor(proposedBuilt / minUnitSize)
-            : unitsByDensity;
+            const unitsBeforeExistingFloor = Math.min(unitsByDensity, unitsCappedByMinSize);
+            const proposedUnitsDet = Math.max(
+              body.existingUnits ?? 0,
+              unitsBeforeExistingFloor,
+            );
 
-          const unitsBeforeExistingFloor = Math.min(unitsByDensity, unitsCappedByMinSize);
+            if (densityCoef > 0 && unitsCappedByMinSize < unitsByDensity) {
+              report.redFlags.push({
+                level: "warning",
+                title: "מספר יח\"ד הוגבל לפי מינימום שטח דירה חוקי",
+                description: `מקדם הצפיפות בתקנון (${densityCoef} מ"ר/יח"ד) קטן מהמינימום החוקי לדירה (${minUnitSize} מ"ר) באזור זה. ספירת היח"ד הוגבלה מ-${unitsByDensity} ל-${unitsCappedByMinSize} כדי לשקף את המקסימום הניתן למימוש בדירות בגודל החוקי המינימלי.`,
+                source: "בדיקת שלמות אוטומטית — zoning_rights (density_coefficient_sqm_per_unit מול min_unit_size_sqm)",
+              });
+            }
 
-          const proposedUnitsDet = Math.max(
-            body.existingUnits ?? 0,
-            unitsBeforeExistingFloor,
-          );
+            const sellableArea = proposedBuilt * SELLABLE_RATIO;
+            const UNIT_MIX_DEFAULT = { min: 95, base: 78, max: 60 };
+            const unitRange = {
+              min: Math.floor(sellableArea / UNIT_MIX_DEFAULT.min),
+              base: Math.round(sellableArea / UNIT_MIX_DEFAULT.base),
+              max: Math.floor(sellableArea / UNIT_MIX_DEFAULT.max),
+              avgUnitSizeMin: UNIT_MIX_DEFAULT.min,
+              avgUnitSizeBase: UNIT_MIX_DEFAULT.base,
+              avgUnitSizeMax: UNIT_MIX_DEFAULT.max,
+            };
+            const farDet = Number((proposedBuilt / plotAreaDet).toFixed(2));
 
-          if (unitsCappedByMinSize < unitsByDensity) {
+            report.proposed = {
+              ...(report.proposed ?? {}),
+              units: proposedUnitsDet,
+              floors: proposedFloorsDet,
+              builtAreaSqm: proposedBuilt,
+              far: farDet, // תיאורי בלבד — לא קלט לנוסחה במסלול זה
+              heightMeters: heightDet,
+              unitRange,
+              sellableAreaSqm: Math.round(sellableArea),
+            };
+
+            const existingUnitsForMetrics = report.existing?.units ?? body.existingUnits ?? 0;
+            report.metrics = {
+              ...(report.metrics ?? {}),
+              multiplier: existingUnitsForMetrics > 0
+                ? Number((proposedUnitsDet / existingUnitsForMetrics).toFixed(2))
+                : 0,
+              newUnits: Math.max(0, proposedUnitsDet - existingUnitsForMetrics),
+              estimatedSellableArea: Math.round(sellableArea),
+              avgUnitSize: proposedUnitsDet > 0
+                ? Math.round(proposedBuilt / proposedUnitsDet)
+                : (r.min_unit_size_sqm ?? 90),
+            };
+
+            calcSource = {
+              method: "regulation",
+              plan_code: zoneInfo.plan_code,
+              zone_label: zoneInfo.zone_label,
+              source_citation: zoneInfo.source_citation,
+              confidence: zoneInfo.confidence,
+              available_zones: zoneInfo.available_zones,
+              rights_basis: r.rights_basis,
+              base_far_pct: null,
+              far_bonus_pct: 0,
+              effective_far_pct: null,
+              density_coefficient_sqm_per_unit: densityCoef,
+              units_bonus_pct: 0,
+              floors_used: maxFloorsDet,
+              max_floors: maxFloorsDet,
+              renewal_track: renewalTrack,
+              renewal_track_label: RENEWAL_TRACK_LABEL[renewalTrack],
+              coverage_pct_used: r.max_coverage_pct ?? null,
+              built_area_limiting_factor: limitingFactor,
+              service_area_ratio_pct: r.service_area_ratio_pct ?? null,
+            };
+          } else if (useLegacyFar) {
+            // ───────── מסלול ישן: FAR + תכסית (local_renewal, וכל שאר השורות הישנות) ─────────
+            const bonusKey = TRACK_TO_BONUS_KEY[renewalTrack];
+            const farBonus = Number(((r as any)[`${bonusKey}_far_bonus`]) ?? 0);
+
+            const baseFar = r.max_far ?? 0;
+            const effectiveFAR = (baseFar + farBonus) / 100;
+            const maxFloorsDet = (r.max_floors_above ?? 0) + (r.max_floors_roof ?? 0);
+            const floorAreaEff = renewalFloorArea > 0 ? renewalFloorArea : typicalFloorArea;
+
+            const byFAR = plotAreaDet * effectiveFAR;
+            const coveragePct = r.max_coverage_pct;
+            const hasCoverage = coveragePct != null && coveragePct > 0 && maxFloorsDet > 0;
+
+            if (!hasCoverage) {
+              report.redFlags.push({
+                level: "info",
+                title: "בדיקת תקרת תכסית לא בוצעה",
+                description: "נתון תכסית מקסימלית חסר בתקנון לאזור זה. שטח הבנייה המוצע מוגבל לפי FAR בלבד.",
+                source: "בדיקת שלמות אוטומטית — zoning_rights",
+              });
+            }
+
+            const byCoverage = hasCoverage
+              ? Math.round(plotAreaDet * (coveragePct! / 100)) * maxFloorsDet
+              : byFAR;
+
+            const proposedBuilt = Math.round(Math.min(byFAR, byCoverage));
+            const limitingFactor = byCoverage < byFAR ? "coverage" : "far";
+
+            const proposedFloorsDet = Math.max(maxFloorsDet, 1);
+            const heightDet = Math.round(proposedFloorsDet * FLOOR_HEIGHT_M * 10) / 10;
+
+            const densityCoef = r.density_coefficient_sqm_per_unit ?? 0;
+            const unitsByDensity = densityCoef > 0
+              ? Math.floor(proposedBuilt / densityCoef)
+              : 0;
+
+            const minUnitSize = r.min_unit_size_sqm;
+            const unitsCappedByMinSize = minUnitSize && densityCoef > 0 && minUnitSize > densityCoef
+              ? Math.floor(proposedBuilt / minUnitSize)
+              : unitsByDensity;
+
+            const unitsBeforeExistingFloor = Math.min(unitsByDensity, unitsCappedByMinSize);
+            const proposedUnitsDet = Math.max(
+              body.existingUnits ?? 0,
+              unitsBeforeExistingFloor,
+            );
+
+            if (densityCoef > 0 && unitsCappedByMinSize < unitsByDensity) {
+              report.redFlags.push({
+                level: "warning",
+                title: "מספר יח\"ד הוגבל לפי מינימום שטח דירה חוקי",
+                description: `מקדם הצפיפות בתקנון (${densityCoef} מ"ר/יח"ד) קטן מהמינימום החוקי לדירה (${minUnitSize} מ"ר) באזור זה. ספירת היח"ד הוגבלה מ-${unitsByDensity} ל-${unitsCappedByMinSize}.`,
+                source: "בדיקת שלמות אוטומטית — zoning_rights",
+              });
+            }
+
+            const sellableArea = proposedBuilt * SELLABLE_RATIO;
+            const UNIT_MIX_DEFAULT = { min: 95, base: 78, max: 60 };
+            const unitRange = {
+              min: Math.floor(sellableArea / UNIT_MIX_DEFAULT.min),
+              base: Math.round(sellableArea / UNIT_MIX_DEFAULT.base),
+              max: Math.floor(sellableArea / UNIT_MIX_DEFAULT.max),
+              avgUnitSizeMin: UNIT_MIX_DEFAULT.min,
+              avgUnitSizeBase: UNIT_MIX_DEFAULT.base,
+              avgUnitSizeMax: UNIT_MIX_DEFAULT.max,
+            };
+            const farDet = Number((proposedBuilt / plotAreaDet).toFixed(2));
+
+            report.proposed = {
+              ...(report.proposed ?? {}),
+              units: proposedUnitsDet,
+              floors: proposedFloorsDet,
+              builtAreaSqm: proposedBuilt,
+              far: farDet,
+              heightMeters: heightDet,
+              unitRange,
+              sellableAreaSqm: Math.round(sellableArea),
+            };
+
+            const existingUnitsForMetrics = report.existing?.units ?? body.existingUnits ?? 0;
+            report.metrics = {
+              ...(report.metrics ?? {}),
+              multiplier: existingUnitsForMetrics > 0
+                ? Number((proposedUnitsDet / existingUnitsForMetrics).toFixed(2))
+                : 0,
+              newUnits: Math.max(0, proposedUnitsDet - existingUnitsForMetrics),
+              estimatedSellableArea: Math.round(sellableArea),
+              avgUnitSize: proposedUnitsDet > 0
+                ? Math.round(proposedBuilt / proposedUnitsDet)
+                : (r.min_unit_size_sqm ?? 90),
+            };
+
+            calcSource = {
+              method: "regulation",
+              plan_code: zoneInfo.plan_code,
+              zone_label: zoneInfo.zone_label,
+              source_citation: zoneInfo.source_citation,
+              confidence: zoneInfo.confidence,
+              available_zones: zoneInfo.available_zones,
+              rights_basis: r.rights_basis,
+              base_far_pct: baseFar,
+              far_bonus_pct: farBonus,
+              effective_far_pct: baseFar + farBonus,
+              density_coefficient_sqm_per_unit: densityCoef,
+              units_bonus_pct: 0,
+              max_floors: maxFloorsDet,
+              renewal_track: renewalTrack,
+              renewal_track_label: RENEWAL_TRACK_LABEL[renewalTrack],
+              coverage_pct_used: coveragePct ?? null,
+              built_area_limiting_factor: limitingFactor,
+            };
+          } else if (!blockedByManualClassification) {
+            // לא floors_density ולא legacy_far תקין → ניפול ל-fallback למטה
             report.redFlags.push({
-              level: "warning",
-              title: "מספר יח\"ד הוגבל לפי מינימום שטח דירה חוקי",
-              description: `מקדם הצפיפות בתקנון (${r.density_coefficient_sqm_per_unit} מ"ר/יח"ד) קטן מהמינימום החוקי לדירה (${minUnitSize} מ"ר) באזור זה. ספירת היח"ד הוגבלה מ-${unitsByDensity} ל-${unitsCappedByMinSize} כדי לשקף את המקסימום הניתן למימוש בדירות בגודל החוקי המינימלי. אם בכוונתך תמהיל דירות לא-אחיד (חלק קטנות וחלק גדולות מהמינימום, בממוצע תקין), מספר היחידות בפועל עשוי להיות גבוה יותר — מומלץ אימות תכנוני נקודתי.`,
-              source: "בדיקת שלמות אוטומטית — zoning_rights (density_coefficient_sqm_per_unit מול min_unit_size_sqm)",
+              level: "info",
+              title: "חישוב מבוסס תקנון לא בוצע — נופל להערכה גסה",
+              description: `לא קיים מודל חישוב תקף לשורה "${zoneInfo.zone_label}" במסלול ${RENEWAL_TRACK_LABEL[renewalTrack]} (חסר rights_basis תואם או נתוני זכויות מספיקים). ההצגה למטה היא הערכה גסה לפי מקדמי רובע בלבד.`,
+              source: "בדיקת שלמות אוטומטית — analyze-plot",
             });
           }
-          // הערה: בונוס יחידות לא מחושב כשדה נפרד — הוא כבר מגולם בהגדלת proposedBuilt
-          // באמצעות far_bonus (ר' למעלה), ומשם נגזר ל-proposedUnitsDet דרך מקדם הצפיפות.
-          // unitsBonusPct נשאר 0 בכוונה כדי שלא תיווצר ספירה כפולה.
-          const unitsBonusPct = 0;
-
-          const sellableArea = proposedBuilt * SELLABLE_RATIO;
-
-          // טווח יחידות דיור לפי תמהיל — ברירת מחדל אחידה, ניתן להרחיב לפי רובע/אזור
-          const UNIT_MIX_DEFAULT = { min: 95, base: 78, max: 60 }; // מ"ר ממוצע לדירה
-          const unitRange = {
-            min: Math.floor(sellableArea / UNIT_MIX_DEFAULT.min),
-            base: Math.round(sellableArea / UNIT_MIX_DEFAULT.base),
-            max: Math.floor(sellableArea / UNIT_MIX_DEFAULT.max),
-            avgUnitSizeMin: UNIT_MIX_DEFAULT.min,
-            avgUnitSizeBase: UNIT_MIX_DEFAULT.base,
-            avgUnitSizeMax: UNIT_MIX_DEFAULT.max,
-          };
-          const farDet = Number((proposedBuilt / plotAreaDet).toFixed(2));
-
-          report.proposed = {
-            ...(report.proposed ?? {}),
-            units: proposedUnitsDet,
-            floors: proposedFloorsDet,
-            builtAreaSqm: proposedBuilt,
-            far: farDet,
-            heightMeters: heightDet,
-            unitRange,
-            sellableAreaSqm: Math.round(sellableArea),
-          };
-
-          const existingUnitsForMetrics = report.existing?.units ?? body.existingUnits ?? 0;
-          report.metrics = {
-            ...(report.metrics ?? {}),
-            multiplier: existingUnitsForMetrics > 0
-              ? Number((proposedUnitsDet / existingUnitsForMetrics).toFixed(2))
-              : 0,
-            newUnits: Math.max(0, proposedUnitsDet - existingUnitsForMetrics),
-            estimatedSellableArea: Math.round(sellableArea),
-            avgUnitSize: proposedUnitsDet > 0
-              ? Math.round(proposedBuilt / proposedUnitsDet)
-              : (r.min_unit_size_sqm ?? 90),
-          };
-
-          calcSource = {
-            method: "regulation",
-            plan_code: zoneInfo.plan_code,
-            zone_label: zoneInfo.zone_label,
-            source_citation: zoneInfo.source_citation,
-            confidence: zoneInfo.confidence,
-            available_zones: zoneInfo.available_zones,
-            base_far_pct: r.max_far,
-            far_bonus_pct: farBonus,
-            effective_far_pct: r.max_far + farBonus,
-            density_coefficient_sqm_per_unit: r.density_coefficient_sqm_per_unit,
-            units_bonus_pct: unitsBonusPct,
-            max_floors: maxFloorsDet,
-            renewal_track: renewalTrack,
-            renewal_track_label: RENEWAL_TRACK_LABEL[renewalTrack],
-            coverage_pct_used: coveragePct ?? null,
-            built_area_limiting_factor: limitingFactor,
-          };
         } else {
           // ───────── Fallback: חישוב מבוסס שטח ורובע ─────────
           // נכנס לפעולה רק כשלא נמצאה שורה בטבלת zoning_rights.
