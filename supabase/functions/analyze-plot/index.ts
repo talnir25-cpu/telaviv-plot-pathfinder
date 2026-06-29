@@ -121,12 +121,12 @@ interface RenewalSetbackStandard {
 const RENEWAL_SETBACKS: Record<3 | 4, Record<RenewalTrack, RenewalSetbackStandard>> = {
   3: {
     local_renewal: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 25, source: "תכנית מקומית — הקלות ועדה מקומית (רובע 3)" },
-    demolition_rebuild: { front: 3, side: 2, rear: 3, tenantShareOfUpliftPct: 40, source: "תכנית פינוי-בינוי נקודתית (רובע 3)" },
+    demolition_rebuild: { front: 3, side: 2, rear: 3, tenantShareOfUpliftPct: 40, source: "אומדן קווי בניין לתרחיש הריסה ובנייה מחדש (רובע 3)" },
     rova_plan: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 30, source: "תקנון רובע 3 — מסלול התחדשות" },
   },
   4: {
     local_renewal: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 25, source: "תכנית מקומית — הקלות ועדה מקומית (רובע 4)" },
-    demolition_rebuild: { front: 3, side: 2.5, rear: 4, tenantShareOfUpliftPct: 40, source: "תכנית פינוי-בינוי נקודתית (רובע 4)" },
+    demolition_rebuild: { front: 3, side: 2.5, rear: 4, tenantShareOfUpliftPct: 40, source: "אומדן קווי בניין לתרחיש הריסה ובנייה מחדש (רובע 4)" },
     rova_plan: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 30, source: "תקנון רובע 4 — מסלול התחדשות" },
   },
 };
