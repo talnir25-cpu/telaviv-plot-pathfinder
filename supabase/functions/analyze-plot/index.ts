@@ -42,6 +42,8 @@ interface PlotInput {
   setbackSource?: "regulation" | "manual" | "manual_override";
   // אופציונלי — דריסה ידנית של ייעוד הקרקע ע"י המשתמש
   zoneLabelOverride?: string;
+  // אופציונלי — דריסה ידנית של מסלול ההתחדשות ע"י המשתמש
+  renewalTrackOverride?: "local_renewal" | "demolition_rebuild" | "rova_plan";
   areaHint?: "declaration" | "market_street" | "rest";
   street?: string;
   address?: string;
