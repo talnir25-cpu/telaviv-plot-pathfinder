@@ -318,6 +318,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
   const clearTabu = () => {
     setTabuAnalysis(null);
+    setRenewalTrackOverride("");
     setTabuStatus("idle");
     setTabuError(null);
     setTabuFilename(null);
