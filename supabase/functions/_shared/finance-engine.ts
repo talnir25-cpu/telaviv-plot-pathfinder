@@ -42,7 +42,7 @@ export interface EngineInput {
   // Apartments given back to existing owners do NOT generate sales revenue.
   // Provide either an explicit area, OR let the engine derive it from existingUnits + bonus.
   ownersReturnAreaSqm?: number;          // explicit override (m²); takes precedence
-  ownersReturnBonusPerUnitSqm?: number;  // bonus per returned apt; default 25 (תכנית רובעית/מקומית) / 12 (פינוי-בינוי)
+  ownersReturnBonusPerUnitSqm?: number;  // bonus per returned apt; default 25 (rova_plan/local_renewal) / 12 (demolition_rebuild)
   minOwnerUnitSizeSqm?: number;          // floor on per-owner unit size (default 80)
 
   // financial inputs
@@ -256,7 +256,7 @@ export function computeRevenues(input: EngineInput) {
   const vatPct = clamp(Number(input.vatPct) || 0, 0, 100);
 
   // ─── Owners' return (only in urban renewal) ───
-  // Apartments returned to existing owners (תמ"א 38/2 / פינוי-בינוי) are NOT sold.
+  // Apartments returned to existing owners (urban renewal tracks) are NOT sold.
   // Their floor area must be deducted from the gross sellable area before revenue.
   let ownersReturnAreaSqm = 0;
   let ownersReturnUnits = 0;
@@ -283,7 +283,7 @@ export function computeRevenues(input: EngineInput) {
       avgOwnerUnitSizeSqm = existingUnits > 0 ? ownersReturnAreaSqm / existingUnits : 0;
     } else if (existingUnits > 0) {
       // Derived: existing apartment size + statutory bonus per unit, floored.
-      // Default bonus: 25 m² for תמ"א 38/2, 12 m² for פינוי-בינוי (typical industry assumptions).
+      // Default bonus: 25 m² for local_renewal/rova_plan tracks, 12 m² for demolition_rebuild (typical industry assumptions; not tied to a specific legal program).
       const defaultBonus = input.renewalSubtype === "demolition_rebuild" ? 12 : 25;
       const bonusPerUnit = clamp(
         Number(input.ownersReturnBonusPerUnitSqm ?? defaultBonus),
