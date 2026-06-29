@@ -43,8 +43,10 @@ export function coveragePct(floorAreaSqm: number, plotAreaSqm: number): number {
 // קווי בניין מוקלים בהליך התחדשות עירונית
 // ----------------------------------------------------------------------------
 // מסלולים פעילים (לאחר פקיעת תמ"א 38 ב-10/2022):
-//   local_renewal — תכנית מקומית/הקלות ועדה מקומית (חלופי לתמ"א 38/2 ההיסטורית). ~25% חלק דיירים.
-//   demolition_rebuild   — פינוי-בינוי לפי חוק התשנ"ז-2006. ~40% חלק דיירים.
+//   local_renewal      — תכנית מקומית/הקלות ועדה מקומית (חלופי לתמ"א 38/2 ההיסטורית). ~25% חלק דיירים.
+//   demolition_rebuild — שם קוד לתרחיש הריסה מלאה ובנייה מחדש. יכול לקרות גם דרך תכנית
+//                        רובעית רגילה ולאו דווקא דרך המסלול המשפטי הפורמלי "פינוי-בינוי"
+//                        (חוק התשנ"ז-2006). ~40% חלק דיירים.
 //   rova_plan     — תכנית רובעית (תא/3616/א, תא/3729/א). ~30% חלק דיירים.
 
 export type RenewalTrack = "local_renewal" | "demolition_rebuild" | "rova_plan";
@@ -78,7 +80,7 @@ export const RENEWAL_SETBACKS: Record<3 | 4, Record<RenewalTrack, RenewalSetback
 
 export const RENEWAL_TRACK_LABEL: Record<RenewalTrack, string> = {
   local_renewal: 'תכנית מקומית / הקלות ועדה (חלופי תמ"א 38)',
-  demolition_rebuild: "פינוי-בינוי",
+  demolition_rebuild: "הריסה ובנייה מחדש",
   rova_plan: "תכנית רובעית",
 };
 

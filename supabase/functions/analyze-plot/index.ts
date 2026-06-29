@@ -132,7 +132,7 @@ const RENEWAL_SETBACKS: Record<3 | 4, Record<RenewalTrack, RenewalSetbackStandar
 };
 const RENEWAL_TRACK_LABEL: Record<RenewalTrack, string> = {
   local_renewal: "תכנית מקומית / הקלות ועדה",
-  demolition_rebuild: "פינוי-בינוי",
+  demolition_rebuild: "הריסה ובנייה מחדש",
   rova_plan: "תכנית רובעית",
 };
 
@@ -763,9 +763,9 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
         // מיפוי מסלול → שם השדה בטבלת zoning_rights.
         // הערה: עמודות tama38_far_bonus/tama38_units_bonus_pct ב-DB משמשות כיום כייצוג של
         // הקלות ועדה מקומית בתכנית מקומית (חלופי לתמ"א 38 שפקעה 10/2022).
-        const TRACK_TO_BONUS_KEY: Record<RenewalTrack, "tama38" | "pinui" | "rova_plan"> = {
+        const TRACK_TO_BONUS_KEY: Record<RenewalTrack, "tama38" | "demolition_rebuild" | "rova_plan"> = {
           local_renewal: "tama38",
-          demolition_rebuild: "pinui",
+          demolition_rebuild: "demolition_rebuild",
           rova_plan: "rova_plan",
         };
 

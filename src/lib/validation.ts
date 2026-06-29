@@ -162,7 +162,7 @@ export const financialInputSchema = z
     if (v.projectType === "urban_renewal" && !v.renewalSubtype) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "התחדשות עירונית: יש לבחור תת-סוג (תמ״א 38 / פינוי-בינוי)",
+        message: "התחדשות עירונית: יש לבחור תת-סוג (תכנית מקומית / הריסה ובנייה מחדש)",
         path: ["renewalSubtype"],
       });
     }

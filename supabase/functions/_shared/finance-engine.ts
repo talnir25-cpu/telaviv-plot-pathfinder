@@ -944,7 +944,9 @@ export function assembleReport(input: EngineInput): EngineReport {
   if (input.projectType === "urban_renewal") {
     notes.push("✓ קרקע = 0 (התחדשות עירונית — בבעלות הדיירים).");
     notes.push(
-      `✓ פטור מהיטל השבחה לפי ${input.renewalSubtype === "demolition_rebuild" ? "חוק פינוי-בינוי" : "סעיף 19 לתוספת השלישית (תמ\"א 38)"}.`,
+      input.renewalSubtype === "demolition_rebuild"
+        ? "✓ פטור מהיטל השבחה לפי חוק פינוי-בינוי (תשנ\"ז-2006), בכפוף לעמידה בתנאי המסלול הפורמלי."
+        : "⚠ פטור/חיוב בהיטל השבחה במסלול זה דורש בדיקה משפטית נקודתית — תמ\"א 38 (שהיתה הבסיס ההיסטורי לפטור) בוטלה רשמית בתל אביב (10/2022) ואינה מקור משפטי תקף.",
     );
     notes.push("✓ נוספה עלות ערבויות חוק מכר + ליווי משפטי דיירים (2.5% מ-Hard).");
     if (core.ownersReturnAreaSqm > 0) {
