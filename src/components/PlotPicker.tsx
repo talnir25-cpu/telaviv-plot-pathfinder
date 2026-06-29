@@ -1021,6 +1021,31 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
               )}
             </div>
           )}
+          {tabuStatus === "done" && tabuAnalysis?.hasActiveRenewal && (
+            <div className="mt-2 rounded-md border border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20 px-3 py-2 text-xs space-y-2">
+              <p className="text-foreground leading-relaxed">
+                זוהתה הערת אזהרה בטאבו לטובת <strong>{tabuAnalysis.renewalParty || "יזם לא מזוהה"}</strong> — ייתכן שמתבצע תהליך התחדשות בפועל (פינוי-בינוי / הריסה ובנייה מחדש).
+                אם ברצונך לקבוע את מסלול ההתחדשות ידנית במקום לפי ההערכה האוטומטית, בחר כאן:
+              </p>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs whitespace-nowrap">מסלול התחדשות:</Label>
+                <Select
+                  value={renewalTrackOverride || "auto"}
+                  onValueChange={(v) => setRenewalTrackOverride(v === "auto" ? "" : (v as typeof renewalTrackOverride))}
+                >
+                  <SelectTrigger className="h-8 text-xs w-auto min-w-[220px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">אוטומטי (לפי היוריסטיקה)</SelectItem>
+                    <SelectItem value="local_renewal">חיזוק ותוספת (local_renewal)</SelectItem>
+                    <SelectItem value="demolition_rebuild">הריסה ובנייה מחדש (demolition_rebuild)</SelectItem>
+                    <SelectItem value="rova_plan">תכנית רובעית (rova_plan)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
           {tabuStatus === "error" && tabuError && (
             <p className="mt-2 text-xs text-destructive">{tabuError}</p>
           )}
