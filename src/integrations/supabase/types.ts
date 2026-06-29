@@ -109,14 +109,15 @@ export type Database = {
       }
       zoning_rights: {
         Row: {
+          classification_note: string | null
           coverage_pct: number | null
           created_at: string
-          density_coefficient_sqm_per_unit: number
+          density_coefficient_sqm_per_unit: number | null
           id: string
           location_filter: Json
           max_coverage_pct: number | null
-          max_far: number
-          max_floors_above: number
+          max_far: number | null
+          max_floors_above: number | null
           max_floors_roof: number | null
           min_unit_size_sqm: number | null
           notes: string | null
@@ -124,7 +125,10 @@ export type Database = {
           pinui_units_bonus_pct: number | null
           plan_code: string
           quarter: number
+          requires_manual_classification: boolean
+          rights_basis: string | null
           rova_plan_far_bonus: number | null
+          service_area_ratio_pct: number | null
           setback_front_m: number | null
           setback_rear_m: number | null
           setback_side_m: number | null
@@ -135,14 +139,15 @@ export type Database = {
           zone_label: string
         }
         Insert: {
+          classification_note?: string | null
           coverage_pct?: number | null
           created_at?: string
-          density_coefficient_sqm_per_unit: number
+          density_coefficient_sqm_per_unit?: number | null
           id?: string
           location_filter?: Json
           max_coverage_pct?: number | null
-          max_far: number
-          max_floors_above: number
+          max_far?: number | null
+          max_floors_above?: number | null
           max_floors_roof?: number | null
           min_unit_size_sqm?: number | null
           notes?: string | null
@@ -150,7 +155,10 @@ export type Database = {
           pinui_units_bonus_pct?: number | null
           plan_code: string
           quarter: number
+          requires_manual_classification?: boolean
+          rights_basis?: string | null
           rova_plan_far_bonus?: number | null
+          service_area_ratio_pct?: number | null
           setback_front_m?: number | null
           setback_rear_m?: number | null
           setback_side_m?: number | null
@@ -161,14 +169,15 @@ export type Database = {
           zone_label: string
         }
         Update: {
+          classification_note?: string | null
           coverage_pct?: number | null
           created_at?: string
-          density_coefficient_sqm_per_unit?: number
+          density_coefficient_sqm_per_unit?: number | null
           id?: string
           location_filter?: Json
           max_coverage_pct?: number | null
-          max_far?: number
-          max_floors_above?: number
+          max_far?: number | null
+          max_floors_above?: number | null
           max_floors_roof?: number | null
           min_unit_size_sqm?: number | null
           notes?: string | null
@@ -176,7 +185,10 @@ export type Database = {
           pinui_units_bonus_pct?: number | null
           plan_code?: string
           quarter?: number
+          requires_manual_classification?: boolean
+          rights_basis?: string | null
           rova_plan_far_bonus?: number | null
+          service_area_ratio_pct?: number | null
           setback_front_m?: number | null
           setback_rear_m?: number | null
           setback_side_m?: number | null
