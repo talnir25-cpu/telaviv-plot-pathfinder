@@ -453,7 +453,9 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
       : 0;
 
     // ── חישוב פוטנציאל הגדלת תכסית בהליך התחדשות (דטרמיניסטי) ──
-    const renewalTrack = inferRenewalTrack(body.existingFloors ?? 0, body.existingUnits ?? 0, body.conservation, body.buildingYear);
+    const inferredRenewalTrack = inferRenewalTrack(body.existingFloors ?? 0, body.existingUnits ?? 0, body.conservation, body.buildingYear);
+    const renewalTrack: RenewalTrack = body.renewalTrackOverride ?? inferredRenewalTrack;
+    const renewalTrackOverridden = !!body.renewalTrackOverride && body.renewalTrackOverride !== inferredRenewalTrack;
     const renewalCfg = plotAreaForCalc > 0 ? RENEWAL_SETBACKS[body.quarter]?.[renewalTrack] : null;
     const renewalFloorArea = renewalCfg
       ? estimateTypicalFloorArea(plotAreaForCalc, renewalCfg, body.plotWidthM, body.plotDepthM)
