@@ -78,10 +78,10 @@ interface ZoneInfo {
     setback_side_m: number | null;
     setback_rear_m: number | null;
     tama38_far_bonus: number;
-    pinui_far_bonus: number;
+    demolition_rebuild_far_bonus: number;
     rova_plan_far_bonus: number;
     tama38_units_bonus_pct: number;
-    pinui_units_bonus_pct: number;
+    demolition_rebuild_units_bonus_pct: number;
     rights_basis: "far_legacy" | "floors_density" | null;
     service_area_ratio_pct: number | null;
     requires_manual_classification: boolean;
@@ -113,7 +113,7 @@ function estimateTypicalFloorArea(
   return Math.round(width * depth);
 }
 
-type RenewalTrack = "local_renewal" | "pinui_binui" | "rova_plan";
+type RenewalTrack = "local_renewal" | "demolition_rebuild" | "rova_plan";
 interface RenewalSetbackStandard {
   front: number; side: number; rear: number;
   tenantShareOfUpliftPct: number; source: string;
@@ -121,25 +121,25 @@ interface RenewalSetbackStandard {
 const RENEWAL_SETBACKS: Record<3 | 4, Record<RenewalTrack, RenewalSetbackStandard>> = {
   3: {
     local_renewal: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 25, source: "תכנית מקומית — הקלות ועדה מקומית (רובע 3)" },
-    pinui_binui: { front: 3, side: 2, rear: 3, tenantShareOfUpliftPct: 40, source: "תכנית פינוי-בינוי נקודתית (רובע 3)" },
+    demolition_rebuild: { front: 3, side: 2, rear: 3, tenantShareOfUpliftPct: 40, source: "תכנית פינוי-בינוי נקודתית (רובע 3)" },
     rova_plan: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 30, source: "תקנון רובע 3 — מסלול התחדשות" },
   },
   4: {
     local_renewal: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 25, source: "תכנית מקומית — הקלות ועדה מקומית (רובע 4)" },
-    pinui_binui: { front: 3, side: 2.5, rear: 4, tenantShareOfUpliftPct: 40, source: "תכנית פינוי-בינוי נקודתית (רובע 4)" },
+    demolition_rebuild: { front: 3, side: 2.5, rear: 4, tenantShareOfUpliftPct: 40, source: "תכנית פינוי-בינוי נקודתית (רובע 4)" },
     rova_plan: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 30, source: "תקנון רובע 4 — מסלול התחדשות" },
   },
 };
 const RENEWAL_TRACK_LABEL: Record<RenewalTrack, string> = {
   local_renewal: "תכנית מקומית / הקלות ועדה",
-  pinui_binui: "פינוי-בינוי",
+  demolition_rebuild: "פינוי-בינוי",
   rova_plan: "תכנית רובעית",
 };
 
 function inferRenewalTrack(existingFloors: number, existingUnits: number, conservation: boolean, buildingYear?: number): RenewalTrack {
   // ברירת מחדל: rova_plan — המסלול הסטטוטורי הפעיל בת"א רובעים 3/4 לאחר פקיעת תמ"א 38 (10/2022).
   if (conservation) return "rova_plan";
-  if (existingFloors >= 5 || existingUnits >= 12) return "pinui_binui";
+  if (existingFloors >= 5 || existingUnits >= 12) return "demolition_rebuild";
   if (buildingYear != null && buildingYear < 1980) return "local_renewal";
   return "rova_plan";
 }
@@ -765,7 +765,7 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
         // הקלות ועדה מקומית בתכנית מקומית (חלופי לתמ"א 38 שפקעה 10/2022).
         const TRACK_TO_BONUS_KEY: Record<RenewalTrack, "tama38" | "pinui" | "rova_plan"> = {
           local_renewal: "tama38",
-          pinui_binui: "pinui",
+          demolition_rebuild: "pinui",
           rova_plan: "rova_plan",
         };
 
@@ -775,10 +775,10 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
           // ───────── מסלול מבוסס תקנון ─────────
           const r = zoneInfo.rights;
 
-          // (1) חסימה כאשר השורה דורשת סיווג ידני (רלוונטי ל-pinui_binui ו-rova_plan)
+          // (1) חסימה כאשר השורה דורשת סיווג ידני (רלוונטי ל-demolition_rebuild ו-rova_plan)
           const blockedByManualClassification =
             r.requires_manual_classification &&
-            (renewalTrack === "pinui_binui" || renewalTrack === "rova_plan");
+            (renewalTrack === "demolition_rebuild" || renewalTrack === "rova_plan");
 
           if (blockedByManualClassification) {
             report.redFlags.push({

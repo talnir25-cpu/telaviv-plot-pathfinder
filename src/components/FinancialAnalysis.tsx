@@ -327,7 +327,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
             <div className="mt-2 space-y-1.5">
               <Label className="text-xs font-semibold">תת-סוג התחדשות עירונית</Label>
               <div className="flex gap-2">
-                {(["local_renewal", "pinui_binui"] as RenewalSubtype[]).map((sub) => (
+                {(["local_renewal", "demolition_rebuild"] as RenewalSubtype[]).map((sub) => (
                   <button
                     key={sub}
                     type="button"

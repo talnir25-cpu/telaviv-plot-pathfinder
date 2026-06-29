@@ -44,10 +44,10 @@ export function coveragePct(floorAreaSqm: number, plotAreaSqm: number): number {
 // ----------------------------------------------------------------------------
 // מסלולים פעילים (לאחר פקיעת תמ"א 38 ב-10/2022):
 //   local_renewal — תכנית מקומית/הקלות ועדה מקומית (חלופי לתמ"א 38/2 ההיסטורית). ~25% חלק דיירים.
-//   pinui_binui   — פינוי-בינוי לפי חוק התשנ"ז-2006. ~40% חלק דיירים.
+//   demolition_rebuild   — פינוי-בינוי לפי חוק התשנ"ז-2006. ~40% חלק דיירים.
 //   rova_plan     — תכנית רובעית (תא/3616/א, תא/3729/א). ~30% חלק דיירים.
 
-export type RenewalTrack = "local_renewal" | "pinui_binui" | "rova_plan";
+export type RenewalTrack = "local_renewal" | "demolition_rebuild" | "rova_plan";
 
 export interface RenewalSetbackStandard {
   front: number;
@@ -61,7 +61,7 @@ export const RENEWAL_SETBACKS: Record<3 | 4, Record<RenewalTrack, RenewalSetback
   3: {
     local_renewal: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 25,
       source: "תכנית מקומית — הקלות ועדה מקומית (רובע 3)" },
-    pinui_binui: { front: 3, side: 2, rear: 3, tenantShareOfUpliftPct: 40,
+    demolition_rebuild: { front: 3, side: 2, rear: 3, tenantShareOfUpliftPct: 40,
       source: "תכנית פינוי-בינוי נקודתית (רובע 3)" },
     rova_plan: { front: 4, side: 2.5, rear: 4, tenantShareOfUpliftPct: 30,
       source: "תקנון רובע 3 — מסלול התחדשות" },
@@ -69,7 +69,7 @@ export const RENEWAL_SETBACKS: Record<3 | 4, Record<RenewalTrack, RenewalSetback
   4: {
     local_renewal: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 25,
       source: "תכנית מקומית — הקלות ועדה מקומית (רובע 4)" },
-    pinui_binui: { front: 3, side: 2.5, rear: 4, tenantShareOfUpliftPct: 40,
+    demolition_rebuild: { front: 3, side: 2.5, rear: 4, tenantShareOfUpliftPct: 40,
       source: "תכנית פינוי-בינוי נקודתית (רובע 4)" },
     rova_plan: { front: 4, side: 3, rear: 5, tenantShareOfUpliftPct: 30,
       source: "תקנון רובע 4 — מסלול התחדשות" },
@@ -78,7 +78,7 @@ export const RENEWAL_SETBACKS: Record<3 | 4, Record<RenewalTrack, RenewalSetback
 
 export const RENEWAL_TRACK_LABEL: Record<RenewalTrack, string> = {
   local_renewal: 'תכנית מקומית / הקלות ועדה (חלופי תמ"א 38)',
-  pinui_binui: "פינוי-בינוי",
+  demolition_rebuild: "פינוי-בינוי",
   rova_plan: "תכנית רובעית",
 };
 
@@ -89,16 +89,16 @@ export const RENEWAL_TRACK_LABEL: Record<RenewalTrack, string> = {
  */
 export function inferRenewalTrack(opts: {
   projectType?: "urban_renewal" | "new_construction" | "combination";
-  renewalSubtype?: "local_renewal" | "pinui_binui";
+  renewalSubtype?: "local_renewal" | "demolition_rebuild";
   existingFloors?: number;
   existingUnits?: number;
 }): RenewalTrack | null {
   if (opts.projectType && opts.projectType !== "urban_renewal" && opts.projectType !== "combination") {
     return null;
   }
-  if (opts.renewalSubtype === "pinui_binui") return "pinui_binui";
+  if (opts.renewalSubtype === "demolition_rebuild") return "demolition_rebuild";
   if (opts.renewalSubtype === "local_renewal") return "local_renewal";
   // היוריסטיקה: בניינים גבוהים/צפופים → פינוי-בינוי
-  if ((opts.existingFloors ?? 0) >= 5 || (opts.existingUnits ?? 0) >= 12) return "pinui_binui";
+  if ((opts.existingFloors ?? 0) >= 5 || (opts.existingUnits ?? 0) >= 12) return "demolition_rebuild";
   return "rova_plan";
 }

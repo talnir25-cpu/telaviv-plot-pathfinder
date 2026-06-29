@@ -2,7 +2,7 @@
 // No AI. Same input -> same output.
 
 export type ProjectType = "urban_renewal" | "new_construction" | "combination";
-export type RenewalSubtype = "local_renewal" | "pinui_binui";
+export type RenewalSubtype = "local_renewal" | "demolition_rebuild";
 export type FinishLevel = "standard" | "premium" | "luxury";
 // full_rebuild  = הריסה + בנייה מחדש (פינוי-בינוי / תכנית רובעית / בנייה חדשה)
 // addition_only = חיזוק קונסטרוקטיבי + תוספת בלבד (חלופי תמ"א 38/1 ההיסטורית)
@@ -15,7 +15,7 @@ export interface ZoningConstraints {
   todReliefApplies?: boolean | null;
   dewateringRequired?: boolean | null;
   renewalPotential?: {
-    track: "local_renewal" | "pinui_binui" | "rova_plan";
+    track: "local_renewal" | "demolition_rebuild" | "rova_plan";
     trackLabel: string;
     effectiveUpliftSqmTotal: number;
     tenantShareOfUpliftPct: number;
@@ -284,7 +284,7 @@ export function computeRevenues(input: EngineInput) {
     } else if (existingUnits > 0) {
       // Derived: existing apartment size + statutory bonus per unit, floored.
       // Default bonus: 25 m² for תמ"א 38/2, 12 m² for פינוי-בינוי (typical industry assumptions).
-      const defaultBonus = input.renewalSubtype === "pinui_binui" ? 12 : 25;
+      const defaultBonus = input.renewalSubtype === "demolition_rebuild" ? 12 : 25;
       const bonusPerUnit = clamp(
         Number(input.ownersReturnBonusPerUnitSqm ?? defaultBonus),
         0,
@@ -944,7 +944,7 @@ export function assembleReport(input: EngineInput): EngineReport {
   if (input.projectType === "urban_renewal") {
     notes.push("✓ קרקע = 0 (התחדשות עירונית — בבעלות הדיירים).");
     notes.push(
-      `✓ פטור מהיטל השבחה לפי ${input.renewalSubtype === "pinui_binui" ? "חוק פינוי-בינוי" : "סעיף 19 לתוספת השלישית (תמ\"א 38)"}.`,
+      `✓ פטור מהיטל השבחה לפי ${input.renewalSubtype === "demolition_rebuild" ? "חוק פינוי-בינוי" : "סעיף 19 לתוספת השלישית (תמ\"א 38)"}.`,
     );
     notes.push("✓ נוספה עלות ערבויות חוק מכר + ליווי משפטי דיירים (2.5% מ-Hard).");
     if (core.ownersReturnAreaSqm > 0) {

@@ -114,7 +114,7 @@ export const analysisInputSchema = z
 export const financialInputSchema = z
   .object({
     projectType: z.enum(["urban_renewal", "new_construction", "combination"]),
-    renewalSubtype: z.enum(["local_renewal", "pinui_binui"]).optional(),
+    renewalSubtype: z.enum(["local_renewal", "demolition_rebuild"]).optional(),
     developerLandSharePct: pct("חלק היזם בקרקע", 1, 100).optional(),
     avgSalePricePerSqm: z
       .number({ invalid_type_error: "מחיר מכירה: יש להזין מספר" })
