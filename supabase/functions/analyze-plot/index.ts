@@ -42,6 +42,8 @@ interface PlotInput {
   setbackSource?: "regulation" | "manual" | "manual_override";
   // אופציונלי — דריסה ידנית של ייעוד הקרקע ע"י המשתמש
   zoneLabelOverride?: string;
+  // אופציונלי — דריסה ידנית של מסלול ההתחדשות ע"י המשתמש
+  renewalTrackOverride?: "local_renewal" | "demolition_rebuild" | "rova_plan";
   areaHint?: "declaration" | "market_street" | "rest";
   street?: string;
   address?: string;
@@ -451,7 +453,9 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
       : 0;
 
     // ── חישוב פוטנציאל הגדלת תכסית בהליך התחדשות (דטרמיניסטי) ──
-    const renewalTrack = inferRenewalTrack(body.existingFloors ?? 0, body.existingUnits ?? 0, body.conservation, body.buildingYear);
+    const inferredRenewalTrack = inferRenewalTrack(body.existingFloors ?? 0, body.existingUnits ?? 0, body.conservation, body.buildingYear);
+    const renewalTrack: RenewalTrack = body.renewalTrackOverride ?? inferredRenewalTrack;
+    const renewalTrackOverridden = !!body.renewalTrackOverride && body.renewalTrackOverride !== inferredRenewalTrack;
     const renewalCfg = plotAreaForCalc > 0 ? RENEWAL_SETBACKS[body.quarter]?.[renewalTrack] : null;
     const renewalFloorArea = renewalCfg
       ? estimateTypicalFloorArea(plotAreaForCalc, renewalCfg, body.plotWidthM, body.plotDepthM)
@@ -563,6 +567,16 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
     // ── Post-validation: deterministic sanity checks on AI output ──
     try {
       report.redFlags = Array.isArray(report.redFlags) ? report.redFlags : [];
+
+      // ── Manual renewal track override (informational) ──
+      if (renewalTrackOverridden) {
+        report.redFlags.push({
+          level: "info",
+          title: "מסלול התחדשות נקבע ידנית",
+          description: `המסלול "${RENEWAL_TRACK_LABEL[renewalTrack]}" נבחר ידנית על ידי המשתמש, ולא נגזר מההיוריסטיקה האוטומטית (מספר קומות/יח"ד קיימות, שנת בנייה). (ההיוריסטיקה האוטומטית הייתה מציעה: ${RENEWAL_TRACK_LABEL[inferredRenewalTrack]}.)`,
+          source: "קביעה ידנית של המשתמש",
+        });
+      }
 
       // ── Tabu-derived active renewal warning (highest priority red flag) ──
       if (body.tabuAnalysis?.hasActiveRenewal) {

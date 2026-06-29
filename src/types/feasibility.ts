@@ -156,6 +156,10 @@ export interface AnalysisInput {
   setbackSource?: "regulation" | "manual" | "manual_override";
   // דריסה ידנית של ייעוד הקרקע (לפי תקנון רובע)
   zoneLabelOverride?: string;
+  // דריסה ידנית של מסלול ההתחדשות — לשימוש כשיש מידע אמיתי (למשל הערת אזהרה
+  // בטאבו) שסותר את ההיוריסטיקה האוטומטית (inferRenewalTrack), המבוססת רק על
+  // גודל/גיל הבניין הקיים.
+  renewalTrackOverride?: "local_renewal" | "demolition_rebuild" | "rova_plan";
   areaHint?: "declaration" | "market_street" | "rest";
   // שם רחוב — לזיהוי ייעוד אוטומטי לפי טבלת רחובות בתקנון
   street?: string;
