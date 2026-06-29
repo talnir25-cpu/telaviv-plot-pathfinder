@@ -247,6 +247,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
   // Tabu PDF analysis state
   const [tabuAnalysis, setTabuAnalysis] = useState<TabuAnalysis | null>(null);
+  const [renewalTrackOverride, setRenewalTrackOverride] = useState<"" | "local_renewal" | "demolition_rebuild" | "rova_plan">("");
   const [tabuStatus, setTabuStatus] = useState<"idle" | "parsing" | "done" | "error">("idle");
   const [tabuError, setTabuError] = useState<string | null>(null);
   const [tabuFilename, setTabuFilename] = useState<string | null>(null);
