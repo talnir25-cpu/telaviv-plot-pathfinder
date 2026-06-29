@@ -69,10 +69,10 @@ interface ZoneInfo {
   rights: {
     coverage_pct: number | null;
     max_coverage_pct: number | null;
-    max_far: number;
-    max_floors_above: number;
+    max_far: number | null;
+    max_floors_above: number | null;
     max_floors_roof: number | null;
-    density_coefficient_sqm_per_unit: number;
+    density_coefficient_sqm_per_unit: number | null;
     min_unit_size_sqm: number | null;
     setback_front_m: number | null;
     setback_side_m: number | null;
@@ -82,6 +82,10 @@ interface ZoneInfo {
     rova_plan_far_bonus: number;
     tama38_units_bonus_pct: number;
     pinui_units_bonus_pct: number;
+    rights_basis: "far_legacy" | "floors_density" | null;
+    service_area_ratio_pct: number | null;
+    requires_manual_classification: boolean;
+    classification_note: string | null;
   };
   source_citation: string;
   notes: string | null;
