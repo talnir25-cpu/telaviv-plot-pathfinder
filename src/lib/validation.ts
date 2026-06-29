@@ -64,6 +64,7 @@ export const analysisInputSchema = z
     centroidY: z.number().finite().optional(),
     setbackSource: z.enum(["regulation", "manual", "manual_override"]).optional(),
     zoneLabelOverride: z.string().optional(),
+    renewalTrackOverride: z.enum(["local_renewal", "demolition_rebuild", "rova_plan"]).optional(),
     areaHint: z.enum(["declaration", "market_street", "rest"]).optional(),
     street: z.string().max(120).optional(),
     address: z.string().max(300).optional(),
