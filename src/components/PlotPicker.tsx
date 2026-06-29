@@ -763,6 +763,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
       street,
       address: addressForStreet ?? undefined,
       tabuAnalysis: tabuAnalysis ?? undefined,
+      renewalTrackOverride: renewalTrackOverride || undefined,
       coverageExact: coverageReliable && coverageExact != null ? coverageExact : undefined,
       buildingFootprint: coverageReliable && buildingFootprint != null ? buildingFootprint : undefined,
       coverageReliable: coverageReliable || undefined,
