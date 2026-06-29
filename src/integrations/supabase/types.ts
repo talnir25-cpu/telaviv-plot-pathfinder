@@ -112,6 +112,8 @@ export type Database = {
           classification_note: string | null
           coverage_pct: number | null
           created_at: string
+          demolition_rebuild_far_bonus: number | null
+          demolition_rebuild_units_bonus_pct: number | null
           density_coefficient_sqm_per_unit: number | null
           id: string
           location_filter: Json
@@ -121,8 +123,6 @@ export type Database = {
           max_floors_roof: number | null
           min_unit_size_sqm: number | null
           notes: string | null
-          pinui_far_bonus: number | null
-          pinui_units_bonus_pct: number | null
           plan_code: string
           quarter: number
           requires_manual_classification: boolean
@@ -142,6 +142,8 @@ export type Database = {
           classification_note?: string | null
           coverage_pct?: number | null
           created_at?: string
+          demolition_rebuild_far_bonus?: number | null
+          demolition_rebuild_units_bonus_pct?: number | null
           density_coefficient_sqm_per_unit?: number | null
           id?: string
           location_filter?: Json
@@ -151,8 +153,6 @@ export type Database = {
           max_floors_roof?: number | null
           min_unit_size_sqm?: number | null
           notes?: string | null
-          pinui_far_bonus?: number | null
-          pinui_units_bonus_pct?: number | null
           plan_code: string
           quarter: number
           requires_manual_classification?: boolean
@@ -172,6 +172,8 @@ export type Database = {
           classification_note?: string | null
           coverage_pct?: number | null
           created_at?: string
+          demolition_rebuild_far_bonus?: number | null
+          demolition_rebuild_units_bonus_pct?: number | null
           density_coefficient_sqm_per_unit?: number | null
           id?: string
           location_filter?: Json
@@ -181,8 +183,6 @@ export type Database = {
           max_floors_roof?: number | null
           min_unit_size_sqm?: number | null
           notes?: string | null
-          pinui_far_bonus?: number | null
-          pinui_units_bonus_pct?: number | null
           plan_code?: string
           quarter?: number
           requires_manual_classification?: boolean

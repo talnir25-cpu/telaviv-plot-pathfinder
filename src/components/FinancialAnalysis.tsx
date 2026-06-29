@@ -327,7 +327,7 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
             <div className="mt-2 space-y-1.5">
               <Label className="text-xs font-semibold">תת-סוג התחדשות עירונית</Label>
               <div className="flex gap-2">
-                {(["local_renewal", "pinui_binui"] as RenewalSubtype[]).map((sub) => (
+                {(["local_renewal", "demolition_rebuild"] as RenewalSubtype[]).map((sub) => (
                   <button
                     key={sub}
                     type="button"
@@ -338,12 +338,12 @@ export const FinancialAnalysis = ({ plot, planning }: Props) => {
                         : "border-border bg-card text-muted-foreground hover:bg-muted"
                     }`}
                   >
-                    {sub === "local_renewal" ? "תכנית מקומית / הקלות ועדה" : "פינוי-בינוי"}
+                    {sub === "local_renewal" ? "תכנית מקומית / הקלות ועדה" : "הריסה ובנייה מחדש"}
                   </button>
                 ))}
               </div>
               <p className="text-[10px] text-muted-foreground">
-                תמ״א 38 פקעה ב-10/2022 ואינה זמינה לבקשות חדשות. המסלולים הפעילים: <strong>פינוי-בינוי</strong> (פטור היטל השבחה לפי חוק פינוי-בינוי), <strong>תכנית רובעית</strong> (תא/3616/א, תא/3729/א) ו<strong>תכנית מקומית/הקלות ועדה</strong> (חלופי תמ״א 38 — דורש אישור פרטני).
+                תמ״א 38 פקעה ב-10/2022 ואינה זמינה לבקשות חדשות. המסלולים הפעילים: <strong>הריסה ובנייה מחדש</strong> (פטור היטל השבחה רק כשהמסלול המשפטי הפורמלי של פינוי-בינוי לפי חוק התשנ״ז-2006 מתקיים), <strong>תכנית רובעית</strong> (תא/3616/א, תא/3729/א) ו<strong>תכנית מקומית/הקלות ועדה</strong> (חלופי תמ״א 38 — דורש אישור פרטני).
               </p>
             </div>
           )}

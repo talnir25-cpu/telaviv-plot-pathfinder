@@ -1,0 +1,2 @@
+ALTER TABLE public.zoning_rights RENAME COLUMN pinui_far_bonus TO demolition_rebuild_far_bonus;
+ALTER TABLE public.zoning_rights RENAME COLUMN pinui_units_bonus_pct TO demolition_rebuild_units_bonus_pct;
