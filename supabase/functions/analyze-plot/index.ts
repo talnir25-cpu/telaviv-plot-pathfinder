@@ -1022,14 +1022,32 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
               built_area_limiting_factor: limitingFactor,
             };
           } else if (!blockedByManualClassification) {
-            // לא floors_density ולא legacy_far תקין → ניפול ל-fallback למטה
+            // לא floors_density ולא legacy_far תקין (בעיקר: local_renewal על שורות floors_density,
+            // שאין להן עדיין מודל FAR מתאים אחרי שה-FAR הישן הוסר מה-DB).
+            // אסור להציג כאן מספר שמקורו ב-AI (toolCall.input) — זה לא דטרמיניסטי.
             report.redFlags.push({
-              level: "info",
-              title: "חישוב מבוסס תקנון לא בוצע — נופל להערכה גסה",
-              description: `לא קיים מודל חישוב תקף לשורה "${zoneInfo.zone_label}" במסלול ${RENEWAL_TRACK_LABEL[renewalTrack]} (חסר rights_basis תואם או נתוני זכויות מספיקים). ההצגה למטה היא הערכה גסה לפי מקדמי רובע בלבד.`,
-              source: "בדיקת שלמות אוטומטית — analyze-plot",
+              level: "critical",
+              title: "חישוב לא זמין במסלול זה — נדרש מודל זכויות נפרד",
+              description: `לאזור "${zoneInfo.zone_label}" אין מודל חישוב תקף במסלול ${RENEWAL_TRACK_LABEL[renewalTrack]}. שורה זו מבוססת על מודל קומות×צפיפות תקנוני שעדיין לא הוגדר לתוספת לבניין קיים (local_renewal) — זהו TODO פתוח ומתועד. לא ניתן להציג היקף בנייה/יח"ד מוצעים ללא חישוב דטרמיניסטי תקף.`,
+              source: "בדיקת שלמות אוטומטית — analyze-plot (local_renewal TODO)",
             });
+            report.status = "blocked";
+            // איפוס מוחלט — מונע הצגת ערך שמקורו ב-AI כ"מחושב"
+            report.proposed = {
+              units: null,
+              floors: null,
+              builtAreaSqm: null,
+              far: null,
+              heightMeters: null,
+            };
+            report.metrics = {
+              multiplier: null,
+              newUnits: null,
+              estimatedSellableArea: null,
+              avgUnitSize: null,
+            };
           }
+
         } else {
           // ───────── Fallback: חישוב מבוסס שטח ורובע ─────────
           // נכנס לפעולה רק כשלא נמצאה שורה בטבלת zoning_rights.
