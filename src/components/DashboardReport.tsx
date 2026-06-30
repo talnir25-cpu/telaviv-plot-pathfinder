@@ -214,40 +214,45 @@ const ComparisonRow = ({
 }: {
   label: string;
   sublabel?: string;
-  existing: string | number;
-  proposed: string | number;
+  existing: React.ReactNode;
+  proposed: React.ReactNode;
   unit?: string;
   badge?: React.ReactNode;
   insight?: React.ReactNode;
   insightTone?: InsightTone;
   explanation?: React.ReactNode;
-}) => (
-  <tr>
-    <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
-      <div className="flex items-center justify-start gap-2">
-        {badge}
-        <div>
-          <span>{label}</span>
-          {sublabel && <span className="block text-[10px] text-muted-foreground/70">{sublabel}</span>}
+}) => {
+  const existingIsDash = typeof existing === "string" && existing === "—";
+  const proposedIsDash = typeof proposed === "string" && proposed === "—";
+  return (
+    <tr>
+      <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
+        <div className="flex items-center justify-start gap-2">
+          {badge}
+          <div>
+            <span>{label}</span>
+            {sublabel && <span className="block text-[10px] text-muted-foreground/70">{sublabel}</span>}
+          </div>
         </div>
-      </div>
-    </td>
-    <td className="w-24 border-b border-border/60 py-3 text-center text-sm tabular-nums">
-      {existing}
-      {unit && existing !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
-    </td>
-    <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
-      {proposed}
-      {unit && proposed !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
-    </td>
-    <td className={cn("w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums", INSIGHT_TONE_CLASS[insightTone])}>
-      {insight ?? "—"}
-    </td>
-    <td className="border-b border-border/60 py-3 text-right text-[12px] leading-snug text-muted-foreground">
-      {explanation ?? "—"}
-    </td>
-  </tr>
-);
+      </td>
+      <td className="w-24 border-b border-border/60 py-3 text-center text-sm tabular-nums">
+        {existing}
+        {unit && !existingIsDash && <span className="me-1 text-muted-foreground">{unit}</span>}
+      </td>
+      <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
+        {proposed}
+        {unit && !proposedIsDash && <span className="me-1 text-muted-foreground">{unit}</span>}
+      </td>
+      <td className={cn("w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums", INSIGHT_TONE_CLASS[insightTone])}>
+        {insight ?? "—"}
+      </td>
+      <td className="border-b border-border/60 py-3 text-right text-[12px] leading-snug text-muted-foreground">
+        {explanation ?? "—"}
+      </td>
+    </tr>
+  );
+};
+
 
 const BUILT_AREA_SOURCE_LABEL: Record<string, string> = {
   manual: "מאומת",
