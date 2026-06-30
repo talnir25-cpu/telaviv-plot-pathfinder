@@ -152,9 +152,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) {
-      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY missing" }), {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY missing" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -179,47 +179,61 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. text → Claude extraction
+    // 2. text → Lovable AI Gateway extraction (OpenAI-compatible tool calling)
     const truncated = pdfText.length > 60_000 ? pdfText.slice(0, 60_000) : pdfText;
-    const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 4096,
-        system: SYSTEM_PROMPT,
-        tools: [EXTRACTION_TOOL],
-        tool_choice: { type: "tool", name: EXTRACTION_TOOL.name },
+        model: "google/gemini-2.5-pro",
         messages: [
+          { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: `טקסט שחולץ מנסח הטאבו:\n\n${truncated}` },
         ],
+        tools: [{
+          type: "function",
+          function: {
+            name: EXTRACTION_TOOL.name,
+            description: EXTRACTION_TOOL.description,
+            parameters: EXTRACTION_TOOL.input_schema,
+          },
+        }],
+        tool_choice: { type: "function", function: { name: EXTRACTION_TOOL.name } },
       }),
     });
 
     if (!aiResp.ok) {
       if (aiResp.status === 429) {
-        return new Response(JSON.stringify({ error: "חרגת ממכסת בקשות Anthropic — נסה שוב בעוד מספר דקות" }), {
+        return new Response(JSON.stringify({ error: "חרגת ממכסת בקשות AI — נסה שוב בעוד מספר דקות" }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      if (aiResp.status === 402) {
+        return new Response(JSON.stringify({ error: "נגמרו הקרדיטים ב-Lovable AI — יש לטעון מחדש בהגדרות החיוב" }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const t = await aiResp.text();
-      console.error("Anthropic error", aiResp.status, t);
+      console.error("AI gateway error", aiResp.status, t);
       return new Response(JSON.stringify({ error: "שגיאה בשירות ה-AI", details: t.slice(0, 300) }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const aiJson = await aiResp.json();
-    const toolUse = Array.isArray(aiJson?.content)
-      ? aiJson.content.find((b: { type: string }) => b.type === "tool_use")
-      : null;
-    const raw = toolUse?.input;
+    const toolCall = aiJson?.choices?.[0]?.message?.tool_calls?.[0];
+    const rawArgs = toolCall?.function?.arguments;
+    let raw: any = null;
+    if (typeof rawArgs === "string") {
+      try { raw = JSON.parse(rawArgs); } catch { raw = null; }
+    } else if (rawArgs && typeof rawArgs === "object") {
+      raw = rawArgs;
+    }
     if (!raw) {
-      console.error("no tool_use", JSON.stringify(aiJson).slice(0, 500));
+      console.error("no tool_call", JSON.stringify(aiJson).slice(0, 500));
       return new Response(JSON.stringify({ error: "ה-AI לא החזיר נתונים מובְנים" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
