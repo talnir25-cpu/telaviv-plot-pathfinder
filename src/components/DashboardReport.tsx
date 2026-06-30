@@ -519,6 +519,71 @@ export const DashboardReport = ({
 }: Props) => {
   const status = STATUS_STYLES[report.status];
   const plotArea = input.area ?? input.shapeArea ?? 0;
+
+  // Blocked reports may have null metrics/proposed (no deterministic model).
+  // Render a minimal blocked view with the red flags instead of crashing.
+  if (!report.metrics || !report.proposed) {
+    return (
+      <section dir="rtl" className="space-y-4 text-right">
+        <Card dir="rtl" className="overflow-hidden border-0 shadow-elegant text-right">
+          <div className="bg-gradient-danger p-5 text-danger-foreground">
+            <p className="text-[11px] font-medium uppercase tracking-wider opacity-80">
+              דוח היתכנות • {plotLabel}
+            </p>
+            <h2 className="mt-1 text-xl font-bold leading-tight md:text-2xl">{report.headline}</h2>
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-danger-foreground/15 px-3 py-1.5 text-xs font-semibold">
+              <ShieldAlert className="h-4 w-4" />
+              {report.statusLabel || status.label}
+            </div>
+            {onRefresh && (
+              <div className="mt-4">
+                <Button type="button" variant="secondary" size="sm" onClick={onRefresh} disabled={refreshing}
+                  className="border-0 bg-danger-foreground/15 text-danger-foreground hover:bg-danger-foreground/25">
+                  <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+                  {refreshing ? "מרענן..." : "רענן"}
+                </Button>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {report.committeeSummary && (
+          <Card className="p-5 text-right">
+            <p className="text-sm leading-relaxed text-foreground/80">{report.committeeSummary}</p>
+          </Card>
+        )}
+
+        {report.redFlags?.length > 0 && (
+          <Card className="p-5 text-right">
+            <div className="mb-3 flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-danger" />
+              <h3 className="text-base font-bold">דגלים אדומים</h3>
+            </div>
+            <div className="space-y-2">
+              {report.redFlags.map((flag, i) => {
+                const s = FLAG_STYLES[flag.level];
+                const Icon = s.icon;
+                return (
+                  <div key={i} className={cn("flex gap-3 rounded-lg border p-3", s.bg, s.border)}>
+                    <Icon className={cn("h-4 w-4 flex-shrink-0 mt-0.5", s.text)} />
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <p className={cn("text-sm font-semibold", s.text)}>{flag.title}</p>
+                        <span className="text-[11px] text-muted-foreground">{flag.source}</span>
+                      </div>
+                      <p className="text-sm text-foreground/80">{flag.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+      </section>
+    );
+  }
+
+
   
 
   return (
