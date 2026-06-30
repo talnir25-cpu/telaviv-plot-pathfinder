@@ -308,11 +308,6 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
       console.warn("lookup-zone-info failed (non-fatal)", e);
     }
 
-    const builtAreaLine = body.existingBuiltAreaSqm && body.existingBuiltAreaSqm > 0
-      ? `שטח בנוי קיים (מדוד ממקור: ${body.existingBuiltAreaSource ?? "לא ידוע"}, אמינות: ${body.existingBuiltAreaConfidence ?? "לא ידוע"}): ${body.existingBuiltAreaSqm} מ"ר — השתמש בערך הזה ישירות כ-existing.builtAreaSqm; אל תאמוד מחדש.`
-      : `שטח בנוי קיים: לא ידוע — חשב לפי existingUnits × ~85 מ"ר`;
-
-
     const plotAreaForCalc = body.area ?? body.shapeArea ?? 0;
     const hasSetbacks =
       body.frontSetbackM != null && body.sideSetbackM != null && body.rearSetbackM != null;
@@ -346,108 +341,54 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
       ? Math.round((upliftSqmPerFloor / baselineFloorAreaForUplift) * 100)
       : 0;
 
-    const setbacksLine = hasSetbacks
-      ? `\nקווי בניין (מקור: ${body.setbackSource === "regulation" ? "תקנון רובע" : "הזנת משתמש"}):
-  קדמי ${body.frontSetbackM} מ׳ / צדדי ${body.sideSetbackM} מ׳ / אחורי ${body.rearSetbackM} מ׳
-שטח קומה טיפוסי מירבי (קירוב מלבני): ~${typicalFloorArea} מ"ר (תכסית ~${coveragePctVal}%)
-
-אילוץ קשיח: proposed.builtAreaSqm ≤ ${typicalFloorArea} × proposed.floors
-אם FAR שאיפתי דורש שטח גדול יותר — הגדל את floors (עד maxFloors) ולא את השטח לקומה.
-החזר ב-zoning.frontSetbackM/sideSetbackM/rearSetbackM את הערכים שקיבלת.`
-      : "";
-
-    const renewalLine = renewalFloorArea > 0
-      ? `\nפוטנציאל הגדלת תכסית בהליך התחדשות (${RENEWAL_TRACK_LABEL[renewalTrack]}):
-  קווי בניין מוקלים: קדמי ${renewalCfg!.front} / צדדי ${renewalCfg!.side} / אחורי ${renewalCfg!.rear} מ׳
-  שטח קומה פוטנציאלי: ~${renewalFloorArea} מ"ר (תכסית ~${renewalCoveragePct}%, דלתא +${upliftSqmPerFloor} מ"ר/קומה ≈ +${upliftPct}%)
-  התייחס בסיכום לוועדה ובדגלים אם הפער משמעותי.`
-      : "";
-
-
-
-    const userPrompt = `נתח את ההיתכנות להתחדשות עירונית של החלקה הבאה:
-
-רובע: ${body.quarter}
-גוש: ${body.gush}
-חלקה: ${body.helka}
-שטח רשום: ${body.area ?? "לא ידוע"} מ"ר
-שטח לפי GIS: ${body.shapeArea ?? "לא ידוע"} מ"ר
-מספר יח"ד קיימות: ${body.existingUnits}
-מספר קומות קיים: ${body.existingFloors}
-${builtAreaLine}
-סטטוס שימור (לפי המשתמש): ${body.conservation ? "כן" : "לא ידוע / לא"}
-${body.conservationDetails ? `פרטי שימור (GIS עיריית ת״א):
-  - שם המבנה: ${body.conservationDetails.buildingName ?? "לא צוין"}
-  - רמת שימור: ${body.conservationDetails.level ?? "לא צוינה"}${body.conservationDetails.strictRestrictions ? " (הגבלות מחמירות — גם הפנים מוגן)" : " (שימור חיצוני בלבד — חזיתות)"}
-  - תכנית: ${body.conservationDetails.planRef ?? "תא/2650/ב"}
-  - מתחם UNESCO: ${body.conservationDetails.inUnescoBuffer ? "כן" : "לא"}
-  - תיאור רשמי: ${body.conservationDetails.description ?? "—"}
-  - הנחיה לאנליסט: ${body.conservationDetails.strictRestrictions
-    ? "שימור מחמיר חוסם תוספת קומות משמעותית — הצע נתיב פינוי-בינוי על המגרש או שימור-בנייה משולב"
-    : "שימור חיצוני מאפשר תוספת קומות מעל המבנה הקיים — בחן נתיב תמ״א 38/2 או תכנית רובע עם שימור חזיתות"}` : ""}
-${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${renewalLine}
-
-
-החזר דוח היתכנות מלא ומובנה דרך הכלי render_feasibility_report.
-חשב את המכפיל, יח"ד חדשות, שטח מכירה משוער, וזהה דגלים אדומים רלוונטיים.`;
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY missing");
+    // ── Deterministic report shell — AI will only add narrative text later ──
+    const deterministicExisting = {
+      units: body.existingUnits,
+      floors: body.existingFloors,
+      builtAreaSqm: body.existingBuiltAreaSqm && body.existingBuiltAreaSqm > 0
+        ? body.existingBuiltAreaSqm
+        : Math.round(body.existingUnits * 85),
+      far: 0,
+    };
+    if (plotAreaForCalc > 0 && deterministicExisting.builtAreaSqm > 0) {
+      deterministicExisting.far = Number(
+        (deterministicExisting.builtAreaSqm / plotAreaForCalc).toFixed(2),
+      );
     }
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: ANALYSIS_TOOL.function.name,
-            description: ANALYSIS_TOOL.function.description,
-            parameters: ANALYSIS_TOOL.function.parameters,
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "render_feasibility_report" } },
-      }),
-    });
-
-    if (!aiResp.ok) {
-      const t = await aiResp.text();
-      console.error("AI gateway error:", aiResp.status, t);
-      if (aiResp.status === 429) {
-        throw new Error("חרגת ממכסת בקשות בדקה — נסה שוב בעוד רגע");
-      }
-      if (aiResp.status === 402) {
-        throw new Error("נגמרו הקרדיטים ב-Lovable AI — יש לטעון מחדש בהגדרות החיוב");
-      }
-      throw new Error(`AI gateway error ${aiResp.status}: ${t.slice(0, 300)}`);
-    }
-
-    const aiJson = await aiResp.json();
-    const toolCall = aiJson?.choices?.[0]?.message?.tool_calls?.[0];
-    const rawArgs = toolCall?.function?.arguments;
-    let parsedArgs: any = null;
-    if (typeof rawArgs === "string") {
-      try { parsedArgs = JSON.parse(rawArgs); } catch { parsedArgs = null; }
-    } else if (rawArgs && typeof rawArgs === "object") {
-      parsedArgs = rawArgs;
-    }
-    if (!parsedArgs) {
-      console.error("No tool_call in response", JSON.stringify(aiJson).slice(0, 500));
-      throw new Error("AI did not return structured report");
-    }
+    // Seed zoning from zoneInfo (deterministic, from regulation). Physical fields
+    // (trees, parking, groundwater) are left null — TODO: external data source.
+    const zoningSeed: any = {
+      maxHeightMeters: null,
+      maxFloors: zoneInfo?.rights
+        ? ((zoneInfo.rights.max_floors_above ?? 0) + (zoneInfo.rights.max_floors_roof ?? 0)) || null
+        : null,
+      frontSetbackM: body.frontSetbackM ?? zoneInfo?.rights?.setback_front_m ?? null,
+      sideSetbackM: body.sideSetbackM ?? zoneInfo?.rights?.setback_side_m ?? null,
+      rearSetbackM: body.rearSetbackM ?? zoneInfo?.rights?.setback_rear_m ?? null,
+      maxFAR: null,
+      source: zoneInfo?.source_citation ?? null,
+      treesOnPlot: null,
+      treesForConservation: null,
+      parkingStandardPerUnit: null,
+      requiredBasementFloors: null,
+      todReliefApplies: null,
+      groundwaterDepthM: null,
+      dewateringRequired: null,
+      _physicalFieldsNote: "שדות פיזיים (עצים, מי תהום, חניה) טרם ממומשים — דורשים מקור נתונים חיצוני (GIS עירוני / בדיקה ידנית). TODO נפרד.",
+    };
 
     // deno-lint-ignore no-explicit-any
-    const report: any = parsedArgs;
+    const report: any = {
+      status: "medium_potential",
+      existing: deterministicExisting,
+      proposed: null,
+      metrics: null,
+      zoning: zoningSeed,
+      redFlags: [],
+      sources: zoneInfo?.source_citation ? [zoneInfo.source_citation] : [],
+    };
+
 
 
     // ── Post-validation: deterministic sanity checks on AI output ──
