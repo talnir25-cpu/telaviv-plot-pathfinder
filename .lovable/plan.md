@@ -1,39 +1,58 @@
+## מאיפה מגיע ה-76%?
 
-## מטרה
+הערך **לא** מגיע ישירות מהדוח הדטרמיניסטי — הוא **מחושב מחדש בקליינט** ב-`src/components/DashboardReport.tsx` (שורות 918–920):
 
-בתכנית הרבעית (rova_plan) חישוב הזכויות בפועל מבוסס על **תכסית מותרת × מספר קומות**, ותקרת ה-FAR אינה רלוונטית. כיום הלוגיקה לוקחת `min(byFAR, byCoverage)` — מה שעלול להגביל מלאכותית את התוצאה כאשר ה-FAR נמוך מהמכפלה. נסיר את חסם ה-FAR במסלול הזה בלבד, נשמר אותו כפולבק במצב חוסר נתון תכסית, ונשאיר את שאר המסלולים (local_renewal, pinui_binui) ללא שינוי.
-
-## שינוי בקוד
-
-קובץ יחיד: `supabase/functions/analyze-plot/index.ts`, פונקציית החישוב המבוססת-תקנון (סביב שורות 770–896).
-
-### לוגיקה חדשה
-```text
-אם renewalTrack == "rova_plan":
-    אם יש coveragePct תקין ו-maxFloorsDet > 0:
-        proposedBuilt = byCoverage           // FAR מתעלמים ממנו
-        limitingFactor = "coverage"
-    אחרת:
-        proposedBuilt = byFAR                // פולבק יחיד כשאין תכסית
-        limitingFactor = "far_fallback_no_coverage"
-        // red-flag info: "תכסית חסרה בתקנון — שימוש ב-FAR כפולבק"
-אחרת (שאר המסלולים):
-    proposedBuilt = min(byFAR, byCoverage)   // התנהגות קיימת
-    limitingFactor = byCoverage < byFAR ? "coverage" : "far"
+```ts
+const propFloors = report.proposed.floors || 1;
+const propFloorArea = report.proposed.builtAreaSqm / propFloors;
+const propCoverage = (propFloorArea / plotArea) * 100;
 ```
 
-### עדכונים נלווים באותו בלוק
-- `calcSource.built_area_limiting_factor` יקבל את הערך החדש (`coverage` / `far` / `far_fallback_no_coverage`).
-- הדגל הקיים "בדיקת תקרת תכסית לא בוצעה" (שורות ~791–798) יוצג רק אם **המסלול אינו rova_plan**, או יוחלף בדגל הפולבק החדש כשמדובר ב-rova_plan, כדי שלא יופיעו שני אזהרות סותרות.
-- שאר השדות ב-`calcSource` (`base_far_pct`, `far_bonus_pct`, `effective_far_pct`) נשארים — הם דיווחיים בלבד ומוצגים ב-UI; הם לא משפיעים על החישוב במסלול רובעי לאחר השינוי.
+כלומר זה back-compute: "אם פיזרנו את כל ה-built area בצורה אחידה על כל הקומות, איזה אחוז מהמגרש זה תופס".
 
-### מה לא משתנה
-- מסלול ה-fallback של "שטח ורובע" (כשאין `zoning_rights`) — אין שם הבחנה לפי track וממשיך עם `min(byFAR, byEnvelope)`.
-- ולידציית התכסית הגיאומטרית מול קווי בניין (שורות ~638–705) — נשארת כפי שהיא; זה בודק האם השטח המוצע ניתן למימוש פיזי בקווי הבניין, בלי קשר ל-FAR החוקי.
-- שכבת ה-UI (`DashboardReport.tsx`, `ReportArtifact.tsx`) — ממשיכה להציג FAR מקס׳ כפרמטר רגולטורי לידיעה. אופציונלית ניתן להוסיף תווית "לא חוסם — מסלול רובעי" ליד ערך ה-FAR; לא כלול בשינוי הזה אלא אם תרצה.
+ב-`supabase/functions/analyze-plot/index.ts` (מסלול `floors_density`, שורה 498), `proposedBuilt = typicalFloorArea × maxFloors`, ו-`typicalFloorArea` נגזר מקווי הבניין של התקנון (`effectiveSetbacks`). לכן בפועל:
 
-## בדיקה (לאחר היישום)
+```
+propCoverage ≈ report.zoning.coveragePct   (= תקרת הכיסוי הגזורה מקווי הבניין)
+```
 
-1. הרצת `analyze-plot` על מגרש ברובע 3/4 עם תכסית נמוכה × קומות גבוהות מ-FAR → לוודא ש-`proposed.builtAreaSqm` שווה ל-byCoverage ולא ל-byFAR.
-2. הרצה על מגרש שבו `max_coverage_pct` חסר ב-DB → לוודא חזרה ל-byFAR + הופעת ה-info flag החדש.
-3. הרצה במסלול `local_renewal` או `pinui_binui` → לוודא שהתנהגות נשארה `min(byFAR, byCoverage)`.
+בדוגמה (קיים 2,674 / מוצע 3,382 / 76%): 3,382 ÷ 9 קומות ≈ 376 מ"ר/קומה ÷ ~495 מ"ר מגרש ≈ 76%. המתמטיקה תואמת — הערך הוא תקרת הכיסוי החוקית לפי קווי הבניין, לא תוצאה של תכנון בפועל.
+
+## הבעיות
+
+1. **חוסר שקיפות** — המשתמש רואה "76% מוצע" בלי לדעת שזה למעשה "מקסימום חוקי לפי קווי בניין", לא תכסית שעלתה ממידול תכנוני.
+2. **רגישות לעיגולים** — חישוב חוזר מ-`builtAreaSqm / floors` נותן ערך שונה במעט מ-`report.zoning.coveragePct` שכבר נשמר בדוח.
+3. **בלי תגית מקור** — בעמודת "קיים" יש כבר `CoverageSourceTag` (GIS/חישוב פנימי), אבל בעמודת "מוצע" אין שום סימון.
+4. **חוסר עקביות עם מסלולי התחדשות** — כש-`renewalPotential.coveragePct` קיים (מסלול אחר), הוא מתעלם.
+
+## הפתרון המוצע
+
+### 1. קרא ישירות מהדוח הדטרמיניסטי במקום back-compute
+ב-`DashboardReport.tsx`, החלף את `propCoverage` המחושב במקומי בעדיפויות הבאות:
+1. `report.zoning.renewalPotential?.coveragePct` (אם המסלול הפעיל מספק תקרה ייעודית)
+2. `report.zoning.coveragePct` (תקרה מקווי בניין של התקנון)
+3. fallback ל-back-compute הקיים — רק אם שני המקורות לעיל חסרים
+
+### 2. הוסף `CoverageSourceTag` חדש לעמודת "מוצע"
+תגיות חדשות (מקבילות לתגיות הקיימות בעמודת "קיים"):
+- `מסלול התחדשות` (כחול) — כשהערך מגיע מ-`renewalPotential.coveragePct`
+- `קווי בניין תקנון` (סגול) — כשמגיע מ-`zoning.coveragePct`
+- `חישוב מבנוי/קומות` (אמבר) — אם נשארנו ב-fallback
+
+### 3. עדכן את ההסבר בעמודת "הסבר"
+הוסף משפט קצר שמבהיר: "התכסית המוצעת היא תקרה תכנונית הנגזרת מקווי הבניין בתקנון — לא ממידול בפועל".
+
+### 4. דגל מערכת (אופציונלי) ב-`analyze-plot`
+אם `coveragePctVal > 60` והמגרש קטן (`<500 מ"ר`), הוסף red flag ברמת `info`: "תכסית תכנונית מקסימלית גבוהה (X%) — בפועל ועדות מקומיות לרוב דורשות הקטנה לטובת אוורור/חצרות".
+
+## קבצים שיתעדכנו
+
+- `src/components/DashboardReport.tsx` — לוגיקת `propCoverage`, רכיב `CoverageSourceTag` (הרחבה לטיפוס מקור חדש), עמודות "מוצע" ו"הסבר" בשורת התכסית.
+- `supabase/functions/analyze-plot/index.ts` — (אופציונלי, רק אם תאשר סעיף 4) הוספת red flag.
+
+## מה לא משתנה
+
+- חישובי `proposedBuilt`, `floors`, `units` — נשארים כפי שהם.
+- מבנה הטבלה ושאר השורות.
+
+האם להמשיך לסעיפים 1–3 בלבד, או לכלול גם את סעיף 4 (red flag)?

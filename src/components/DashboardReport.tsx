@@ -86,8 +86,41 @@ const SourceBadge = ({ source }: { source: string }) => (
   </TooltipProvider>
 );
 
-const CoverageSourceTag = ({ source }: { source: string }) => {
-  const isGis = source?.toLowerCase().includes("gis");
+type CoverageTagKind = "gis" | "internal" | "renewal_track" | "zoning_envelope" | "derived";
+
+const COVERAGE_TAG_META: Record<CoverageTagKind, { label: string; className: string; icon: typeof MapPin }> = {
+  gis: {
+    label: "GIS",
+    className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20",
+    icon: MapPin,
+  },
+  internal: {
+    label: "חישוב פנימי",
+    className: "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20",
+    icon: Calculator,
+  },
+  renewal_track: {
+    label: "מסלול התחדשות",
+    className: "border-sky-500/30 bg-sky-500/10 text-sky-700 hover:bg-sky-500/20",
+    icon: Calculator,
+  },
+  zoning_envelope: {
+    label: "קווי בניין תקנון",
+    className: "border-violet-500/30 bg-violet-500/10 text-violet-700 hover:bg-violet-500/20",
+    icon: Calculator,
+  },
+  derived: {
+    label: "נגזר משטח/קומות",
+    className: "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20",
+    icon: Calculator,
+  },
+};
+
+const CoverageSourceTag = ({ source, kind }: { source: string; kind?: CoverageTagKind }) => {
+  const resolvedKind: CoverageTagKind =
+    kind ?? (source?.toLowerCase().includes("gis") ? "gis" : "internal");
+  const meta = COVERAGE_TAG_META[resolvedKind];
+  const Icon = meta.icon;
   return (
     <TooltipProvider delayDuration={150}>
       <Tooltip>
@@ -96,13 +129,11 @@ const CoverageSourceTag = ({ source }: { source: string }) => {
             variant="outline"
             className={cn(
               "inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium",
-              isGis
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
-                : "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+              meta.className
             )}
           >
-            {isGis ? <MapPin className="h-3 w-3" /> : <Calculator className="h-3 w-3" />}
-            {isGis ? "GIS" : "חישוב פנימי"}
+            <Icon className="h-3 w-3" />
+            {meta.label}
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-xs text-right" dir="rtl">
@@ -112,6 +143,7 @@ const CoverageSourceTag = ({ source }: { source: string }) => {
     </TooltipProvider>
   );
 };
+
 
 const StatTile = ({
   icon: Icon,
@@ -182,40 +214,45 @@ const ComparisonRow = ({
 }: {
   label: string;
   sublabel?: string;
-  existing: string | number;
-  proposed: string | number;
+  existing: React.ReactNode;
+  proposed: React.ReactNode;
   unit?: string;
   badge?: React.ReactNode;
   insight?: React.ReactNode;
   insightTone?: InsightTone;
   explanation?: React.ReactNode;
-}) => (
-  <tr>
-    <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
-      <div className="flex items-center justify-start gap-2">
-        {badge}
-        <div>
-          <span>{label}</span>
-          {sublabel && <span className="block text-[10px] text-muted-foreground/70">{sublabel}</span>}
+}) => {
+  const existingIsDash = typeof existing === "string" && existing === "—";
+  const proposedIsDash = typeof proposed === "string" && proposed === "—";
+  return (
+    <tr>
+      <td className="border-b border-border/60 py-3 text-right text-sm font-medium text-muted-foreground">
+        <div className="flex items-center justify-start gap-2">
+          {badge}
+          <div>
+            <span>{label}</span>
+            {sublabel && <span className="block text-[10px] text-muted-foreground/70">{sublabel}</span>}
+          </div>
         </div>
-      </div>
-    </td>
-    <td className="w-24 border-b border-border/60 py-3 text-center text-sm tabular-nums">
-      {existing}
-      {unit && existing !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
-    </td>
-    <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
-      {proposed}
-      {unit && proposed !== "—" && <span className="me-1 text-muted-foreground">{unit}</span>}
-    </td>
-    <td className={cn("w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums", INSIGHT_TONE_CLASS[insightTone])}>
-      {insight ?? "—"}
-    </td>
-    <td className="border-b border-border/60 py-3 text-right text-[12px] leading-snug text-muted-foreground">
-      {explanation ?? "—"}
-    </td>
-  </tr>
-);
+      </td>
+      <td className="w-24 border-b border-border/60 py-3 text-center text-sm tabular-nums">
+        {existing}
+        {unit && !existingIsDash && <span className="me-1 text-muted-foreground">{unit}</span>}
+      </td>
+      <td className="w-28 border-b border-border/60 py-3 text-center text-sm font-semibold tabular-nums text-primary">
+        {proposed}
+        {unit && !proposedIsDash && <span className="me-1 text-muted-foreground">{unit}</span>}
+      </td>
+      <td className={cn("w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums", INSIGHT_TONE_CLASS[insightTone])}>
+        {insight ?? "—"}
+      </td>
+      <td className="border-b border-border/60 py-3 text-right text-[12px] leading-snug text-muted-foreground">
+        {explanation ?? "—"}
+      </td>
+    </tr>
+  );
+};
+
 
 const BUILT_AREA_SOURCE_LABEL: Record<string, string> = {
   manual: "מאומת",
@@ -917,7 +954,26 @@ export const DashboardReport = ({
                     {(() => {
                       const propFloors = report.proposed.floors || 1;
                       const propFloorArea = report.proposed.builtAreaSqm / propFloors;
-                      const propCoverage = plotArea > 0 ? (propFloorArea / plotArea) * 100 : 0;
+                      const derivedCoverage = plotArea > 0 ? (propFloorArea / plotArea) * 100 : 0;
+                      // עדיפויות לתכסית מוצעת — קוראים ישירות מהדוח הדטרמיניסטי במקום back-compute
+                      const renewalCov = report.zoning.renewalPotential?.coveragePct;
+                      const envelopeCov = report.zoning.coveragePct;
+                      let propCoverage = 0;
+                      let propCoverageTagKind: CoverageTagKind = "derived";
+                      let propCoverageSourceText = "";
+                      if (typeof renewalCov === "number" && renewalCov > 0) {
+                        propCoverage = renewalCov;
+                        propCoverageTagKind = "renewal_track";
+                        propCoverageSourceText = `תקרת תכסית במסלול ${report.zoning.renewalPotential?.trackLabel ?? "התחדשות"} מתוך RENEWAL_SETBACKS.`;
+                      } else if (typeof envelopeCov === "number" && envelopeCov > 0) {
+                        propCoverage = envelopeCov;
+                        propCoverageTagKind = "zoning_envelope";
+                        propCoverageSourceText = "תקרת תכסית הנגזרת מקווי הבניין של התקנון (front/side/rear setbacks).";
+                      } else if (derivedCoverage > 0) {
+                        propCoverage = derivedCoverage;
+                        propCoverageTagKind = "derived";
+                        propCoverageSourceText = "חישוב נגזר: שטח בנוי מוצע ÷ קומות ÷ שטח מגרש.";
+                      }
                       const existCov = report.zoning.coverageExistingPct;
                       const existFootprint = report.zoning.buildingFootprintSqm;
 
@@ -939,11 +995,8 @@ export const DashboardReport = ({
                         : "מכפיל GFA נמוך — סביר שלא יצדיק הריסה ובנייה.";
 
                       // תכסית: השוואה למצב קיים אם קיים; אחרת — ניצול מול תקרה חוקית
-                      const legalMaxCov =
-                        report.zoning.renewalPotential?.coveragePct ??
-                        report.zoning.coveragePct ??
-                        null;
-                      const covDelta = existCov != null ? propCoverage - existCov : NaN;
+                      const legalMaxCov = renewalCov ?? envelopeCov ?? null;
+                      const covDelta = existCov != null && propCoverage > 0 ? propCoverage - existCov : NaN;
                       const covUtilPct =
                         existCov == null && legalMaxCov && legalMaxCov > 0 && propCoverage > 0
                           ? (propCoverage / legalMaxCov) * 100
@@ -954,7 +1007,14 @@ export const DashboardReport = ({
                           : Number.isFinite(covUtilPct)
                           ? (covUtilPct > 100 ? "danger" : covUtilPct >= 90 ? "success" : covUtilPct >= 70 ? "neutral" : "warning")
                           : "neutral";
-                      const covText = Number.isFinite(covDelta)
+                      const propCoverageNote = propCoverage > 0
+                        ? (propCoverageTagKind === "renewal_track"
+                            ? " התכסית המוצעת היא תקרה תכנונית במסלול ההתחדשות — לא ממידול בפועל."
+                            : propCoverageTagKind === "zoning_envelope"
+                            ? " התכסית המוצעת היא תקרה תכנונית הנגזרת מקווי הבניין בתקנון — לא ממידול בפועל."
+                            : "")
+                        : "";
+                      const covText = (Number.isFinite(covDelta)
                         ? (covDelta > 15
                             ? "קפיצת תכסית משמעותית — צפוי להידרש אישור ועדה והקלות."
                             : covDelta > 5
@@ -964,7 +1024,8 @@ export const DashboardReport = ({
                         ? (covUtilPct > 100
                             ? `התכסית המוצעת (${fmt(propCoverage)}%) חורגת מהתקרה החוקית (${fmt(legalMaxCov!)}%) — נדרשת הקטנת פוטפרינט או הקלה.`
                             : `ניצול ${fmt(covUtilPct)}% מהתקרה החוקית (${fmt(legalMaxCov!)}%) במסלול ההתחדשות. אין נתון תכסית קיימת זמין להשוואה ישירה.`)
-                        : "לא ניתן לחשב תכסית קיימת (חסר נתון GIS אמין וגם שטח בנוי/קומות).";
+                        : "לא ניתן לחשב תכסית קיימת (חסר נתון GIS אמין וגם שטח בנוי/קומות).") + propCoverageNote;
+
 
 
                       const floorAreaDelta = existFootprint != null ? propFloorArea - existFootprint : NaN;
@@ -1013,8 +1074,24 @@ export const DashboardReport = ({
                           <ComparisonRow
                             label="תכסית"
                             sublabel="% משטח המגרש"
-                            existing={existCov != null ? `${fmt(existCov)}%` : "—"}
-                            proposed={propCoverage > 0 ? `${fmt(propCoverage)}%` : "—"}
+                            existing={
+                              existCov != null
+                                ? <span className="inline-flex items-center gap-1.5">
+                                    <span>{`${fmt(existCov)}%`}</span>
+                                    {report.zoning.coverageSource && (
+                                      <CoverageSourceTag source={report.zoning.coverageSource} />
+                                    )}
+                                  </span>
+                                : "—"
+                            }
+                            proposed={
+                              propCoverage > 0
+                                ? <span className="inline-flex items-center gap-1.5">
+                                    <span>{`${fmt(propCoverage)}%`}</span>
+                                    <CoverageSourceTag source={propCoverageSourceText} kind={propCoverageTagKind} />
+                                  </span>
+                                : "—"
+                            }
                             insight={
                               Number.isFinite(covDelta)
                                 ? `${covDelta >= 0 ? "+" : ""}${fmt(covDelta)} נק׳`
@@ -1024,12 +1101,8 @@ export const DashboardReport = ({
                             }
                             insightTone={covTone}
                             explanation={covText}
-                            badge={
-                              existCov != null && report.zoning.coverageSource
-                                ? <CoverageSourceTag source={report.zoning.coverageSource} />
-                                : undefined
-                            }
                           />
+
 
                           <ComparisonRow
                             label="שטח עיקרי לקומה"
