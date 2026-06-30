@@ -778,6 +778,26 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
           }
         }
 
+        // Fallback: derive existing coverage from built area / floors / plot area when GIS unreliable
+        if (
+          report.zoning.coverageExistingPct == null &&
+          plotArea > 0 &&
+          (report.existing?.builtAreaSqm ?? 0) > 0 &&
+          (report.existing?.floors ?? 0) > 0
+        ) {
+          const fp = (report.existing!.builtAreaSqm as number) / (report.existing!.floors as number);
+          const covPct = (fp / plotArea) * 100;
+          if (covPct > 0 && covPct <= 100) {
+            report.zoning.coverageExistingPct = Math.round(covPct * 10) / 10;
+            report.zoning.buildingFootprintSqm = Math.round(fp);
+            report.zoning.coverageSource = "חישוב פנימי: שטח בנוי ÷ קומות ÷ שטח מגרש";
+            const srcLine = "תכסית קיימת — חישוב פנימי (שטח בנוי ÷ קומות ÷ שטח מגרש)";
+            if (!report.sources.includes(srcLine)) report.sources.push(srcLine);
+          }
+        }
+
+
+
         const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
         const proposedFloorsVal = report.proposed?.floors ?? 0;
         const maxFloorsVal = report.zoning?.maxFloors ?? 0;
