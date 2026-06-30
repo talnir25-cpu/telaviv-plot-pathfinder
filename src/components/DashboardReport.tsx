@@ -1015,10 +1015,22 @@ export const DashboardReport = ({
                             sublabel="% משטח המגרש"
                             existing={existCov != null ? `${fmt(existCov)}%` : "—"}
                             proposed={propCoverage > 0 ? `${fmt(propCoverage)}%` : "—"}
-                            insight={Number.isFinite(covDelta) ? `${covDelta >= 0 ? "+" : ""}${fmt(covDelta)} נק׳` : "—"}
+                            insight={
+                              Number.isFinite(covDelta)
+                                ? `${covDelta >= 0 ? "+" : ""}${fmt(covDelta)} נק׳`
+                                : Number.isFinite(covUtilPct)
+                                ? `${fmt(covUtilPct)}% ניצול`
+                                : "לא זמין"
+                            }
                             insightTone={covTone}
                             explanation={covText}
+                            badge={
+                              existCov != null && report.zoning.coverageSource
+                                ? <CoverageSourceTag source={report.zoning.coverageSource} />
+                                : undefined
+                            }
                           />
+
                           <ComparisonRow
                             label="שטח עיקרי לקומה"
                             existing={existFootprint != null ? fmt(existFootprint) : "—"}
