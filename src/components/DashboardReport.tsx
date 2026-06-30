@@ -22,15 +22,16 @@ import { Settings } from "lucide-react";
 import {
   AlertTriangle,
   Building2,
+  Calculator,
   Info,
   Layers,
+  MapPin,
   RefreshCw,
   Ruler,
   ShieldAlert,
   Sparkles,
   TrendingUp,
   Coins,
-  MapPin,
   BookOpen,
   CheckCircle2,
   XCircle,
@@ -85,6 +86,33 @@ const SourceBadge = ({ source }: { source: string }) => (
   </TooltipProvider>
 );
 
+const CoverageSourceTag = ({ source }: { source: string }) => {
+  const isGis = source?.toLowerCase().includes("gis");
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="outline"
+            className={cn(
+              "inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium",
+              isGis
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+                : "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+            )}
+          >
+            {isGis ? <MapPin className="h-3 w-3" /> : <Calculator className="h-3 w-3" />}
+            {isGis ? "GIS" : "חישוב פנימי"}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs text-right" dir="rtl">
+          <p className="text-xs">{source}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
+
 const StatTile = ({
   icon: Icon,
   label,
@@ -92,6 +120,7 @@ const StatTile = ({
   unit,
   accent,
   source,
+  tag,
 }: {
   icon: typeof Building2;
   label: string;
@@ -99,6 +128,7 @@ const StatTile = ({
   unit?: string;
   accent?: boolean;
   source?: string;
+  tag?: React.ReactNode;
 }) => (
   <div
     className={cn(
@@ -122,7 +152,10 @@ const StatTile = ({
         {value}
         {unit && <span className="me-1 text-xs font-medium text-muted-foreground">{unit}</span>}
       </p>
-      {source && <SourceBadge source={source} />}
+      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+        {source && <SourceBadge source={source} />}
+        {tag}
+      </div>
     </div>
   </div>
 );
@@ -783,24 +816,28 @@ export const DashboardReport = ({
                         ? (report.existing.builtAreaSqm / report.existing.floors / plotArea) * 100
                         : NaN;
                   const coverageSource =
-                    typeof report.zoning.coverageExistingPct === "number"
-                      ? report.zoning.coverageSource ?? "GIS עיריית ת״א"
-                      : "חישוב: שטח בנוי ÷ קומות ÷ שטח מגרש";
+                    report.zoning.coverageSource ??
+                    (typeof report.zoning.coverageExistingPct === "number"
+                      ? "GIS עיריית ת״א"
+                      : "חישוב: שטח בנוי ÷ קומות ÷ שטח מגרש");
                   return (
                     <StatTile
                       icon={Ruler}
                       label="תכסית קיימת"
                       value={Number.isFinite(existingCoveragePct) ? `${fmt(existingCoveragePct)}%` : "—"}
                       source={coverageSource}
+                      tag={<CoverageSourceTag source={coverageSource} />}
                     />
                   );
                 })()}
                 <div className="col-span-full">
                   <p className="text-[11px] text-muted-foreground">
-                    <span className="font-semibold text-primary">ציטוט מקור תכסית קיימת:</span>{" "}
-                    {typeof report.zoning.coverageExistingPct === "number"
-                      ? `נתון GIS — ${report.zoning.coverageSource ?? "GIS עיריית ת״א"}`
-                      : "חישוב פנימי — שטח בנוי קיים ÷ קומות ÷ שטח מגרש"}
+                    <span className="font-semibold text-primary">מקור תכסית קיימת:</span>{" "}
+                    {report.zoning.coverageSource
+                      ? report.zoning.coverageSource
+                      : typeof report.zoning.coverageExistingPct === "number"
+                        ? "GIS עיריית ת״א"
+                        : "חישוב פנימי — שטח בנוי קיים ÷ קומות ÷ שטח מגרש"}
                   </p>
                 </div>
                 <StatTile
