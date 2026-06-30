@@ -299,6 +299,7 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
             area_hint: body.areaHint,
             centroidX: body.centroidX,
             centroidY: body.centroidY,
+            plot_area: body.area ?? body.shapeArea ?? null,
           }),
         });
         if (zResp.ok) zoneInfo = await zResp.json();
