@@ -482,7 +482,17 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
 
           if (useFloorsDensity) {
             const maxFloorsDet = (r.max_floors_above ?? 0) + (r.max_floors_roof ?? 0);
-            const floorAreaEff = renewalFloorArea > 0 ? renewalFloorArea : typicalFloorArea;
+            // במודל floors_density שטח הקומה תמיד מהתקנון (typicalFloorArea עם effectiveSetbacks).
+            // RENEWAL_SETBACKS הגנרי לא רלוונטי כאן.
+            const floorAreaEff = typicalFloorArea;
+            if (setbacksSource === "none") {
+              report.redFlags.push({
+                level: "warning",
+                title: "קווי בניין לא זמינים — שטח קומה לא חושב",
+                description: "לא נמצאו קווי בניין מהתקנון או מהזנת המשתמש. לא ניתן לחשב שטח קומה מוצע.",
+                source: "בדיקת שלמות אוטומטית",
+              });
+            }
             const proposedBuilt = Math.round(floorAreaEff * maxFloorsDet);
             const limitingFactor = "floors_x_density";
 
