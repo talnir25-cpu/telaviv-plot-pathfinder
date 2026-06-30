@@ -1074,8 +1074,24 @@ export const DashboardReport = ({
                           <ComparisonRow
                             label="תכסית"
                             sublabel="% משטח המגרש"
-                            existing={existCov != null ? `${fmt(existCov)}%` : "—"}
-                            proposed={propCoverage > 0 ? `${fmt(propCoverage)}%` : "—"}
+                            existing={
+                              existCov != null
+                                ? <span className="inline-flex items-center gap-1.5">
+                                    <span>{`${fmt(existCov)}%`}</span>
+                                    {report.zoning.coverageSource && (
+                                      <CoverageSourceTag source={report.zoning.coverageSource} />
+                                    )}
+                                  </span>
+                                : "—"
+                            }
+                            proposed={
+                              propCoverage > 0
+                                ? <span className="inline-flex items-center gap-1.5">
+                                    <span>{`${fmt(propCoverage)}%`}</span>
+                                    <CoverageSourceTag source={propCoverageSourceText} kind={propCoverageTagKind} />
+                                  </span>
+                                : "—"
+                            }
                             insight={
                               Number.isFinite(covDelta)
                                 ? `${covDelta >= 0 ? "+" : ""}${fmt(covDelta)} נק׳`
@@ -1085,12 +1101,8 @@ export const DashboardReport = ({
                             }
                             insightTone={covTone}
                             explanation={covText}
-                            badge={
-                              existCov != null && report.zoning.coverageSource
-                                ? <CoverageSourceTag source={report.zoning.coverageSource} />
-                                : undefined
-                            }
                           />
+
 
                           <ComparisonRow
                             label="שטח עיקרי לקומה"
