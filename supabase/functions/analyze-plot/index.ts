@@ -774,6 +774,7 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
       }
 
       // ── תכסית מוצעת — נשען על DB (zoning_rights) ואם אין, על setbacks ──
+      const hasSetbacks = effectiveSetbacks != null;
       if (coveragePctVal > 0) {
         report.zoning.coveragePct = coveragePctVal;
         report.zoning.coveragePctBasis = coveragePctBasis;
