@@ -954,7 +954,26 @@ export const DashboardReport = ({
                     {(() => {
                       const propFloors = report.proposed.floors || 1;
                       const propFloorArea = report.proposed.builtAreaSqm / propFloors;
-                      const propCoverage = plotArea > 0 ? (propFloorArea / plotArea) * 100 : 0;
+                      const derivedCoverage = plotArea > 0 ? (propFloorArea / plotArea) * 100 : 0;
+                      // עדיפויות לתכסית מוצעת — קוראים ישירות מהדוח הדטרמיניסטי במקום back-compute
+                      const renewalCov = report.zoning.renewalPotential?.coveragePct;
+                      const envelopeCov = report.zoning.coveragePct;
+                      let propCoverage = 0;
+                      let propCoverageTagKind: CoverageTagKind = "derived";
+                      let propCoverageSourceText = "";
+                      if (typeof renewalCov === "number" && renewalCov > 0) {
+                        propCoverage = renewalCov;
+                        propCoverageTagKind = "renewal_track";
+                        propCoverageSourceText = `תקרת תכסית במסלול ${report.zoning.renewalPotential?.track ?? "התחדשות"} מתוך RENEWAL_SETBACKS.`;
+                      } else if (typeof envelopeCov === "number" && envelopeCov > 0) {
+                        propCoverage = envelopeCov;
+                        propCoverageTagKind = "zoning_envelope";
+                        propCoverageSourceText = "תקרת תכסית הנגזרת מקווי הבניין של התקנון (front/side/rear setbacks).";
+                      } else if (derivedCoverage > 0) {
+                        propCoverage = derivedCoverage;
+                        propCoverageTagKind = "derived";
+                        propCoverageSourceText = "חישוב נגזר: שטח בנוי מוצע ÷ קומות ÷ שטח מגרש.";
+                      }
                       const existCov = report.zoning.coverageExistingPct;
                       const existFootprint = report.zoning.buildingFootprintSqm;
 
@@ -976,11 +995,8 @@ export const DashboardReport = ({
                         : "מכפיל GFA נמוך — סביר שלא יצדיק הריסה ובנייה.";
 
                       // תכסית: השוואה למצב קיים אם קיים; אחרת — ניצול מול תקרה חוקית
-                      const legalMaxCov =
-                        report.zoning.renewalPotential?.coveragePct ??
-                        report.zoning.coveragePct ??
-                        null;
-                      const covDelta = existCov != null ? propCoverage - existCov : NaN;
+                      const legalMaxCov = renewalCov ?? envelopeCov ?? null;
+                      const covDelta = existCov != null && propCoverage > 0 ? propCoverage - existCov : NaN;
                       const covUtilPct =
                         existCov == null && legalMaxCov && legalMaxCov > 0 && propCoverage > 0
                           ? (propCoverage / legalMaxCov) * 100
@@ -991,7 +1007,14 @@ export const DashboardReport = ({
                           : Number.isFinite(covUtilPct)
                           ? (covUtilPct > 100 ? "danger" : covUtilPct >= 90 ? "success" : covUtilPct >= 70 ? "neutral" : "warning")
                           : "neutral";
-                      const covText = Number.isFinite(covDelta)
+                      const propCoverageNote = propCoverage > 0
+                        ? (propCoverageTagKind === "renewal_track"
+                            ? " התכסית המוצעת היא תקרה תכנונית במסלול ההתחדשות — לא ממידול בפועל."
+                            : propCoverageTagKind === "zoning_envelope"
+                            ? " התכסית המוצעת היא תקרה תכנונית הנגזרת מקווי הבניין בתקנון — לא ממידול בפועל."
+                            : "")
+                        : "";
+                      const covText = (Number.isFinite(covDelta)
                         ? (covDelta > 15
                             ? "קפיצת תכסית משמעותית — צפוי להידרש אישור ועדה והקלות."
                             : covDelta > 5
@@ -1001,7 +1024,8 @@ export const DashboardReport = ({
                         ? (covUtilPct > 100
                             ? `התכסית המוצעת (${fmt(propCoverage)}%) חורגת מהתקרה החוקית (${fmt(legalMaxCov!)}%) — נדרשת הקטנת פוטפרינט או הקלה.`
                             : `ניצול ${fmt(covUtilPct)}% מהתקרה החוקית (${fmt(legalMaxCov!)}%) במסלול ההתחדשות. אין נתון תכסית קיימת זמין להשוואה ישירה.`)
-                        : "לא ניתן לחשב תכסית קיימת (חסר נתון GIS אמין וגם שטח בנוי/קומות).";
+                        : "לא ניתן לחשב תכסית קיימת (חסר נתון GIS אמין וגם שטח בנוי/קומות).") + propCoverageNote;
+
 
 
                       const floorAreaDelta = existFootprint != null ? propFloorArea - existFootprint : NaN;
