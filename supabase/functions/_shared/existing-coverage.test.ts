@@ -77,9 +77,9 @@ Deno.test("Internal — rounds to one decimal", () => {
     existingBuiltAreaSqm: 850,
     existingFloors: 3,
   });
-  // 850/3 = 283.333... ; /777 *100 = 36.4439... → 36.4
+  // 850/3 = 283.333... ; /777 *100 = 36.4615... → 36.5
   assertEquals(result?.source, "internal");
-  assertEquals(result?.coverageExistingPct, 36.4);
+  assertEquals(result?.coverageExistingPct, 36.5);
   assertEquals(result?.buildingFootprintSqm, 283);
   assertEquals(
     result?.coverageSource,
