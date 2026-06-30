@@ -1,6 +1,8 @@
 // Urban Renewal feasibility analyst — calls Lovable AI Gateway
 // CORS handled manually (compatible with all SDK versions)
 
+import { resolveExistingCoverage } from "../_shared/existing-coverage.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -761,41 +763,37 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
       }
 
       // ── תכסית קיימת — לא תלוי בקווי בניין/מעטפת מוצעת ──
-      // עדיפות 1: GIS אמין מהשלב המקדים
-      if (body.coverageReliable === true && typeof body.coverageExact === "number" && body.coverageExact > 0) {
-        report.zoning.coverageExistingPct = body.coverageExact;
-        if (typeof body.buildingFootprint === "number" && body.buildingFootprint > 0) {
-          report.zoning.buildingFootprintSqm = body.buildingFootprint;
+      // עדיפות 1: GIS אמין מהשלב המקדים, עדיפות 2: חישוב פנימי
+      const coverageResolution = resolveExistingCoverage({
+        coverageReliable: body.coverageReliable,
+        coverageExact: body.coverageExact,
+        buildingFootprint: body.buildingFootprint,
+        coverageStatus: body.coverageStatus,
+        plotArea,
+        existingBuiltAreaSqm: report.existing?.builtAreaSqm,
+        existingFloors: report.existing?.floors,
+      });
+      if (coverageResolution) {
+        report.zoning.coverageExistingPct = coverageResolution.coverageExistingPct;
+        if (coverageResolution.buildingFootprintSqm != null) {
+          report.zoning.buildingFootprintSqm = coverageResolution.buildingFootprintSqm;
         }
-        report.zoning.coverageSource = body.coverageStatus ?? "GIS עיריית תל אביב — שכבות 524/513";
-        const srcLine = body.coverageStatus ?? "GIS עיריית תל אביב — שכבות 524/513";
-        if (!report.sources.includes(srcLine)) report.sources.push(srcLine);
+        report.zoning.coverageSource = coverageResolution.coverageSource;
+        if (!report.sources.includes(coverageResolution.sourceLine)) {
+          report.sources.push(coverageResolution.sourceLine);
+        }
 
-        if (coveragePctVal > 0 && body.coverageExact > coveragePctVal + 5) {
+        if (
+          coverageResolution.source === "gis" &&
+          coveragePctVal > 0 &&
+          coverageResolution.coverageExistingPct > coveragePctVal + 5
+        ) {
           report.redFlags.push({
             level: "warning",
             title: "חריגה היסטורית מהמעטפת הסטטוטורית",
-            description: `תכסית קיימת ${body.coverageExact}% גבוהה מהתכסית התכנונית ${coveragePctVal}% (קווי בניין). ייתכן שהמבנה הקיים נבנה בהיתר חורג או לפני התקנון הנוכחי — נדרשת בדיקה משפטית/תכנונית לפני שימוש בזכויות.`,
+            description: `תכסית קיימת ${coverageResolution.coverageExistingPct}% גבוהה מהתכסית התכנונית ${coveragePctVal}% (קווי בניין). ייתכן שהמבנה הקיים נבנה בהיתר חורג או לפני התקנון הנוכחי — נדרשת בדיקה משפטית/תכנונית לפני שימוש בזכויות.`,
             source: "השוואת GIS מול תקנון",
           });
-        }
-      }
-
-      // עדיפות 2: חישוב פנימי משטח בנוי / קומות / שטח מגרש
-      if (
-        report.zoning.coverageExistingPct == null &&
-        plotArea > 0 &&
-        (report.existing?.builtAreaSqm ?? 0) > 0 &&
-        (report.existing?.floors ?? 0) > 0
-      ) {
-        const fp = (report.existing!.builtAreaSqm as number) / (report.existing!.floors as number);
-        const covPct = (fp / plotArea) * 100;
-        if (covPct > 0 && covPct <= 100) {
-          report.zoning.coverageExistingPct = Math.round(covPct * 10) / 10;
-          report.zoning.buildingFootprintSqm = Math.round(fp);
-          report.zoning.coverageSource = "חישוב פנימי: שטח בנוי ÷ קומות ÷ שטח מגרש";
-          const srcLine = "תכסית קיימת — חישוב פנימי (שטח בנוי ÷ קומות ÷ שטח מגרש)";
-          if (!report.sources.includes(srcLine)) report.sources.push(srcLine);
         }
       }
       {
