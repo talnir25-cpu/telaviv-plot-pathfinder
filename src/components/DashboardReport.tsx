@@ -93,6 +93,7 @@ const StatTile = ({
   unit,
   accent,
   source,
+  tag,
 }: {
   icon: typeof Building2;
   label: string;
@@ -100,6 +101,7 @@ const StatTile = ({
   unit?: string;
   accent?: boolean;
   source?: string;
+  tag?: React.ReactNode;
 }) => (
   <div
     className={cn(
@@ -123,7 +125,10 @@ const StatTile = ({
         {value}
         {unit && <span className="me-1 text-xs font-medium text-muted-foreground">{unit}</span>}
       </p>
-      {source && <SourceBadge source={source} />}
+      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+        {source && <SourceBadge source={source} />}
+        {tag}
+      </div>
     </div>
   </div>
 );
