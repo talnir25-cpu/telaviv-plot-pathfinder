@@ -86,7 +86,7 @@ const SourceBadge = ({ source }: { source: string }) => (
   </TooltipProvider>
 );
 
-type CoverageTagKind = "gis" | "internal" | "renewal_track" | "zoning_envelope" | "derived";
+type CoverageTagKind = "gis" | "internal" | "renewal_track" | "zoning_envelope" | "derived" | "db_zoning_rights";
 
 const COVERAGE_TAG_META: Record<CoverageTagKind, { label: string; className: string; icon: typeof MapPin }> = {
   gis: {
@@ -97,6 +97,11 @@ const COVERAGE_TAG_META: Record<CoverageTagKind, { label: string; className: str
   internal: {
     label: "חישוב פנימי",
     className: "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20",
+    icon: Calculator,
+  },
+  db_zoning_rights: {
+    label: "טבלת זכויות (DB)",
+    className: "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20",
     icon: Calculator,
   },
   renewal_track: {
