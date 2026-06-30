@@ -310,14 +310,23 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
     }
 
     const plotAreaForCalc = body.area ?? body.shapeArea ?? 0;
-    const hasSetbacks =
+    // קווי בניין: עדיפות לתקנון (zoneInfo.rights), אחר כך קלט ידני, אחר כך אין.
+    const regSetbacks = zoneInfo?.rights
+      ? { front: zoneInfo.rights.setback_front_m, side: zoneInfo.rights.setback_side_m, rear: zoneInfo.rights.setback_rear_m }
+      : null;
+    const hasRegSetbacks =
+      regSetbacks != null && regSetbacks.front != null && regSetbacks.side != null && regSetbacks.rear != null;
+    const hasManualSetbacks =
       body.frontSetbackM != null && body.sideSetbackM != null && body.rearSetbackM != null;
-    const typicalFloorArea = hasSetbacks && plotAreaForCalc > 0
-      ? estimateTypicalFloorArea(plotAreaForCalc, {
-          front: body.frontSetbackM!,
-          side: body.sideSetbackM!,
-          rear: body.rearSetbackM!,
-        }, body.plotWidthM, body.plotDepthM)
+    const effectiveSetbacks = hasRegSetbacks
+      ? { front: regSetbacks!.front as number, side: regSetbacks!.side as number, rear: regSetbacks!.rear as number }
+      : hasManualSetbacks
+        ? { front: body.frontSetbackM!, side: body.sideSetbackM!, rear: body.rearSetbackM! }
+        : null;
+    const setbacksSource: "regulation" | "manual" | "none" =
+      hasRegSetbacks ? "regulation" : hasManualSetbacks ? "manual" : "none";
+    const typicalFloorArea = effectiveSetbacks && plotAreaForCalc > 0
+      ? estimateTypicalFloorArea(plotAreaForCalc, effectiveSetbacks, body.plotWidthM, body.plotDepthM)
       : 0;
     const coveragePctVal = typicalFloorArea && plotAreaForCalc
       ? Math.round((typicalFloorArea / plotAreaForCalc) * 100)
