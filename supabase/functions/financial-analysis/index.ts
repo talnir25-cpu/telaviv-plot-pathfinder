@@ -258,9 +258,9 @@ Deno.serve(async (req) => {
       }
       const { quarter, gush, helka, plotArea, proposedUnits, proposedBuiltArea } = parsed.data;
 
-      const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-      if (!ANTHROPIC_API_KEY) {
-        return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY missing" }), {
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) {
+        return new Response(JSON.stringify({ error: "LOVABLE_API_KEY missing" }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -272,24 +272,27 @@ Deno.serve(async (req) => {
 שטח בנייה כולל: ${proposedBuiltArea} מ"ר
 החזר ערכים ריאליסטיים דרך הכלי suggest_financial_defaults.`;
 
-      const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
+      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
-          max_tokens: 2048,
-          system: SYSTEM_DEFAULTS,
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: SYSTEM_DEFAULTS },
+            { role: "user", content: userPrompt },
+          ],
           tools: [{
-            name: DEFAULTS_TOOL.function.name,
-            description: DEFAULTS_TOOL.function.description,
-            input_schema: DEFAULTS_TOOL.function.parameters,
+            type: "function",
+            function: {
+              name: DEFAULTS_TOOL.function.name,
+              description: DEFAULTS_TOOL.function.description,
+              parameters: DEFAULTS_TOOL.function.parameters,
+            },
           }],
-          tool_choice: { type: "tool", name: DEFAULTS_TOOL.function.name },
-          messages: [{ role: "user", content: userPrompt }],
+          tool_choice: { type: "function", function: { name: DEFAULTS_TOOL.function.name } },
         }),
       });
 
@@ -299,25 +302,35 @@ Deno.serve(async (req) => {
             status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+        if (aiResp.status === 402) {
+          return new Response(JSON.stringify({ error: "נגמרו הקרדיטים ב-Lovable AI — יש לטעון מחדש בהגדרות החיוב" }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         const t = await aiResp.text();
-        console.error("Anthropic error", aiResp.status, t);
-        return new Response(JSON.stringify({ error: "Anthropic error", details: t.slice(0, 300) }), {
+        console.error("AI gateway error", aiResp.status, t);
+        return new Response(JSON.stringify({ error: "AI gateway error", details: t.slice(0, 300) }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
       const aiJson = await aiResp.json();
-      const toolUse = Array.isArray(aiJson?.content)
-        ? aiJson.content.find((b: { type: string }) => b.type === "tool_use")
-        : null;
-      if (!toolUse?.input) {
-        console.error("no tool_use", JSON.stringify(aiJson));
+      const toolCall = aiJson?.choices?.[0]?.message?.tool_calls?.[0];
+      const rawArgs = toolCall?.function?.arguments;
+      let parsedArgs: any = null;
+      if (typeof rawArgs === "string") {
+        try { parsedArgs = JSON.parse(rawArgs); } catch { parsedArgs = null; }
+      } else if (rawArgs && typeof rawArgs === "object") {
+        parsedArgs = rawArgs;
+      }
+      if (!parsedArgs) {
+        console.error("no tool_call", JSON.stringify(aiJson).slice(0, 500));
         return new Response(JSON.stringify({ error: "AI did not return structured response" }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      return new Response(JSON.stringify({ defaults: toolUse.input }), {
+      return new Response(JSON.stringify({ defaults: parsedArgs }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

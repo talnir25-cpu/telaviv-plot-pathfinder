@@ -516,52 +516,63 @@ ${body.notes ? `הערות נוספות: ${body.notes}` : ""}${setbacksLine}${re
 החזר דוח היתכנות מלא ומובנה דרך הכלי render_feasibility_report.
 חשב את המכפיל, יח"ד חדשות, שטח מכירה משוער, וזהה דגלים אדומים רלוונטיים.`;
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error("ANTHROPIC_API_KEY missing");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY missing");
     }
 
-    const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 8192,
-        system: SYSTEM_PROMPT,
+        model: "google/gemini-2.5-pro",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
         tools: [{
-          name: ANALYSIS_TOOL.function.name,
-          description: ANALYSIS_TOOL.function.description,
-          input_schema: ANALYSIS_TOOL.function.parameters,
+          type: "function",
+          function: {
+            name: ANALYSIS_TOOL.function.name,
+            description: ANALYSIS_TOOL.function.description,
+            parameters: ANALYSIS_TOOL.function.parameters,
+          },
         }],
-        tool_choice: { type: "tool", name: "render_feasibility_report" },
-        messages: [{ role: "user", content: userPrompt }],
+        tool_choice: { type: "function", function: { name: "render_feasibility_report" } },
       }),
     });
 
     if (!aiResp.ok) {
       const t = await aiResp.text();
-      console.error("Anthropic error:", aiResp.status, t);
+      console.error("AI gateway error:", aiResp.status, t);
       if (aiResp.status === 429) {
         throw new Error("חרגת ממכסת בקשות בדקה — נסה שוב בעוד רגע");
       }
-      throw new Error(`Anthropic error ${aiResp.status}: ${t.slice(0, 300)}`);
+      if (aiResp.status === 402) {
+        throw new Error("נגמרו הקרדיטים ב-Lovable AI — יש לטעון מחדש בהגדרות החיוב");
+      }
+      throw new Error(`AI gateway error ${aiResp.status}: ${t.slice(0, 300)}`);
     }
 
     const aiJson = await aiResp.json();
-    const toolCall = Array.isArray(aiJson?.content)
-      ? aiJson.content.find((b: { type: string }) => b.type === "tool_use")
-      : null;
-    if (!toolCall?.input) {
-      console.error("No tool_use in response", JSON.stringify(aiJson));
+    const toolCall = aiJson?.choices?.[0]?.message?.tool_calls?.[0];
+    const rawArgs = toolCall?.function?.arguments;
+    let parsedArgs: any = null;
+    if (typeof rawArgs === "string") {
+      try { parsedArgs = JSON.parse(rawArgs); } catch { parsedArgs = null; }
+    } else if (rawArgs && typeof rawArgs === "object") {
+      parsedArgs = rawArgs;
+    }
+    if (!parsedArgs) {
+      console.error("No tool_call in response", JSON.stringify(aiJson).slice(0, 500));
       throw new Error("AI did not return structured report");
     }
 
     // deno-lint-ignore no-explicit-any
-    const report: any = toolCall.input;
+    const report: any = parsedArgs;
 
 
     // ── Post-validation: deterministic sanity checks on AI output ──
