@@ -74,6 +74,9 @@ Deno.serve(async (req) => {
     const areaHint: string | undefined = body?.area_hint;
     const centroidX: number | undefined = typeof body?.centroidX === "number" ? body.centroidX : undefined;
     const centroidY: number | undefined = typeof body?.centroidY === "number" ? body.centroidY : undefined;
+    const plotArea: number | undefined =
+      typeof body?.plot_area === "number" ? body.plot_area :
+      typeof body?.plotArea === "number" ? body.plotArea : undefined;
 
     if (quarter !== 3 && quarter !== 4) {
       return new Response(
