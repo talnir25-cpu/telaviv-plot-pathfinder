@@ -816,24 +816,28 @@ export const DashboardReport = ({
                         ? (report.existing.builtAreaSqm / report.existing.floors / plotArea) * 100
                         : NaN;
                   const coverageSource =
-                    typeof report.zoning.coverageExistingPct === "number"
-                      ? report.zoning.coverageSource ?? "GIS עיריית ת״א"
-                      : "חישוב: שטח בנוי ÷ קומות ÷ שטח מגרש";
+                    report.zoning.coverageSource ??
+                    (typeof report.zoning.coverageExistingPct === "number"
+                      ? "GIS עיריית ת״א"
+                      : "חישוב: שטח בנוי ÷ קומות ÷ שטח מגרש");
                   return (
                     <StatTile
                       icon={Ruler}
                       label="תכסית קיימת"
                       value={Number.isFinite(existingCoveragePct) ? `${fmt(existingCoveragePct)}%` : "—"}
                       source={coverageSource}
+                      tag={<CoverageSourceTag source={coverageSource} />}
                     />
                   );
                 })()}
                 <div className="col-span-full">
                   <p className="text-[11px] text-muted-foreground">
-                    <span className="font-semibold text-primary">ציטוט מקור תכסית קיימת:</span>{" "}
-                    {typeof report.zoning.coverageExistingPct === "number"
-                      ? `נתון GIS — ${report.zoning.coverageSource ?? "GIS עיריית ת״א"}`
-                      : "חישוב פנימי — שטח בנוי קיים ÷ קומות ÷ שטח מגרש"}
+                    <span className="font-semibold text-primary">מקור תכסית קיימת:</span>{" "}
+                    {report.zoning.coverageSource
+                      ? report.zoning.coverageSource
+                      : typeof report.zoning.coverageExistingPct === "number"
+                        ? "GIS עיריית ת״א"
+                        : "חישוב פנימי — שטח בנוי קיים ÷ קומות ÷ שטח מגרש"}
                   </p>
                 </div>
                 <StatTile
