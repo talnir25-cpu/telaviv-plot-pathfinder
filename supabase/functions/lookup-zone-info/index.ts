@@ -135,6 +135,25 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── עדיפות 2.5: התאמה לפי גודל מגרש (location_filter.min_plot_area_sqm / max_plot_area_sqm) ──
+    if (!chosen && plotArea && plotArea > 0) {
+      for (const z of zones ?? []) {
+        const f = (z.location_filter ?? {}) as Record<string, unknown>;
+        const minArea = typeof f.min_plot_area_sqm === "number" ? f.min_plot_area_sqm : null;
+        const maxArea = typeof f.max_plot_area_sqm === "number" ? f.max_plot_area_sqm : null;
+        if (minArea == null && maxArea == null) continue;
+        const aboveMin = minArea == null || plotArea >= minArea;
+        const belowMax = maxArea == null || plotArea <= maxArea;
+        if (aboveMin && belowMax) {
+          chosen = z;
+          confidence = "medium";
+          matchReason = `התאמה לפי גודל מגרש: ${plotArea} מ"ר → ${z.zone_label}`;
+          break;
+        }
+      }
+    }
+
+
     // ── עדיפות 3: רמז על אזור הכרזה ──
     if (!chosen && areaHint === "declaration") {
       chosen = (zones ?? []).find((z) => {
