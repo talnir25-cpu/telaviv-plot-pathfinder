@@ -753,6 +753,7 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
       }
 
       // ── ולידציית תכסית: האם השטח המוצע ריאלי גיאומטרית? ──
+      const hasSetbacks = effectiveSetbacks != null;
       if (hasSetbacks && typicalFloorArea > 0) {
         report.zoning.frontSetbackM = body.frontSetbackM;
         report.zoning.sideSetbackM = body.sideSetbackM;
