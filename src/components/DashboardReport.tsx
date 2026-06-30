@@ -964,7 +964,7 @@ export const DashboardReport = ({
                       if (typeof renewalCov === "number" && renewalCov > 0) {
                         propCoverage = renewalCov;
                         propCoverageTagKind = "renewal_track";
-                        propCoverageSourceText = `תקרת תכסית במסלול ${report.zoning.renewalPotential?.track ?? "התחדשות"} מתוך RENEWAL_SETBACKS.`;
+                        propCoverageSourceText = `תקרת תכסית במסלול ${report.zoning.renewalPotential?.trackLabel ?? "התחדשות"} מתוך RENEWAL_SETBACKS.`;
                       } else if (typeof envelopeCov === "number" && envelopeCov > 0) {
                         propCoverage = envelopeCov;
                         propCoverageTagKind = "zoning_envelope";
