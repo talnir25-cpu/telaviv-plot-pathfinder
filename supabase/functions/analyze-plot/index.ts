@@ -773,14 +773,17 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
         });
       }
 
-      // ── ולידציית תכסית: האם השטח המוצע ריאלי גיאומטרית? ──
-      const hasSetbacks = effectiveSetbacks != null;
+      // ── תכסית מוצעת — נשען על DB (zoning_rights) ואם אין, על setbacks ──
+      if (coveragePctVal > 0) {
+        report.zoning.coveragePct = coveragePctVal;
+        report.zoning.coveragePctBasis = coveragePctBasis;
+        report.zoning.coveragePctSource = coveragePctSourceText;
+      }
       if (hasSetbacks && typicalFloorArea > 0) {
         report.zoning.frontSetbackM = effectiveSetbacks!.front;
         report.zoning.sideSetbackM = effectiveSetbacks!.side;
         report.zoning.rearSetbackM = effectiveSetbacks!.rear;
         report.zoning.typicalFloorAreaSqm = typicalFloorArea;
-        report.zoning.coveragePct = coveragePctVal;
         report.zoning.setbackSource = setbacksSource === "none" ? (body.setbackSource ?? "regulation") : (setbacksSource as "regulation" | "manual");
       }
 
