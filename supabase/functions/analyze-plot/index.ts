@@ -880,6 +880,10 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
           rearSetbackM: renewalCfg.rear,
           typicalFloorAreaSqm: renewalFloorArea,
           coveragePct: renewalCoveragePct,
+          coveragePctBasis: renewalCoverageBasis,
+          coveragePctSource: renewalCoverageBasis === "db_zoning_rights"
+            ? `טבלת zoning_rights — ${zoneInfo?.zone_label ?? "אזור תקנוני"} (רובע ${body.quarter}). ${zoneInfo?.source_citation ?? ""}`.trim()
+            : renewalCfg.source,
           upliftSqmPerFloor,
           upliftPct,
           realizationFactor: Number(realization.toFixed(2)),
