@@ -86,8 +86,41 @@ const SourceBadge = ({ source }: { source: string }) => (
   </TooltipProvider>
 );
 
-const CoverageSourceTag = ({ source }: { source: string }) => {
-  const isGis = source?.toLowerCase().includes("gis");
+type CoverageTagKind = "gis" | "internal" | "renewal_track" | "zoning_envelope" | "derived";
+
+const COVERAGE_TAG_META: Record<CoverageTagKind, { label: string; className: string; icon: typeof MapPin }> = {
+  gis: {
+    label: "GIS",
+    className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20",
+    icon: MapPin,
+  },
+  internal: {
+    label: "חישוב פנימי",
+    className: "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20",
+    icon: Calculator,
+  },
+  renewal_track: {
+    label: "מסלול התחדשות",
+    className: "border-sky-500/30 bg-sky-500/10 text-sky-700 hover:bg-sky-500/20",
+    icon: Calculator,
+  },
+  zoning_envelope: {
+    label: "קווי בניין תקנון",
+    className: "border-violet-500/30 bg-violet-500/10 text-violet-700 hover:bg-violet-500/20",
+    icon: Calculator,
+  },
+  derived: {
+    label: "נגזר משטח/קומות",
+    className: "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20",
+    icon: Calculator,
+  },
+};
+
+const CoverageSourceTag = ({ source, kind }: { source: string; kind?: CoverageTagKind }) => {
+  const resolvedKind: CoverageTagKind =
+    kind ?? (source?.toLowerCase().includes("gis") ? "gis" : "internal");
+  const meta = COVERAGE_TAG_META[resolvedKind];
+  const Icon = meta.icon;
   return (
     <TooltipProvider delayDuration={150}>
       <Tooltip>
@@ -96,13 +129,11 @@ const CoverageSourceTag = ({ source }: { source: string }) => {
             variant="outline"
             className={cn(
               "inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium",
-              isGis
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
-                : "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+              meta.className
             )}
           >
-            {isGis ? <MapPin className="h-3 w-3" /> : <Calculator className="h-3 w-3" />}
-            {isGis ? "GIS" : "חישוב פנימי"}
+            <Icon className="h-3 w-3" />
+            {meta.label}
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-xs text-right" dir="rtl">
@@ -112,6 +143,7 @@ const CoverageSourceTag = ({ source }: { source: string }) => {
     </TooltipProvider>
   );
 };
+
 
 const StatTile = ({
   icon: Icon,
