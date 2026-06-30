@@ -938,17 +938,34 @@ export const DashboardReport = ({
                         : gfaMult >= 1.5 ? "מכפיל GFA גבולי — תלוי בעלויות בנייה ובהיתרים."
                         : "מכפיל GFA נמוך — סביר שלא יצדיק הריסה ובנייה.";
 
+                      // תכסית: השוואה למצב קיים אם קיים; אחרת — ניצול מול תקרה חוקית
+                      const legalMaxCov =
+                        report.zoning.renewalPotential?.coveragePct ??
+                        report.zoning.coveragePct ??
+                        null;
                       const covDelta = existCov != null ? propCoverage - existCov : NaN;
+                      const covUtilPct =
+                        existCov == null && legalMaxCov && legalMaxCov > 0 && propCoverage > 0
+                          ? (propCoverage / legalMaxCov) * 100
+                          : NaN;
                       const covTone: InsightTone =
-                        !Number.isFinite(covDelta) ? "neutral"
-                        : covDelta > 15 ? "warning"
-                        : covDelta > 5 ? "neutral"
-                        : "success";
-                      const covText =
-                        !Number.isFinite(covDelta) ? "—"
-                        : covDelta > 15 ? "קפיצת תכסית משמעותית — צפוי להידרש אישור ועדה והקלות."
-                        : covDelta > 5 ? "הגדלת תכסית מתונה — מקור עיקרי לתוספת ערך מוסף."
-                        : "שינוי תכסית מינורי — לרוב בתחום הזכויות הקיימות.";
+                        Number.isFinite(covDelta)
+                          ? (covDelta > 15 ? "warning" : covDelta > 5 ? "neutral" : "success")
+                          : Number.isFinite(covUtilPct)
+                          ? (covUtilPct > 100 ? "danger" : covUtilPct >= 90 ? "success" : covUtilPct >= 70 ? "neutral" : "warning")
+                          : "neutral";
+                      const covText = Number.isFinite(covDelta)
+                        ? (covDelta > 15
+                            ? "קפיצת תכסית משמעותית — צפוי להידרש אישור ועדה והקלות."
+                            : covDelta > 5
+                            ? "הגדלת תכסית מתונה — מקור עיקרי לתוספת ערך מוסף."
+                            : "שינוי תכסית מינורי — לרוב בתחום הזכויות הקיימות.")
+                        : Number.isFinite(covUtilPct)
+                        ? (covUtilPct > 100
+                            ? `התכסית המוצעת (${fmt(propCoverage)}%) חורגת מהתקרה החוקית (${fmt(legalMaxCov!)}%) — נדרשת הקטנת פוטפרינט או הקלה.`
+                            : `ניצול ${fmt(covUtilPct)}% מהתקרה החוקית (${fmt(legalMaxCov!)}%) במסלול ההתחדשות. אין נתון תכסית קיימת זמין להשוואה ישירה.`)
+                        : "לא ניתן לחשב תכסית קיימת (חסר נתון GIS אמין וגם שטח בנוי/קומות).";
+
 
                       const floorAreaDelta = existFootprint != null ? propFloorArea - existFootprint : NaN;
                       const floorAreaPct = existFootprint && existFootprint > 0
