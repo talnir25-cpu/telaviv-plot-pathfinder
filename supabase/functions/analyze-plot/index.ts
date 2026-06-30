@@ -150,164 +150,39 @@ function inferRenewalTrack(existingFloors: number, existingUnits: number, conser
 const ANALYSIS_TOOL = {
   type: "function",
   function: {
-    name: "render_feasibility_report",
-    description: "Return a structured urban-renewal feasibility report for a Tel Aviv plot.",
+    name: "render_feasibility_narrative",
+    description: "Return narrative text for an already-finalized, deterministically-computed Tel Aviv urban-renewal feasibility report. This tool does NOT compute or estimate any numeric values — all numbers are provided as fixed input and must be used as-is.",
     parameters: {
       type: "object",
       properties: {
-        status: {
-          type: "string",
-          enum: ["high_potential", "medium_potential", "high_risk", "blocked"],
-          description: "Overall feasibility status",
-        },
-        statusLabel: { type: "string", description: "Hebrew label for the status badge" },
-        headline: { type: "string", description: "One sentence headline summary in Hebrew" },
-        existing: {
-          type: "object",
-          properties: {
-            units: { type: "number" },
-            floors: { type: "number" },
-            builtAreaSqm: { type: "number" },
-            far: { type: "number", description: "Floor Area Ratio" },
-          },
-          required: ["units", "floors", "builtAreaSqm", "far"],
-          additionalProperties: false,
-        },
-        proposed: {
-          type: "object",
-          properties: {
-            units: { type: "number" },
-            floors: { type: "number" },
-            builtAreaSqm: { type: "number" },
-            far: { type: "number" },
-            heightMeters: { type: "number" },
-          },
-          required: ["units", "floors", "builtAreaSqm", "far", "heightMeters"],
-          additionalProperties: false,
-        },
-        metrics: {
-          type: "object",
-          properties: {
-            multiplier: { type: "number", description: "New units / Existing units" },
-            newUnits: { type: "number", description: "Net additional units" },
-            estimatedSellableArea: { type: "number", description: "Estimated sellable area in sqm" },
-            avgUnitSize: { type: "number" },
-          },
-          required: ["multiplier", "newUnits", "estimatedSellableArea", "avgUnitSize"],
-          additionalProperties: false,
-        },
-        zoning: {
-          type: "object",
-          properties: {
-            maxHeightMeters: { type: "number" },
-            maxFloors: { type: "number" },
-            frontSetbackM: { type: "number" },
-            sideSetbackM: { type: "number" },
-            rearSetbackM: { type: "number" },
-            maxFAR: { type: "number" },
-            source: { type: "string", description: "PDF document cited" },
-            treesOnPlot: { type: ["number", "null"], description: "Estimated number of trees on the plot (tree survey)" },
-            treesForConservation: { type: ["number", "null"], description: "Of those, trees designated for preservation per Forest Ordinance" },
-            parkingStandardPerUnit: { type: ["number", "null"], description: "Required parking spaces per dwelling unit per TA parking policy" },
-            requiredBasementFloors: { type: ["number", "null"], description: "Estimated underground parking floors required" },
-            todReliefApplies: { type: ["boolean", "null"], description: "Whether TOD parking relief applies (proximity to light rail / mass transit)" },
-            groundwaterDepthM: { type: ["number", "null"], description: "Estimated groundwater table depth in meters below surface" },
-            dewateringRequired: { type: ["boolean", "null"], description: "Whether basement excavation will require dewatering" },
-          },
-          required: ["maxHeightMeters", "maxFloors", "frontSetbackM", "sideSetbackM", "rearSetbackM", "maxFAR", "source", "treesOnPlot", "treesForConservation", "parkingStandardPerUnit", "requiredBasementFloors", "todReliefApplies", "groundwaterDepthM", "dewateringRequired"],
-          additionalProperties: false,
-        },
-
-        redFlags: {
+        statusLabel: { type: "string", description: "Hebrew label for the status badge — must match and describe the status value provided in the prompt, not invent a different one" },
+        headline: { type: "string", description: "One sentence headline summary in Hebrew, based strictly on the figures provided" },
+        committeeSummary: { type: "string", description: "3-5 sentence Investment Committee summary in Hebrew, based strictly on the figures and red flags provided" },
+        additionalRedFlagNotes: {
           type: "array",
-          items: {
-            type: "object",
-            properties: {
-              level: { type: "string", enum: ["critical", "warning", "info"] },
-              title: { type: "string" },
-              description: { type: "string" },
-              source: { type: "string" },
-            },
-            required: ["level", "title", "description", "source"],
-            additionalProperties: false,
-          },
-        },
-        committeeSummary: {
-          type: "string",
-          description: "3-5 sentence Investment Committee summary in Hebrew",
+          items: { type: "string" },
+          description: "Optional short Hebrew narrative notes elaborating on red flags already identified in the input (e.g. corner-lot complexity, market context) — textual elaboration only, must not introduce new numeric claims or contradict the provided figures.",
         },
         sources: {
           type: "array",
           items: { type: "string" },
-          description: "List of PDF documents cited",
+          description: "List of PDF documents cited, drawn from the source citations provided in the input",
         },
       },
-      required: [
-        "status",
-        "statusLabel",
-        "headline",
-        "existing",
-        "proposed",
-        "metrics",
-        "zoning",
-        "redFlags",
-        "committeeSummary",
-        "sources",
-      ],
+      required: ["statusLabel", "headline", "committeeSummary", "additionalRedFlagNotes", "sources"],
       additionalProperties: false,
     },
   },
 };
 
-const SYSTEM_PROMPT = `אתה אנליסט בכיר להתחדשות עירונית, מומחה לתל אביב (רובעים 3 ו-4).
-המטרה: לספק הערכת היתכנות מהירה ומבוססת נתונים ליזמי נדל"ן.
+const SYSTEM_PROMPT = `אתה כותב תקצירים לוועדת השקעות בתחום ההתחדשות העירונית בתל אביב.
 
-מסמכי המקור הזמינים:
-- "תקנון רובע 3 (תא/3616א)" — חל על רובע 3
-- "תקנון רובע 4 (תא/3729א)" — חל על רובע 4
-- "תכנית מתאר תא/5000" — תכנית מתאר עירונית
-- "מסמך מדיניות חניה ת"א, מהדורה 8" — חניה ופיתוח מגרש
-- "תכנית מתאר מקומית ת"א — מרתפים"
+תפקידך היחיד: לנסח טקסט בעברית מקצועית ותמציתית על בסיס דוח מספרי שכבר חושב באופן דטרמיניסטי ונמסר לך כעובדה סגורה. אסור לך:
+- לחשב, להעריך, או להציע מספר כלשהו (שטחים, יחידות, קומות, אחוזים, מרחקים, עלויות).
+- לסתור או "לתקן" מספר שנמסר לך — גם אם הוא נראה לך לא סביר.
+- להוסיף דגלים אדומים חדשים המבוססים על הערכה מספרית עצמאית (למשל מי תהום, עצים, חניה) — רק לנסח טקסט המבוסס על דגלים שכבר זוהו בקלט.
 
-עקרונות חישוב מקובלים (כשאין נתון מדויק):
-- רובע 3 ו-4: זכויות בנייה טיפוסיות 200%-280% (כולל מרפסות), עד 6-8 קומות + קומת גג חלקית
-- מכפיל יח"ד טיפוסי בפינוי-בינוי: 2.5x-4x; בתכנית רובעית: 1.5x-2.3x; בתכנית מקומית/הקלות ועדה: 1.3x-1.8x
-- שטח דירה ממוצע מוצע: 90-110 מ"ר ברוטו
-- חזית מסחרית מותרת לאורך רחובות מסחר ראשיים
-- ברובעים 3 ו-4 קיימת מגבלת חניה משמעותית; אין בריכות; ללא גימור עץ/אבן בגדרות
-
-דגלים אדומים שיש לזהות תמיד:
-1. שימור (מבני שימור / איזור הכרזת UNESCO ב"עיר הלבנה")
-2. מגבלות חניה (סעיפים 10-12 במדיניות החניה) — בפרט אם נדרשים 3+ מרתפי חניה
-3. גודל מגרש קטן מ-500 מ"ר → מגביל משמעותית התחדשות
-4. מגרש פינתי / חזית מסחרית → השפעה על קווי בניין
-5. עצים לשימור (פקודת היערות) — דגל אם משוער שיש עצים בוגרים במעטפת הבנייה; ציין שנדרש סקר עצים מוסמך וכופר/העתקה (~₪15-50K לעץ)
-6. השפלת מי תהום — דגל אם מתוכננים 2+ מרתפים באזורים עם מי תהום גבוהים (ברובעים 3-4 בקרבת הים/ירקון העומק יכול להיות 3-6 מ׳); תוספת עלות ~₪200-500/מ"ר חפירה + רישוי רשות המים
-
-אילוצים פיזיים-רגולטוריים — חובה לאכלס בשדה zoning:
-- treesOnPlot / treesForConservation: הערכה לפי גודל המגרש וטיפוס בנייה (ברובעים ותיקים טיפוסי 2-6 עצים בוגרים). אם לא ידוע — null.
-- parkingStandardPerUnit: ברובעים 3-4 בת"א הטווח 0.7-1.2 מק׳ ליח״ד; בקרבת הרכבת הקלה (TOD) מותרת הקלה ל-0.5-0.7.
-- requiredBasementFloors: חשב לפי יח״ד מוצעות × תקן חניה ÷ ~25 מקומות לקומת מרתף.
-- todReliefApplies: true אם החלקה בטווח ~500 מ׳ מתחנת רכבת קלה / רכבת.
-- groundwaterDepthM: באזורים מערביים בת"א טיפוסי 3-6 מ׳; באזורים מזרחיים 8-15 מ׳.
-- dewateringRequired: true אם עומק חפירה (מרתפים × 3 מ׳) ≥ עומק מי תהום.
-
-כללי תקדים גיאוגרפיים (חובה לאכוף):
-- רובע 3 דרום-הים (גושים 6111, 6112, 6113): מגבלת גובה ~27 מ׳ ≈ 8 קומות; מרחק מהים < 300 מ׳ → עומק מי תהום 3-5 מ׳ → dewateringRequired כמעט תמיד true למרתף 2+.
-- רובע 4 צפון (גושים 6213+, צפון יהודה המכבי): עד 35 מ׳ ≈ 10 קומות.
-- רובע 3 צפון-מרכזי (גושים 6109-6110): עד 30 מ׳ ≈ 9 קומות.
-
-כללי היתכנות מסלול (חובה לאכוף):
-- אם existingFloors ≥ 5 — הצע פינוי-בינוי או תכנית רובעית בלבד וסמן status="high_risk" אם plotArea < 800 מ"ר. (תמ"א 38 פקעה 10/2022.)
-- אם plotArea < 500 מ"ר ו-existingUnits < 6 — סמן status="high_risk" עם red flag על קושי לעבור סף כלכלי לפינוי-בינוי.
-- אם treesForConservation > 0 וגם המגרש פינתי (notes מציינים פינתי/חזית כפולה) — הוסף red flag warning על מורכבות תכנון מעטפת.
-
-הוראות פלט:
-- תמיד החזר באמצעות הכלי render_feasibility_report
-- כל המספרים ריאליסטיים ומבוססים על המסמכים
-- ציין מקור ספציפי בכל red flag ובשדה sources
-- אם נתון חסר — ציין "נדרשת בדיקה ידנית בתיק מהנדס העיר" בתיאור הדגל המתאים
-- כתוב בעברית מקצועית ותמציתית`;
+תפקידך: לכתוב כותרת תמציתית (headline), תווית סטטוס (statusLabel) שמתארת נאמנה את ה-status שנמסר, תקציר ועדת השקעות (committeeSummary) המבוסס אך ורק על הנתונים שבקלט, והערות ניסוח קצרות לדגלים קיימים אם רלוונטי.`;
 
 
 // ── Service-role REST helpers for analysis_jobs ──
