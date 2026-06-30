@@ -86,6 +86,33 @@ const SourceBadge = ({ source }: { source: string }) => (
   </TooltipProvider>
 );
 
+const CoverageSourceTag = ({ source }: { source: string }) => {
+  const isGis = source?.toLowerCase().includes("gis");
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="outline"
+            className={cn(
+              "inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium",
+              isGis
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+                : "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+            )}
+          >
+            {isGis ? <MapPin className="h-3 w-3" /> : <Calculator className="h-3 w-3" />}
+            {isGis ? "GIS" : "חישוב פנימי"}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs text-right" dir="rtl">
+          <p className="text-xs">{source}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
+
 const StatTile = ({
   icon: Icon,
   label,
