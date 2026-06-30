@@ -755,12 +755,12 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
       // ── ולידציית תכסית: האם השטח המוצע ריאלי גיאומטרית? ──
       const hasSetbacks = effectiveSetbacks != null;
       if (hasSetbacks && typicalFloorArea > 0) {
-        report.zoning.frontSetbackM = body.frontSetbackM;
-        report.zoning.sideSetbackM = body.sideSetbackM;
-        report.zoning.rearSetbackM = body.rearSetbackM;
+        report.zoning.frontSetbackM = effectiveSetbacks!.front;
+        report.zoning.sideSetbackM = effectiveSetbacks!.side;
+        report.zoning.rearSetbackM = effectiveSetbacks!.rear;
         report.zoning.typicalFloorAreaSqm = typicalFloorArea;
         report.zoning.coveragePct = coveragePctVal;
-        report.zoning.setbackSource = body.setbackSource ?? "regulation";
+        report.zoning.setbackSource = setbacksSource === "none" ? (body.setbackSource ?? "regulation") : (setbacksSource as "regulation" | "manual");
       }
 
       // ── תכסית קיימת — לא תלוי בקווי בניין/מעטפת מוצעת ──
