@@ -64,6 +64,8 @@ export interface FeasibilityReport {
     // תכסית מחושבת דטרמיניסטית מקווי הבניין (אופציונלי — מאוכלס ב-edge)
     typicalFloorAreaSqm?: number;           // שטח קומה טיפוסי מירבי (מ"ר)
     coveragePct?: number;                   // אחוז תכסית תכנונית (מעטפת קווי בניין)
+    coveragePctBasis?: "db_zoning_rights" | "setbacks" | "none"; // מקור הערך
+    coveragePctSource?: string;             // תיאור מילולי של המקור (לטולטיפ)
     floorsNeededForFAR?: number;            // קומות נדרשות לתמיכה ב-proposed.builtAreaSqm
     setbackSource?: "regulation" | "manual" | "manual_override";
     // תכסית קיימת מ-GIS עיריית תל אביב (אופציונלי — ערך עובדתי על המבנה הקיים)
@@ -79,6 +81,8 @@ export interface FeasibilityReport {
       rearSetbackM: number;
       typicalFloorAreaSqm: number;       // שטח קומה אחרי הליך התחדשות
       coveragePct: number;
+      coveragePctBasis?: "db_zoning_rights" | "setbacks" | "none";
+      coveragePctSource?: string;
       upliftSqmPerFloor: number;         // דלתא מול baseline
       upliftPct: number;                 // % מהתכסית הבסיסית
       realizationFactor: number;         // 0.7–1.0
