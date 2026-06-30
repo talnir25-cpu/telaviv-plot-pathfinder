@@ -413,16 +413,16 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
         });
       }
 
-      // ── Tabu-derived active renewal warning (highest priority red flag) ──
+      // ── Tabu-derived active renewal notice (informational; does NOT block analysis) ──
       if (body.tabuAnalysis?.hasActiveRenewal) {
         const party = body.tabuAnalysis.renewalParty?.trim() || "יזם לא מזוהה";
         report.redFlags.unshift({
-          level: "critical",
-          title: "⚠️ בניין בהליך התחדשות פעיל",
-          description: `בניין זה נמצא בהליך התחדשות פעיל עם ${party}. יש לבדוק את סטטוס ההליך לפני ניתוח היתכנות.`,
+          level: "info",
+          title: "בניין בהליך התחדשות פעיל",
+          description: `זוהתה הערת אזהרה בטאבו לטובת ${party} — ייתכן שמתבצע תהליך התחדשות בפועל. הניתוח ממשיך כרגיל; מומלץ לאמת את סטטוס ההליך מול היזם/הוועדה לפני קבלת החלטות.`,
           source: "נסח טאבו",
         });
-        report.status = "high_risk";
+        // לא משנים את report.status — אין חסימה אוטומטית בגין הערת אזהרה.
       }
 
       // ── Tabu-derived cautionary notes (informational) ──
