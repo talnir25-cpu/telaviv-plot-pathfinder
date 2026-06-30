@@ -960,13 +960,31 @@ export const DashboardReport = ({
                       const propFloors = report.proposed.floors || 1;
                       const propFloorArea = report.proposed.builtAreaSqm / propFloors;
                       const derivedCoverage = plotArea > 0 ? (propFloorArea / plotArea) * 100 : 0;
-                      // עדיפויות לתכסית מוצעת — קוראים ישירות מהדוח הדטרמיניסטי במקום back-compute
+                      // עדיפויות לתכסית מוצעת:
+                      // 1) טבלת zoning_rights (DB) — coveragePctBasis === "db_zoning_rights"
+                      // 2) מסלול התחדשות (RENEWAL_SETBACKS) כשאין DB ויש renewalPotential
+                      // 3) מעטפת תקנונית מקווי בניין (setbacks) מתוך zoning.coveragePct
+                      // 4) חישוב נגזר: שטח בנוי מוצע ÷ קומות ÷ שטח מגרש
                       const renewalCov = report.zoning.renewalPotential?.coveragePct;
+                      const renewalCovBasis = report.zoning.renewalPotential?.coveragePctBasis;
                       const envelopeCov = report.zoning.coveragePct;
+                      const envelopeCovBasis = report.zoning.coveragePctBasis;
+                      const dbCov =
+                        envelopeCovBasis === "db_zoning_rights" ? envelopeCov
+                        : renewalCovBasis === "db_zoning_rights" ? renewalCov
+                        : null;
+                      const dbCovSource =
+                        envelopeCovBasis === "db_zoning_rights" ? report.zoning.coveragePctSource
+                        : renewalCovBasis === "db_zoning_rights" ? report.zoning.renewalPotential?.coveragePctSource
+                        : "";
                       let propCoverage = 0;
                       let propCoverageTagKind: CoverageTagKind = "derived";
                       let propCoverageSourceText = "";
-                      if (typeof renewalCov === "number" && renewalCov > 0) {
+                      if (typeof dbCov === "number" && dbCov > 0) {
+                        propCoverage = dbCov;
+                        propCoverageTagKind = "db_zoning_rights";
+                        propCoverageSourceText = dbCovSource || "תכסית מרבית מטבלת zoning_rights בדאטא־בייס לפי רובע/אזור.";
+                      } else if (typeof renewalCov === "number" && renewalCov > 0) {
                         propCoverage = renewalCov;
                         propCoverageTagKind = "renewal_track";
                         propCoverageSourceText = `תקרת תכסית במסלול ${report.zoning.renewalPotential?.trackLabel ?? "התחדשות"} מתוך RENEWAL_SETBACKS.`;
