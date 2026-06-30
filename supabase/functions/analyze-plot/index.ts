@@ -330,9 +330,23 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
     const typicalFloorArea = effectiveSetbacks && plotAreaForCalc > 0
       ? estimateTypicalFloorArea(plotAreaForCalc, effectiveSetbacks, body.plotWidthM, body.plotDepthM)
       : 0;
-    const coveragePctVal = typicalFloorArea && plotAreaForCalc
+    // ── תכסית מוצעת — מקור עיקרי: טבלת zoning_rights בדאטא־בייס לפי רובע/אזור ──
+    // עדיפויות: max_coverage_pct (DB) → coverage_pct (DB) → חישוב מקווי בניין (setbacks)
+    const dbMaxCoveragePct = zoneInfo?.rights?.max_coverage_pct ?? zoneInfo?.rights?.coverage_pct ?? null;
+    const coveragePctFromSetbacks = typicalFloorArea && plotAreaForCalc
       ? Math.round((typicalFloorArea / plotAreaForCalc) * 100)
       : 0;
+    const coveragePctVal = (dbMaxCoveragePct != null && dbMaxCoveragePct > 0)
+      ? dbMaxCoveragePct
+      : coveragePctFromSetbacks;
+    const coveragePctBasis: "db_zoning_rights" | "setbacks" | "none" =
+      (dbMaxCoveragePct != null && dbMaxCoveragePct > 0) ? "db_zoning_rights"
+      : (coveragePctFromSetbacks > 0 ? "setbacks" : "none");
+    const coveragePctSourceText = coveragePctBasis === "db_zoning_rights"
+      ? `טבלת zoning_rights — ${zoneInfo?.zone_label ?? "אזור תקנוני"} (רובע ${body.quarter}). ${zoneInfo?.source_citation ?? ""}`.trim()
+      : coveragePctBasis === "setbacks"
+        ? "תקרת תכסית הנגזרת מקווי הבניין של התקנון (front/side/rear setbacks)."
+        : "";
 
     // ── חישוב פוטנציאל הגדלת תכסית בהליך התחדשות (דטרמיניסטי) ──
     const inferredRenewalTrack = inferRenewalTrack(body.existingFloors ?? 0, body.existingUnits ?? 0, body.conservation, body.buildingYear);
@@ -342,9 +356,16 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
     const renewalFloorArea = renewalCfg
       ? estimateTypicalFloorArea(plotAreaForCalc, renewalCfg, body.plotWidthM, body.plotDepthM)
       : 0;
-    const renewalCoveragePct = renewalFloorArea && plotAreaForCalc
+    // תכסית במסלול התחדשות — אם יש ערך DB, הוא התקרה הרגולטורית; אחרת חישוב מקווי בניין של המסלול
+    const renewalCoveragePctFromSetbacks = renewalFloorArea && plotAreaForCalc
       ? Math.round((renewalFloorArea / plotAreaForCalc) * 100)
       : 0;
+    const renewalCoveragePct = (dbMaxCoveragePct != null && dbMaxCoveragePct > 0)
+      ? dbMaxCoveragePct
+      : renewalCoveragePctFromSetbacks;
+    const renewalCoverageBasis: "db_zoning_rights" | "setbacks" | "none" =
+      (dbMaxCoveragePct != null && dbMaxCoveragePct > 0) ? "db_zoning_rights"
+      : (renewalCoveragePctFromSetbacks > 0 ? "setbacks" : "none");
     const baselineFloorAreaForUplift = typicalFloorArea > 0
       ? typicalFloorArea
       : (plotAreaForCalc > 0 ? estimateTypicalFloorArea(plotAreaForCalc, { front: 5, side: 3, rear: 5 }, body.plotWidthM, body.plotDepthM) : 0);
@@ -752,14 +773,18 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
         });
       }
 
-      // ── ולידציית תכסית: האם השטח המוצע ריאלי גיאומטרית? ──
+      // ── תכסית מוצעת — נשען על DB (zoning_rights) ואם אין, על setbacks ──
       const hasSetbacks = effectiveSetbacks != null;
+      if (coveragePctVal > 0) {
+        report.zoning.coveragePct = coveragePctVal;
+        report.zoning.coveragePctBasis = coveragePctBasis;
+        report.zoning.coveragePctSource = coveragePctSourceText;
+      }
       if (hasSetbacks && typicalFloorArea > 0) {
         report.zoning.frontSetbackM = effectiveSetbacks!.front;
         report.zoning.sideSetbackM = effectiveSetbacks!.side;
         report.zoning.rearSetbackM = effectiveSetbacks!.rear;
         report.zoning.typicalFloorAreaSqm = typicalFloorArea;
-        report.zoning.coveragePct = coveragePctVal;
         report.zoning.setbackSource = setbacksSource === "none" ? (body.setbackSource ?? "regulation") : (setbacksSource as "regulation" | "manual");
       }
 
@@ -855,6 +880,10 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
           rearSetbackM: renewalCfg.rear,
           typicalFloorAreaSqm: renewalFloorArea,
           coveragePct: renewalCoveragePct,
+          coveragePctBasis: renewalCoverageBasis,
+          coveragePctSource: renewalCoverageBasis === "db_zoning_rights"
+            ? `טבלת zoning_rights — ${zoneInfo?.zone_label ?? "אזור תקנוני"} (רובע ${body.quarter}). ${zoneInfo?.source_citation ?? ""}`.trim()
+            : renewalCfg.source,
           upliftSqmPerFloor,
           upliftPct,
           realizationFactor: Number(realization.toFixed(2)),
