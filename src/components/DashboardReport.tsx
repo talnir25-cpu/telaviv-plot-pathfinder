@@ -482,9 +482,8 @@ const CalculationSourceCard = ({ report }: { report: FeasibilityReport }) => {
 };
 
 const HousingRangeRows = ({ report, plotArea: _plotArea }: { report: FeasibilityReport; plotArea: number }) => {
-  const [sellableRatio, setSellableRatio] = useState(0.78);
   const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
-  const sellable = Math.round(proposedBuilt * sellableRatio);
+  const sellable = report.metrics?.estimatedSellableArea ?? 0;
   const unitRange = report.proposed?.unitRange;
   const range = unitRange && Number.isFinite(unitRange.min) && Number.isFinite(unitRange.max)
     ? unitRange
@@ -506,13 +505,14 @@ const HousingRangeRows = ({ report, plotArea: _plotArea }: { report: Feasibility
     : unitsMult >= 1.5 ? 'מכפיל יח"ד נמוך — לרוב לא יצדיק את עלות ההתחדשות.'
     : 'מכפיל יח"ד לא כלכלי — נדרשת בחינה מחדש של תמהיל/זכויות.';
 
-  const sellPct = proposedBuilt > 0 ? (sellable / proposedBuilt) * 100 : NaN;
+  const sellPct = proposedBuilt > 0 && sellable > 0 ? (sellable / proposedBuilt) * 100 : NaN;
   const sellTone: InsightTone =
     !Number.isFinite(sellPct) ? "neutral"
     : sellPct >= 80 ? "success"
     : sellPct >= 70 ? "neutral"
     : "warning";
-  const sellText = 'שטח המכירה הוא מקור ההכנסה בפועל. ניתן לכוונן את מקדם המכירה לפי תכנון הפרויקט.';
+  const sellText = 'שטח המכירה הוא מקור ההכנסה בפועל. מקדם המכירה נקבע בשלב הקלט של הבדיקה המקדימה.';
+
 
   return (
     <>
