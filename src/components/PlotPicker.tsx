@@ -193,6 +193,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [conservation, setConservation] = useState(false);
   const [notes, setNotes] = useState("");
+  const [sellableRatioPct, setSellableRatioPct] = useState(78);
   const [mode, setMode] = useState<"address" | "manual">("address");
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
