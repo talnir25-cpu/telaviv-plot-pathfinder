@@ -33,6 +33,7 @@ interface PlotInput {
     description?: string | null;
   };
   notes?: string;
+  sellableRatioPct?: number;
   frontSetbackM?: number;
   sideSetbackM?: number;
   rearSetbackM?: number;
