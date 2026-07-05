@@ -748,6 +748,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             }
           : undefined,
       notes: notes.trim() || undefined,
+      sellableRatioPct,
       frontSetbackM: Number.isFinite(fs) && fs >= 0 ? fs : undefined,
       sideSetbackM: Number.isFinite(ss) && ss >= 0 ? ss : undefined,
       rearSetbackM: Number.isFinite(rs) && rs >= 0 ? rs : undefined,
