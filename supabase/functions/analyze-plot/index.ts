@@ -465,7 +465,7 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
       // ── חישוב דטרמיניסטי של היקף הבנייה המוצעת (מקור יחיד: zoneInfo) ──
       try {
         const plotAreaDet = body.area ?? body.shapeArea ?? 0;
-        const SELLABLE_RATIO = 0.78;
+        const SELLABLE_RATIO = ((body.sellableRatioPct ?? 78) / 100);
         const FLOOR_HEIGHT_M = 3.2;
 
         const TRACK_TO_BONUS_KEY: Record<RenewalTrack, "tama38" | "demolition_rebuild" | "rova_plan"> = {
