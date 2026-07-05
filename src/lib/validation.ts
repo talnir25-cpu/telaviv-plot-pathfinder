@@ -54,6 +54,7 @@ export const analysisInputSchema = z
       })
       .optional(),
     notes: z.string().max(2000, "הערות: עד 2000 תווים").optional(),
+    sellableRatioPct: z.number().min(60, "מקדם מכירה: לפחות 60%").max(92, "מקדם מכירה: עד 92%").optional(),
     frontSetbackM: z.number().min(0, "קו בניין קדמי: לא שלילי").max(15, "קו בניין קדמי: עד 15 מ׳").optional(),
     sideSetbackM: z.number().min(0, "קו בניין צדדי: לא שלילי").max(15, "קו בניין צדדי: עד 15 מ׳").optional(),
     rearSetbackM: z.number().min(0, "קו בניין אחורי: לא שלילי").max(15, "קו בניין אחורי: עד 15 מ׳").optional(),

@@ -193,6 +193,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [conservation, setConservation] = useState(false);
   const [notes, setNotes] = useState("");
+  const [sellableRatioPct, setSellableRatioPct] = useState(78);
   const [mode, setMode] = useState<"address" | "manual">("address");
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
@@ -747,6 +748,7 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
             }
           : undefined,
       notes: notes.trim() || undefined,
+      sellableRatioPct,
       frontSetbackM: Number.isFinite(fs) && fs >= 0 ? fs : undefined,
       sideSetbackM: Number.isFinite(ss) && ss >= 0 ? ss : undefined,
       rearSetbackM: Number.isFinite(rs) && rs >= 0 ? rs : undefined,
@@ -1855,6 +1857,27 @@ export const PlotPicker = ({ onAnalyze, loading }: Props) => {
 
 
 
+
+        <div className="md:col-span-2">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm">
+            <div className="text-right">
+              <span className="font-medium text-foreground">מקדם שטח מכירה</span>
+              <span className="block text-[11px] text-muted-foreground">שטח ברוטו × מקדם = שטח מכירה (ברירת מחדל: 78%)</span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <input
+                type="number"
+                value={sellableRatioPct}
+                min={60}
+                max={92}
+                step={1}
+                onChange={e => setSellableRatioPct(Math.min(92, Math.max(60, Number(e.target.value))))}
+                className="w-14 rounded border border-border bg-background px-2 py-1 text-center text-sm tabular-nums"
+              />
+              <span className="text-muted-foreground">%</span>
+            </div>
+          </div>
+        </div>
 
         <div className="md:col-span-2">
           <Collapsible>

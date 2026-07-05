@@ -482,9 +482,8 @@ const CalculationSourceCard = ({ report }: { report: FeasibilityReport }) => {
 };
 
 const HousingRangeRows = ({ report, plotArea: _plotArea }: { report: FeasibilityReport; plotArea: number }) => {
-  const [sellableRatio, setSellableRatio] = useState(0.78);
   const proposedBuilt = report.proposed?.builtAreaSqm ?? 0;
-  const sellable = Math.round(proposedBuilt * sellableRatio);
+  const sellable = report.metrics?.estimatedSellableArea ?? 0;
   const unitRange = report.proposed?.unitRange;
   const range = unitRange && Number.isFinite(unitRange.min) && Number.isFinite(unitRange.max)
     ? unitRange
@@ -506,13 +505,14 @@ const HousingRangeRows = ({ report, plotArea: _plotArea }: { report: Feasibility
     : unitsMult >= 1.5 ? 'מכפיל יח"ד נמוך — לרוב לא יצדיק את עלות ההתחדשות.'
     : 'מכפיל יח"ד לא כלכלי — נדרשת בחינה מחדש של תמהיל/זכויות.';
 
-  const sellPct = proposedBuilt > 0 ? (sellable / proposedBuilt) * 100 : NaN;
+  const sellPct = proposedBuilt > 0 && sellable > 0 ? (sellable / proposedBuilt) * 100 : NaN;
   const sellTone: InsightTone =
     !Number.isFinite(sellPct) ? "neutral"
     : sellPct >= 80 ? "success"
     : sellPct >= 70 ? "neutral"
     : "warning";
-  const sellText = 'שטח המכירה הוא מקור ההכנסה בפועל. ניתן לכוונן את מקדם המכירה לפי תכנון הפרויקט.';
+  const sellText = 'שטח המכירה הוא מקור ההכנסה בפועל. מקדם המכירה נקבע בשלב הקלט של הבדיקה המקדימה.';
+
 
   return (
     <>
@@ -553,23 +553,9 @@ const HousingRangeRows = ({ report, plotArea: _plotArea }: { report: Feasibility
         </td>
         <td className="w-24 border-b border-border/60 py-3 text-center text-sm text-muted-foreground">—</td>
         <td className="w-28 border-b border-border/60 py-3 text-center align-middle">
-          <div className="flex flex-col items-center">
-            <div className="text-sm font-bold tabular-nums text-primary">
-              {sellable > 0 ? sellable.toLocaleString('he-IL') : '—'}
-              <span className="me-1 text-[10px] font-normal text-muted-foreground">מ"ר</span>
-            </div>
-            <div className="mt-1 flex items-center justify-center gap-1 text-[10px] font-normal text-muted-foreground">
-              <span>מקדם:</span>
-              <input
-                type="number"
-                value={Math.round(sellableRatio * 100)}
-                min={60}
-                max={90}
-                onChange={e => setSellableRatio(Number(e.target.value) / 100)}
-                className="w-10 border border-border rounded px-1 py-0.5 text-center text-[10px]"
-              />
-              <span>%</span>
-            </div>
+          <div className="text-sm font-bold tabular-nums text-primary">
+            {sellable > 0 ? sellable.toLocaleString('he-IL') : '—'}
+            <span className="me-1 text-[10px] font-normal text-muted-foreground">מ"ר</span>
           </div>
         </td>
         <td className={cn("w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums", INSIGHT_TONE_CLASS[sellTone])}>
@@ -1237,7 +1223,7 @@ export const DashboardReport = ({
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <StatTile icon={TrendingUp} label="מכפיל יח״ד" value={`${fmt(report.metrics.multiplier, 2)}x`} accent source="יח״ד מוצעות ÷ יח״ד קיימות" />
             <StatTile icon={Building2} label="יח״ד נטו" value={fmt(report.metrics.newUnits)} source="יח״ד מוצעות − יח״ד קיימות" />
-            <StatTile icon={Layers} label="שטח מכירה" value={fmt(report.metrics.estimatedSellableArea)} unit='מ"ר' source="שטח עיקרי מוצע × מקדם מכירה (~0.85)" />
+            <StatTile icon={Layers} label="שטח מכירה" value={fmt(report.metrics.estimatedSellableArea)} unit='מ"ר' source="שטח עיקרי מוצע × מקדם מכירה" />
             <StatTile icon={Ruler} label="דירה ממוצעת" value={fmt(report.metrics.avgUnitSize)} unit='מ"ר' source="מקדם צפיפות לפי תקנון הרובע" />
           </div>
         </TabsContent>

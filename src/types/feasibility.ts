@@ -148,6 +148,8 @@ export interface AnalysisInput {
     description?: string | null;
   };
   notes?: string;
+  /** מקדם שטח מכירה (ברירת מחדל: 78). ניתן לשינוי ידני. */
+  sellableRatioPct?: number;
   // קווי בניין שהוזנו / נטענו מהתקנון בטופס המקדים
   frontSetbackM?: number;
   sideSetbackM?: number;
