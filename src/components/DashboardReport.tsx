@@ -553,23 +553,9 @@ const HousingRangeRows = ({ report, plotArea: _plotArea }: { report: Feasibility
         </td>
         <td className="w-24 border-b border-border/60 py-3 text-center text-sm text-muted-foreground">—</td>
         <td className="w-28 border-b border-border/60 py-3 text-center align-middle">
-          <div className="flex flex-col items-center">
-            <div className="text-sm font-bold tabular-nums text-primary">
-              {sellable > 0 ? sellable.toLocaleString('he-IL') : '—'}
-              <span className="me-1 text-[10px] font-normal text-muted-foreground">מ"ר</span>
-            </div>
-            <div className="mt-1 flex items-center justify-center gap-1 text-[10px] font-normal text-muted-foreground">
-              <span>מקדם:</span>
-              <input
-                type="number"
-                value={Math.round(sellableRatio * 100)}
-                min={60}
-                max={90}
-                onChange={e => setSellableRatio(Number(e.target.value) / 100)}
-                className="w-10 border border-border rounded px-1 py-0.5 text-center text-[10px]"
-              />
-              <span>%</span>
-            </div>
+          <div className="text-sm font-bold tabular-nums text-primary">
+            {sellable > 0 ? sellable.toLocaleString('he-IL') : '—'}
+            <span className="me-1 text-[10px] font-normal text-muted-foreground">מ"ר</span>
           </div>
         </td>
         <td className={cn("w-28 border-b border-border/60 py-3 text-center text-sm font-bold tabular-nums", INSIGHT_TONE_CLASS[sellTone])}>
