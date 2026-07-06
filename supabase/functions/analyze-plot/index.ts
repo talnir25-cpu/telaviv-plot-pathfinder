@@ -667,9 +667,10 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
       const hasSetbacks = effectiveSetbacks != null;
       if (coveragePctVal > 0) {
         report.zoning.coveragePct = coveragePctVal;
-        report.zoning.coveragePctBasis = coveragePctBasis;
-        report.zoning.coveragePctSource = coveragePctSourceText;
       }
+      // basis/source תמיד מאוכלסים — גם כשאין ערך מספרי — לצורך שקיפות מקור
+      report.zoning.coveragePctBasis = coveragePctBasis;
+      report.zoning.coveragePctSource = coveragePctSourceText;
       if (hasSetbacks && typicalFloorArea > 0) {
         report.zoning.frontSetbackM = effectiveSetbacks!.front;
         report.zoning.sideSetbackM = effectiveSetbacks!.side;
