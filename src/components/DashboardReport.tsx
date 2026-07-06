@@ -987,6 +987,14 @@ export const DashboardReport = ({
                         propCoverage = derivedCoverage;
                         propCoverageTagKind = "derived";
                         propCoverageSourceText = "חישוב נגזר: שטח בנוי מוצע ÷ קומות ÷ שטח מגרש.";
+                      } else if (envelopeCovBasis === "none" || renewalCovBasis === "none") {
+                        // אין ערך תכסית זמין — אבל השרת סימן basis="none" עם הסבר טקסטואלי
+                        propCoverage = 0;
+                        propCoverageTagKind = "none";
+                        propCoverageSourceText =
+                          report.zoning.coveragePctSource
+                          || report.zoning.renewalPotential?.coveragePctSource
+                          || "אין ערך תכסית זמין (לא בטבלת zoning_rights ולא ניתן לגזור מקווי בניין).";
                       }
                       const existCov = report.zoning.coverageExistingPct;
                       const existFootprint = report.zoning.buildingFootprintSqm;
