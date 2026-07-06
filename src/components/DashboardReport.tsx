@@ -86,7 +86,7 @@ const SourceBadge = ({ source }: { source: string }) => (
   </TooltipProvider>
 );
 
-type CoverageTagKind = "gis" | "internal" | "renewal_track" | "zoning_envelope" | "derived" | "db_zoning_rights";
+type CoverageTagKind = "gis" | "internal" | "renewal_track" | "zoning_envelope" | "derived" | "db_zoning_rights" | "none";
 
 const COVERAGE_TAG_META: Record<CoverageTagKind, { label: string; className: string; icon: typeof MapPin }> = {
   gis: {
@@ -117,6 +117,11 @@ const COVERAGE_TAG_META: Record<CoverageTagKind, { label: string; className: str
   derived: {
     label: "נגזר משטח/קומות",
     className: "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20",
+    icon: Calculator,
+  },
+  none: {
+    label: "אין נתון תכסית",
+    className: "border-muted-foreground/30 bg-muted text-muted-foreground hover:bg-muted/80",
     icon: Calculator,
   },
 };
@@ -982,6 +987,14 @@ export const DashboardReport = ({
                         propCoverage = derivedCoverage;
                         propCoverageTagKind = "derived";
                         propCoverageSourceText = "חישוב נגזר: שטח בנוי מוצע ÷ קומות ÷ שטח מגרש.";
+                      } else if (envelopeCovBasis === "none" || renewalCovBasis === "none") {
+                        // אין ערך תכסית זמין — אבל השרת סימן basis="none" עם הסבר טקסטואלי
+                        propCoverage = 0;
+                        propCoverageTagKind = "none";
+                        propCoverageSourceText =
+                          report.zoning.coveragePctSource
+                          || report.zoning.renewalPotential?.coveragePctSource
+                          || "אין ערך תכסית זמין (לא בטבלת zoning_rights ולא ניתן לגזור מקווי בניין).";
                       }
                       const existCov = report.zoning.coverageExistingPct;
                       const existFootprint = report.zoning.buildingFootprintSqm;
@@ -1085,19 +1098,43 @@ export const DashboardReport = ({
                             sublabel="% משטח המגרש"
                             existing={
                               existCov != null
-                                ? <span className="inline-flex items-center gap-1.5">
-                                    <span>{`${fmt(existCov)}%`}</span>
+                                ? <span className="inline-flex flex-col items-start gap-1">
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <span>{`${fmt(existCov)}%`}</span>
+                                      {report.zoning.coverageSource && (
+                                        <CoverageSourceTag source={report.zoning.coverageSource} />
+                                      )}
+                                    </span>
                                     {report.zoning.coverageSource && (
-                                      <CoverageSourceTag source={report.zoning.coverageSource} />
+                                      <span className="text-[10px] text-muted-foreground leading-tight max-w-[220px]">
+                                        {report.zoning.coverageSource}
+                                      </span>
                                     )}
                                   </span>
                                 : "—"
                             }
                             proposed={
-                              propCoverage > 0
-                                ? <span className="inline-flex items-center gap-1.5">
-                                    <span>{`${fmt(propCoverage)}%`}</span>
-                                    <CoverageSourceTag source={propCoverageSourceText} kind={propCoverageTagKind} />
+                              propCoverageTagKind === "none"
+                                ? <span className="inline-flex flex-col items-start gap-1">
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <span className="text-muted-foreground">—</span>
+                                      <CoverageSourceTag source={propCoverageSourceText} kind="none" />
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground leading-tight max-w-[220px]">
+                                      {propCoverageSourceText}
+                                    </span>
+                                  </span>
+                                : propCoverage > 0
+                                ? <span className="inline-flex flex-col items-start gap-1">
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <span>{`${fmt(propCoverage)}%`}</span>
+                                      <CoverageSourceTag source={propCoverageSourceText} kind={propCoverageTagKind} />
+                                    </span>
+                                    {propCoverageSourceText && (
+                                      <span className="text-[10px] text-muted-foreground leading-tight max-w-[220px]">
+                                        {propCoverageSourceText}
+                                      </span>
+                                    )}
                                   </span>
                                 : "—"
                             }
