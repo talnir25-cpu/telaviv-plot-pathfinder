@@ -468,11 +468,6 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
         const SELLABLE_RATIO = ((body.sellableRatioPct ?? 78) / 100);
         const FLOOR_HEIGHT_M = 3.2;
 
-        const TRACK_TO_BONUS_KEY: Record<RenewalTrack, "tama38" | "demolition_rebuild" | "rova_plan"> = {
-          local_renewal: "tama38",
-          demolition_rebuild: "demolition_rebuild",
-          rova_plan: "rova_plan",
-        };
 
         let calcSource: any = null;
 
