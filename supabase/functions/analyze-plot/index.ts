@@ -468,8 +468,8 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
         const SELLABLE_RATIO = ((body.sellableRatioPct ?? 78) / 100);
         const FLOOR_HEIGHT_M = 3.2;
 
-
         let calcSource: any = null;
+
 
         if (zoneInfo && plotAreaDet > 0) {
           const r = zoneInfo.rights;
@@ -493,8 +493,8 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
             r.rights_basis === "floors_density" &&
             renewalTrack !== "local_renewal";
 
-
           if (useFloorsDensity) {
+
             const maxFloorsDet = (r.max_floors_above ?? 0) + (r.max_floors_roof ?? 0);
             // במודל floors_density שטח הקומה תמיד מהתקנון (typicalFloorArea עם effectiveSetbacks).
             // RENEWAL_SETBACKS הגנרי לא רלוונטי כאן.
