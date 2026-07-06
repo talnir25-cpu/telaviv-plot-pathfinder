@@ -470,8 +470,8 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
 
         let calcSource: any = null;
 
-
         if (zoneInfo && plotAreaDet > 0) {
+
           const r = zoneInfo.rights;
 
           const blockedByManualClassification =
