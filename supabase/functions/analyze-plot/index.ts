@@ -901,6 +901,18 @@ ${(report.redFlags ?? []).map((f: any) => `  [${f.level}] ${f.title}: ${f.descri
       }
     }
 
+    // ── Invariant: report.zoning.coveragePctBasis + coveragePctSource חייבים להיות מאוכלסים ──
+    // גם כשאין max_far / max_coverage_pct בטבלת zoning_rights, נאכלס לפחות basis="none"
+    // עם הסבר טקסטואלי, כדי שהקליינט תמיד יוכל להציג תגית מקור.
+    if (!report.zoning.coveragePctBasis) {
+      report.zoning.coveragePctBasis = "none";
+      report.zoning.coveragePctSource = report.zoning.coveragePctSource
+        || "אין ערך תכסית מוגדר — לא נמצא max_coverage_pct בטבלת zoning_rights ולא ניתן לגזור מקווי בניין.";
+      console.warn("[analyze-plot] coveragePctBasis was missing — defaulted to 'none'", {
+        gush: body.gush, helka: body.helka, quarter: body.quarter,
+      });
+    }
+
   return report;
 }
 
