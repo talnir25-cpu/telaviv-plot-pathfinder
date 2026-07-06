@@ -493,11 +493,6 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
             r.rights_basis === "floors_density" &&
             renewalTrack !== "local_renewal";
 
-          const useLegacyFar =
-            !blockedByManualClassification &&
-            !useFloorsDensity &&
-            (r.density_coefficient_sqm_per_unit ?? 0) > 0 &&
-            (r.max_far ?? 0) > 0;
 
           if (useFloorsDensity) {
             const maxFloorsDet = (r.max_floors_above ?? 0) + (r.max_floors_roof ?? 0);
