@@ -1098,19 +1098,43 @@ export const DashboardReport = ({
                             sublabel="% משטח המגרש"
                             existing={
                               existCov != null
-                                ? <span className="inline-flex items-center gap-1.5">
-                                    <span>{`${fmt(existCov)}%`}</span>
+                                ? <span className="inline-flex flex-col items-start gap-1">
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <span>{`${fmt(existCov)}%`}</span>
+                                      {report.zoning.coverageSource && (
+                                        <CoverageSourceTag source={report.zoning.coverageSource} />
+                                      )}
+                                    </span>
                                     {report.zoning.coverageSource && (
-                                      <CoverageSourceTag source={report.zoning.coverageSource} />
+                                      <span className="text-[10px] text-muted-foreground leading-tight max-w-[220px]">
+                                        {report.zoning.coverageSource}
+                                      </span>
                                     )}
                                   </span>
                                 : "—"
                             }
                             proposed={
-                              propCoverage > 0
-                                ? <span className="inline-flex items-center gap-1.5">
-                                    <span>{`${fmt(propCoverage)}%`}</span>
-                                    <CoverageSourceTag source={propCoverageSourceText} kind={propCoverageTagKind} />
+                              propCoverageTagKind === "none"
+                                ? <span className="inline-flex flex-col items-start gap-1">
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <span className="text-muted-foreground">—</span>
+                                      <CoverageSourceTag source={propCoverageSourceText} kind="none" />
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground leading-tight max-w-[220px]">
+                                      {propCoverageSourceText}
+                                    </span>
+                                  </span>
+                                : propCoverage > 0
+                                ? <span className="inline-flex flex-col items-start gap-1">
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <span>{`${fmt(propCoverage)}%`}</span>
+                                      <CoverageSourceTag source={propCoverageSourceText} kind={propCoverageTagKind} />
+                                    </span>
+                                    {propCoverageSourceText && (
+                                      <span className="text-[10px] text-muted-foreground leading-tight max-w-[220px]">
+                                        {propCoverageSourceText}
+                                      </span>
+                                    )}
                                   </span>
                                 : "—"
                             }
