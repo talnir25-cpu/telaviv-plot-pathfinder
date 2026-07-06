@@ -347,7 +347,7 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
       ? `טבלת zoning_rights — ${zoneInfo?.zone_label ?? "אזור תקנוני"} (רובע ${body.quarter}). ${zoneInfo?.source_citation ?? ""}`.trim()
       : coveragePctBasis === "setbacks"
         ? "תקרת תכסית הנגזרת מקווי הבניין של התקנון (front/side/rear setbacks)."
-        : "";
+        : "אין ערך תכסית מוגדר — לא נמצא max_coverage_pct בטבלת zoning_rights ולא ניתן לגזור מקווי בניין.";
 
     // ── חישוב פוטנציאל הגדלת תכסית בהליך התחדשות (דטרמיניסטי) ──
     const inferredRenewalTrack = inferRenewalTrack(body.existingFloors ?? 0, body.existingUnits ?? 0, body.conservation, body.buildingYear);
@@ -667,9 +667,10 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
       const hasSetbacks = effectiveSetbacks != null;
       if (coveragePctVal > 0) {
         report.zoning.coveragePct = coveragePctVal;
-        report.zoning.coveragePctBasis = coveragePctBasis;
-        report.zoning.coveragePctSource = coveragePctSourceText;
       }
+      // basis/source תמיד מאוכלסים — גם כשאין ערך מספרי — לצורך שקיפות מקור
+      report.zoning.coveragePctBasis = coveragePctBasis;
+      report.zoning.coveragePctSource = coveragePctSourceText;
       if (hasSetbacks && typicalFloorArea > 0) {
         report.zoning.frontSetbackM = effectiveSetbacks!.front;
         report.zoning.sideSetbackM = effectiveSetbacks!.side;
@@ -898,6 +899,18 @@ ${(report.redFlags ?? []).map((f: any) => `  [${f.level}] ${f.title}: ${f.descri
       for (const s of parsedArgs.sources) {
         if (typeof s === "string" && !report.sources.includes(s)) report.sources.push(s);
       }
+    }
+
+    // ── Invariant: report.zoning.coveragePctBasis + coveragePctSource חייבים להיות מאוכלסים ──
+    // גם כשאין max_far / max_coverage_pct בטבלת zoning_rights, נאכלס לפחות basis="none"
+    // עם הסבר טקסטואלי, כדי שהקליינט תמיד יוכל להציג תגית מקור.
+    if (!report.zoning.coveragePctBasis) {
+      report.zoning.coveragePctBasis = "none";
+      report.zoning.coveragePctSource = report.zoning.coveragePctSource
+        || "אין ערך תכסית מוגדר — לא נמצא max_coverage_pct בטבלת zoning_rights ולא ניתן לגזור מקווי בניין.";
+      console.warn("[analyze-plot] coveragePctBasis was missing — defaulted to 'none'", {
+        gush: body.gush, helka: body.helka, quarter: body.quarter,
+      });
     }
 
   return report;
