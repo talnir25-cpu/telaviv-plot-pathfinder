@@ -347,7 +347,7 @@ async function runAnalysis(body: PlotInput): Promise<unknown> {
       ? `טבלת zoning_rights — ${zoneInfo?.zone_label ?? "אזור תקנוני"} (רובע ${body.quarter}). ${zoneInfo?.source_citation ?? ""}`.trim()
       : coveragePctBasis === "setbacks"
         ? "תקרת תכסית הנגזרת מקווי הבניין של התקנון (front/side/rear setbacks)."
-        : "";
+        : "אין ערך תכסית מוגדר — לא נמצא max_coverage_pct בטבלת zoning_rights ולא ניתן לגזור מקווי בניין.";
 
     // ── חישוב פוטנציאל הגדלת תכסית בהליך התחדשות (דטרמיניסטי) ──
     const inferredRenewalTrack = inferRenewalTrack(body.existingFloors ?? 0, body.existingUnits ?? 0, body.conservation, body.buildingYear);
